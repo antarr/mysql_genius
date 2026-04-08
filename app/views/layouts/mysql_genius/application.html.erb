@@ -4,24 +4,105 @@
   <title>MysqlGenius</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<%= form_authenticity_token %>">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-ui@1.13.2/dist/themes/base/jquery-ui.min.css">
   <style>
-    body { background-color: #f5f5f5; }
-    .mysql-genius-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-    code { font-size: 13px; }
-    .table { font-size: 13px; }
-    textarea[readonly] { background-color: #f8f9fa; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f5f5f5; color: #333; margin: 0; font-size: 14px; line-height: 1.5; }
+    .mg-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    h4 { margin: 0 0 16px; font-size: 18px; }
+
+    /* Tabs */
+    .mg-tabs { display: flex; border-bottom: 2px solid #dee2e6; margin-bottom: 0; }
+    .mg-tab { padding: 8px 16px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -2px; border-radius: 4px 4px 0 0; background: none; font-size: 14px; color: #555; }
+    .mg-tab:hover { color: #000; }
+    .mg-tab.active { background: #fff; border-color: #dee2e6; border-bottom-color: #fff; color: #000; font-weight: 500; }
+    .mg-tab-content { display: none; background: #fff; border: 1px solid #dee2e6; border-top: none; padding: 16px; }
+    .mg-tab-content.active { display: block; }
+
+    /* Forms */
+    label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; }
+    select, input[type="number"], input[type="text"], textarea { border: 1px solid #ced4da; border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 100%; font-family: inherit; }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 2px rgba(0,123,255,.15); }
+    textarea { font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; resize: vertical; }
+    textarea[readonly] { background: #f8f9fa; }
+
+    /* Grid helpers */
+    .mg-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .mg-col-1 { flex: 0 0 80px; }
+    .mg-col-2 { flex: 0 0 160px; }
+    .mg-col-3 { flex: 0 0 240px; }
+    .mg-col-4 { flex: 0 0 320px; }
+    .mg-col-grow { flex: 1 1 200px; }
+    .mg-field { margin-bottom: 12px; }
+
+    /* Buttons */
+    .mg-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid transparent; border-radius: 4px; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .mg-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .mg-btn-primary { background: #007bff; color: #fff; border-color: #007bff; }
+    .mg-btn-primary:hover:not(:disabled) { background: #0069d9; }
+    .mg-btn-outline { background: #fff; color: #007bff; border-color: #007bff; }
+    .mg-btn-outline:hover:not(:disabled) { background: #e7f1ff; }
+    .mg-btn-outline-secondary { background: #fff; color: #6c757d; border-color: #6c757d; }
+    .mg-btn-outline-secondary:hover:not(:disabled) { background: #f8f9fa; }
+    .mg-btn-outline-danger { background: #fff; color: #dc3545; border-color: #dc3545; padding: 4px 8px; }
+    .mg-btn-outline-danger:hover:not(:disabled) { background: #ffeef0; }
+    .mg-btn-sm { padding: 3px 8px; font-size: 12px; }
+
+    /* Badge */
+    .mg-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+    .mg-badge-info { background: #d1ecf1; color: #0c5460; }
+    .mg-badge-warning { background: #fff3cd; color: #856404; }
+    .mg-badge-danger { background: #f8d7da; color: #721c24; }
+    .mg-badge-secondary { background: #e2e3e5; color: #383d41; }
+
+    /* Alert */
+    .mg-alert { padding: 10px 14px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
+    .mg-alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .mg-alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .mg-alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    /* Card */
+    .mg-card { border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 12px; }
+    .mg-card-header { padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .mg-card-body { padding: 12px; }
+    .mg-card-toggle { cursor: pointer; color: #007bff; text-decoration: none; font-size: 13px; }
+    .mg-card-toggle:hover { text-decoration: underline; }
+
+    /* Table */
+    .mg-table-wrap { overflow-x: auto; }
+    table.mg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .mg-table th, .mg-table td { padding: 4px 8px; border: 1px solid #dee2e6; text-align: left; }
+    .mg-table th { background: #f8f9fa; font-weight: 500; white-space: nowrap; }
+    .mg-table tr:nth-child(even) { background: #f8f9fa; }
+    .mg-table em.null { color: #999; font-style: italic; }
+    .mg-table .redacted { color: #999; }
+
+    /* Checkbox grid */
+    .mg-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    .mg-check { display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
+    .mg-check input { margin: 0; }
+    .mg-check .type-hint { color: #999; font-size: 11px; }
+
+    /* Inline links */
+    .mg-link { color: #007bff; cursor: pointer; text-decoration: none; font-size: 12px; margin-left: 8px; }
+    .mg-link:hover { text-decoration: underline; }
+
+    /* Spinner */
+    @keyframes mg-spin { to { transform: rotate(360deg); } }
+    .mg-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #007bff; border-radius: 50%; animation: mg-spin .6s linear infinite; }
+
+    /* Utilities */
+    .mg-hidden { display: none !important; }
+    .mg-mt { margin-top: 16px; }
+    .mg-mb { margin-bottom: 12px; }
+    .mg-text-muted { color: #888; font-size: 13px; }
+    .mg-text-center { text-align: center; padding: 24px 0; }
+    code { font-size: 12px; word-break: break-all; background: #f4f4f4; padding: 1px 4px; border-radius: 2px; }
+    pre.mg-pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
   </style>
 </head>
 <body>
-  <div class="mysql-genius-container">
+  <div class="mg-container">
     <%= yield %>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jquery-ui@1.13.2/dist/jquery-ui.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

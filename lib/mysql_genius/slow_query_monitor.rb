@@ -21,7 +21,7 @@ module MysqlGenius
         begin
           redis = Redis.new(url: MysqlGenius.configuration.redis_url)
           entry = {
-            sql: sql.truncate(2000),
+            sql: sql.truncate(10_000),
             duration_ms: duration_ms,
             timestamp: Time.current.iso8601,
             name: payload[:name]

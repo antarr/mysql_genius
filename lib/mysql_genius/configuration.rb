@@ -37,6 +37,14 @@ module MysqlGenius
     attr_accessor :ai_endpoint
     attr_accessor :ai_api_key
 
+    # AI model name to pass in the request body (e.g. "gpt-4o", "gpt-3.5-turbo").
+    # Optional — if nil, the API default or deployment model is used.
+    attr_accessor :ai_model
+
+    # AI auth style: :bearer (OpenAI, Ollama Cloud) or :api_key (Azure OpenAI).
+    # Defaults to :api_key for backwards compatibility.
+    attr_accessor :ai_auth_style
+
     # Custom system prompt prepended to AI suggestions. Use this to describe
     # your domain, table relationships, and naming conventions.
     attr_accessor :ai_system_context
@@ -50,6 +58,11 @@ module MysqlGenius
     # Logger instance for audit logging. Defaults to a file logger.
     # Set to nil to disable audit logging.
     attr_accessor :audit_logger
+
+    # Base controller class for the engine to inherit from.
+    # Set to "ApplicationController" to get current_user and other app helpers.
+    # Defaults to "ActionController::Base".
+    attr_accessor :base_controller
 
     def initialize
       @featured_tables = []
@@ -67,10 +80,13 @@ module MysqlGenius
       @ai_client = nil
       @ai_endpoint = nil
       @ai_api_key = nil
+      @ai_model = nil
+      @ai_auth_style = :api_key
       @ai_system_context = nil
       @slow_query_threshold_ms = 250
       @redis_url = nil
       @audit_logger = nil
+      @base_controller = "ActionController::Base"
     end
 
     def ai_enabled?

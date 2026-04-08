@@ -1,215 +1,175 @@
-<h4><i class="fa fa-database"></i> MysqlGenius</h4>
+<h4>&#128024; MysqlGenius</h4>
 
-<ul class="nav nav-tabs" id="queryTabs" role="tablist">
-  <li class="nav-item">
-    <a class="nav-link active" id="visual-tab" data-toggle="tab" href="#visual" role="tab">Visual Builder</a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link" id="sql-tab" data-toggle="tab" href="#sql" role="tab">SQL Query</a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link" id="slow-tab" data-toggle="tab" href="#slow" role="tab">Slow Queries</a>
-  </li>
-</ul>
+<div class="mg-tabs">
+  <button class="mg-tab active" data-tab="visual">Visual Builder</button>
+  <button class="mg-tab" data-tab="sql">SQL Query</button>
+  <button class="mg-tab" data-tab="slow">Slow Queries</button>
+</div>
 
-<div class="tab-content border border-top-0 p-3" id="queryTabContent">
-  <!-- Visual Builder Tab -->
-  <div class="tab-pane fade show active" id="visual" role="tabpanel">
-    <div class="form-row align-items-end">
-      <div class="form-group col-md-4">
-        <label for="vb-table">Table</label>
-        <select id="vb-table" class="form-control">
-          <option value="">-- Select a table --</option>
-          <% if @featured_tables != @all_tables %>
-            <optgroup label="Featured">
-              <% @featured_tables.each do |table| %>
-                <option value="<%= table %>"><%= table %></option>
-              <% end %>
-            </optgroup>
-            <optgroup label="All Tables">
-              <% (@all_tables - @featured_tables).each do |table| %>
-                <option value="<%= table %>"><%= table %></option>
-              <% end %>
-            </optgroup>
-          <% else %>
-            <% @all_tables.each do |table| %>
+<!-- Visual Builder Tab -->
+<div class="mg-tab-content active" id="tab-visual">
+  <div class="mg-row mg-mb">
+    <div class="mg-col-4 mg-field">
+      <label for="vb-table">Table</label>
+      <select id="vb-table">
+        <option value="">-- Select a table --</option>
+        <% if @featured_tables != @all_tables %>
+          <optgroup label="Featured">
+            <% @featured_tables.each do |table| %>
               <option value="<%= table %>"><%= table %></option>
             <% end %>
+          </optgroup>
+          <optgroup label="All Tables">
+            <% (@all_tables - @featured_tables).each do |table| %>
+              <option value="<%= table %>"><%= table %></option>
+            <% end %>
+          </optgroup>
+        <% else %>
+          <% @all_tables.each do |table| %>
+            <option value="<%= table %>"><%= table %></option>
           <% end %>
-        </select>
-      </div>
-      <div class="form-group col-md-2">
-        <label for="vb-row-limit">Row Limit</label>
-        <input type="number" id="vb-row-limit" class="form-control" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
-      </div>
-      <div class="form-group col-md-4">
-        <button id="vb-run" class="btn btn-primary" disabled>
-          <i class="fa fa-play"></i> Run Query
-        </button>
-        <button id="vb-explain" class="btn btn-outline-info ml-1" disabled>
-          <i class="fa fa-search"></i> Explain
-        </button>
-      </div>
+        <% end %>
+      </select>
     </div>
-
-    <div id="vb-columns-section" class="mb-3" style="display:none;">
-      <label><strong>Columns</strong>
-        <a href="#" id="vb-toggle-all" class="ml-2 small">Toggle All</a>
-        <a href="#" id="vb-show-defaults" class="ml-2 small">Reset Defaults</a>
-      </label>
-      <div id="vb-columns" class="d-flex flex-wrap"></div>
+    <div class="mg-col-2 mg-field">
+      <label for="vb-row-limit">Row Limit</label>
+      <input type="number" id="vb-row-limit" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
     </div>
-
-    <div id="vb-filters-section" class="mb-3" style="display:none;">
-      <label><strong>Filters</strong></label>
-      <div id="vb-filters"></div>
-      <button id="vb-add-filter" class="btn btn-sm btn-outline-secondary mt-1">
-        <i class="fa fa-plus"></i> Add Filter
-      </button>
-    </div>
-
-    <div id="vb-order-section" class="mb-3" style="display:none;">
-      <label><strong>Order By</strong></label>
-      <div id="vb-orders"></div>
-      <button id="vb-add-order" class="btn btn-sm btn-outline-secondary mt-1">
-        <i class="fa fa-plus"></i> Add Sort
-      </button>
-    </div>
-
-    <div id="vb-generated-sql" class="mb-3" style="display:none;">
-      <label><strong>Generated SQL</strong></label>
-      <textarea id="vb-sql-preview" class="form-control" rows="2" readonly style="font-family: monospace; font-size: 13px;"></textarea>
+    <div class="mg-field">
+      <label>&nbsp;</label>
+      <button id="vb-run" class="mg-btn mg-btn-primary" disabled>&#9654; Run Query</button>
+      <button id="vb-explain" class="mg-btn mg-btn-outline" disabled>&#128270; Explain</button>
     </div>
   </div>
 
-  <!-- SQL Query Tab -->
-  <div class="tab-pane fade" id="sql" role="tabpanel">
-    <% if @ai_enabled %>
-      <div class="card mb-3">
-        <div class="card-header p-2">
-          <a data-toggle="collapse" href="#ai-assistant-panel" role="button" aria-expanded="false" aria-controls="ai-assistant-panel" class="text-decoration-none">
-            <i class="fa fa-magic"></i> AI Assistant
-            <small class="text-muted ml-1">- Describe what you want in plain English</small>
-          </a>
-        </div>
-        <div class="collapse" id="ai-assistant-panel">
-          <div class="card-body">
-            <div class="form-group mb-2">
-              <textarea id="ai-prompt" class="form-control" rows="2" placeholder="e.g. Show me all users created in the last 30 days"></textarea>
-              <small class="form-text text-muted">Only table names and column names are sent to the AI. No row data leaves the system.</small>
-            </div>
-            <button id="ai-suggest" class="btn btn-sm btn-primary mb-2">
-              <i class="fa fa-magic"></i> Suggest Query
-            </button>
-            <div id="ai-result" style="display:none;">
-              <div id="ai-explanation" class="alert alert-info py-2 mb-2" style="font-size: 13px;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    <% end %>
-
-    <div class="form-group">
-      <label for="sql-input">SQL Query</label>
-      <textarea id="sql-input" class="form-control" rows="5" placeholder="SELECT * FROM users LIMIT 10" style="font-family: monospace; font-size: 13px;"></textarea>
-    </div>
-    <div class="form-row align-items-end">
-      <div class="form-group col-md-2">
-        <label for="sql-row-limit">Row Limit</label>
-        <input type="number" id="sql-row-limit" class="form-control" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
-      </div>
-      <div class="form-group col-md-4">
-        <button id="sql-run" class="btn btn-primary">
-          <i class="fa fa-play"></i> Run Query
-        </button>
-        <button id="sql-explain" class="btn btn-outline-info ml-1">
-          <i class="fa fa-search"></i> Explain
-        </button>
-      </div>
-    </div>
+  <div id="vb-columns-section" class="mg-mb mg-hidden">
+    <label>Columns
+      <span id="vb-toggle-all" class="mg-link">Toggle All</span>
+      <span id="vb-show-defaults" class="mg-link">Reset Defaults</span>
+    </label>
+    <div id="vb-columns" class="mg-checks"></div>
   </div>
 
-  <!-- Slow Queries Tab -->
-  <div class="tab-pane fade" id="slow" role="tabpanel">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <p class="text-muted mb-0">SELECT queries exceeding <%= MysqlGenius.configuration.slow_query_threshold_ms %>ms. <span id="slow-count" class="badge badge-secondary"></span></p>
-      <button id="slow-refresh" class="btn btn-sm btn-outline-secondary">
-        <i class="fa fa-refresh"></i> Refresh
-      </button>
+  <div id="vb-filters-section" class="mg-mb mg-hidden">
+    <label>Filters</label>
+    <div id="vb-filters"></div>
+    <button id="vb-add-filter" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-top:4px;">+ Add Filter</button>
+  </div>
+
+  <div id="vb-order-section" class="mg-mb mg-hidden">
+    <label>Order By</label>
+    <div id="vb-orders"></div>
+    <button id="vb-add-order" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-top:4px;">+ Add Sort</button>
+  </div>
+
+  <div id="vb-generated-sql" class="mg-mb mg-hidden">
+    <label>Generated SQL</label>
+    <textarea id="vb-sql-preview" rows="2" readonly></textarea>
+  </div>
+</div>
+
+<!-- SQL Query Tab -->
+<div class="mg-tab-content" id="tab-sql">
+  <% if @ai_enabled %>
+    <div class="mg-card mg-mb">
+      <div class="mg-card-header">
+        <span class="mg-card-toggle" id="ai-toggle">&#9889; AI Assistant <span class="mg-text-muted">- Describe what you want in plain English</span></span>
+      </div>
+      <div class="mg-card-body mg-hidden" id="ai-panel">
+        <div class="mg-field">
+          <textarea id="ai-prompt" rows="2" placeholder="e.g. Show me all users created in the last 30 days"></textarea>
+          <div class="mg-text-muted" style="margin-top:2px;">Only table names and column names are sent to the AI. No row data leaves the system.</div>
+        </div>
+        <button id="ai-suggest" class="mg-btn mg-btn-primary mg-btn-sm mg-mb">&#9889; Suggest Query</button>
+        <div id="ai-result" class="mg-hidden">
+          <div id="ai-explanation" class="mg-alert mg-alert-info"></div>
+        </div>
+      </div>
     </div>
-    <div id="slow-loading" class="text-center py-3" style="display:none;">
-      <i class="fa fa-spinner fa-spin"></i> Loading...
+  <% end %>
+
+  <div class="mg-field">
+    <label for="sql-input">SQL Query</label>
+    <textarea id="sql-input" rows="5" placeholder="SELECT * FROM users LIMIT 10"></textarea>
+  </div>
+  <div class="mg-row">
+    <div class="mg-col-2 mg-field">
+      <label for="sql-row-limit">Row Limit</label>
+      <input type="number" id="sql-row-limit" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
     </div>
-    <div id="slow-empty" class="text-muted text-center py-4" style="display:none;">
-      No slow queries recorded.
-    </div>
-    <div id="slow-table-wrapper" style="overflow-x: auto; display:none;">
-      <table class="table table-sm table-striped table-bordered">
-        <thead class="thead-light">
-          <tr>
-            <th style="width: 100px;">Duration</th>
-            <th style="width: 160px;">Time</th>
-            <th>SQL</th>
-            <th style="width: 150px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="slow-tbody"></tbody>
-      </table>
+    <div class="mg-field">
+      <label>&nbsp;</label>
+      <button id="sql-run" class="mg-btn mg-btn-primary">&#9654; Run Query</button>
+      <button id="sql-explain" class="mg-btn mg-btn-outline">&#128270; Explain</button>
     </div>
   </div>
 </div>
 
+<!-- Slow Queries Tab -->
+<div class="mg-tab-content" id="tab-slow">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">SELECT queries exceeding <%= MysqlGenius.configuration.slow_query_threshold_ms %>ms. <span id="slow-count" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="slow-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="slow-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="slow-empty" class="mg-text-center mg-text-muted mg-hidden">No slow queries recorded.</div>
+  <div id="slow-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr><th style="width:100px">Duration</th><th style="width:160px">Time</th><th>SQL</th><th style="width:150px">Actions</th></tr>
+      </thead>
+      <tbody id="slow-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- Explain Results -->
-<div id="explain-results" class="mt-3" style="display:none;">
-  <div class="card">
-    <div class="card-header p-2 d-flex justify-content-between align-items-center">
-      <span><i class="fa fa-search"></i> <strong>EXPLAIN Output</strong></span>
+<div id="explain-results" class="mg-mt mg-hidden">
+  <div class="mg-card">
+    <div class="mg-card-header">
+      <span><strong>&#128270; EXPLAIN Output</strong></span>
       <div>
         <% if @ai_enabled %>
-          <button id="explain-optimize" class="btn btn-sm btn-outline-primary">
-            <i class="fa fa-magic"></i> AI Optimization Suggestions
-          </button>
+          <button id="explain-optimize" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; AI Optimization</button>
         <% end %>
-        <button id="explain-close" class="btn btn-sm btn-outline-secondary ml-1">
-          <i class="fa fa-times"></i>
-        </button>
+        <button id="explain-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005; Close</button>
       </div>
     </div>
-    <div class="card-body p-2">
-      <div id="explain-table-wrapper" style="overflow-x: auto;">
-        <table id="explain-table" class="table table-sm table-striped table-bordered mb-0">
+    <div class="mg-card-body">
+      <div class="mg-table-wrap">
+        <table class="mg-table">
           <thead id="explain-thead"></thead>
           <tbody id="explain-tbody"></tbody>
         </table>
       </div>
-      <div id="optimize-results" class="mt-2" style="display:none;">
-        <div id="optimize-content" class="alert alert-info py-2 mb-0" style="font-size: 13px;"></div>
+      <div id="optimize-results" class="mg-hidden mg-mt">
+        <div id="optimize-content" class="mg-alert mg-alert-info"></div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Results Area -->
-<div id="query-results" class="mt-3">
-  <div id="results-alert" style="display:none;"></div>
-  <div id="results-stats" class="mb-2" style="display:none;">
-    <span id="results-row-count" class="badge badge-info"></span>
-    <span id="results-time" class="badge badge-secondary ml-1"></span>
-    <span id="results-truncated" class="badge badge-warning ml-1" style="display:none;">Results truncated</span>
+<div id="query-results" class="mg-mt">
+  <div id="results-alert" class="mg-hidden"></div>
+  <div id="results-stats" class="mg-mb mg-hidden">
+    <span id="results-row-count" class="mg-badge mg-badge-info"></span>
+    <span id="results-time" class="mg-badge mg-badge-secondary"></span>
+    <span id="results-truncated" class="mg-badge mg-badge-warning mg-hidden">Results truncated</span>
   </div>
-  <div id="results-table-wrapper" style="overflow-x: auto; display:none;">
-    <table id="results-table" class="table table-sm table-striped table-bordered">
+  <div id="results-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
       <thead id="results-thead"></thead>
       <tbody id="results-tbody"></tbody>
     </table>
   </div>
-  <div id="results-empty" class="text-muted text-center py-4" style="display:none;">
-    No rows returned.
-  </div>
+  <div id="results-empty" class="mg-text-center mg-text-muted mg-hidden">No rows returned.</div>
 </div>
 
 <script>
-$(document).ready(function() {
+(function() {
+  "use strict";
+
   var ROUTES = {
     columns:      '<%= mysql_genius.columns_path %>',
     execute:      '<%= mysql_genius.execute_path %>',
@@ -218,241 +178,480 @@ $(document).ready(function() {
     optimize:     '<%= mysql_genius.optimize_path %>',
     slow_queries: '<%= mysql_genius.slow_queries_path %>'
   };
-  var csrfToken = $('meta[name="csrf-token"]').attr('content');
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
   var currentColumns = [];
   var columnTypeMap = {};
+  var lastExplainSql = '';
+  var lastExplainRows = [];
+
+  // --- Helpers ---
+
+  function el(id) { return document.getElementById(id); }
+  function qs(sel, parent) { return (parent || document).querySelector(sel); }
+  function qsa(sel, parent) { return Array.from((parent || document).querySelectorAll(sel)); }
+  function show(e) { e.classList.remove('mg-hidden'); }
+  function hide(e) { e.classList.add('mg-hidden'); }
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function ajax(method, url, data, onSuccess, onError) {
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.onload = function() {
+      var json;
+      try { json = JSON.parse(xhr.responseText); } catch(e) { json = null; }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onSuccess(json);
+      } else {
+        (onError || function(){})(json, xhr.status);
+      }
+    };
+    xhr.onerror = function() { (onError || function(){})(null, 0); };
+    if (data && method !== 'GET') {
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      var parts = [];
+      for (var k in data) {
+        if (Array.isArray(data[k])) {
+          data[k].forEach(function(v, i) {
+            if (typeof v === 'object') {
+              for (var vk in v) parts.push(encodeURIComponent(k + '[' + i + '][' + vk + ']') + '=' + encodeURIComponent(v[vk]));
+            } else {
+              parts.push(encodeURIComponent(k + '[]') + '=' + encodeURIComponent(v));
+            }
+          });
+        } else {
+          parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(data[k]));
+        }
+      }
+      xhr.send(parts.join('&'));
+    } else if (method === 'GET' && data) {
+      // data is already in the URL
+      xhr.send();
+    } else {
+      xhr.send();
+    }
+  }
+
+  function ajaxGet(url, params, onSuccess, onError) {
+    var query = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+    ajax('GET', url + '?' + query, null, onSuccess, onError);
+  }
+
+  // --- Tabs ---
+
+  qsa('.mg-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
+      qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
+      tab.classList.add('active');
+      el('tab-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'slow') loadSlowQueries();
+    });
+  });
 
   // --- Visual Builder ---
 
+  var typeLabels = { string: 'text', text: 'text', integer: 'number', boolean: 'yes/no', date: 'date', datetime: 'date/time', decimal: 'decimal', float: 'decimal' };
+  function colTypeLabel(type) { return typeLabels[type] || type; }
+
+  function operatorsForType(type) {
+    switch(type) {
+      case 'boolean': return ['=', '!=', 'IS NULL', 'IS NOT NULL'];
+      case 'date': case 'datetime': return ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN', 'IS NULL', 'IS NOT NULL'];
+      case 'integer': case 'decimal': case 'float': return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
+      default: return ['=', '!=', 'LIKE', '>', '<', 'IS NULL', 'IS NOT NULL'];
+    }
+  }
+
   function loadColumnsForTable(table, callback) {
-    $('#vb-columns').empty();
-    $('#vb-filters').empty();
-    $('#vb-orders').empty();
+    el('vb-columns').innerHTML = '';
+    el('vb-filters').innerHTML = '';
+    el('vb-orders').innerHTML = '';
     columnTypeMap = {};
     if (!table) {
-      $('#vb-columns-section, #vb-filters-section, #vb-order-section, #vb-generated-sql').hide();
-      $('#vb-run, #vb-explain').prop('disabled', true);
+      hide(el('vb-columns-section')); hide(el('vb-filters-section'));
+      hide(el('vb-order-section')); hide(el('vb-generated-sql'));
+      el('vb-run').disabled = true; el('vb-explain').disabled = true;
       return;
     }
-    $.getJSON(ROUTES.columns, { table: table }, function(cols) {
+    ajaxGet(ROUTES.columns, { table: table }, function(cols) {
       currentColumns = cols;
-      $.each(cols, function(i, col) { columnTypeMap[col.name] = col.type; });
+      cols.forEach(function(c) { columnTypeMap[c.name] = c.type; });
       var html = '';
-      $.each(cols, function(i, col) {
-        var typeLabel = colTypeLabel(col.type);
+      cols.forEach(function(col) {
         var checked = col['default'] ? ' checked' : '';
-        html += '<div class="form-check form-check-inline mr-3">' +
-          '<input class="form-check-input vb-col-check" type="checkbox" value="' + col.name + '" id="vb-col-' + col.name + '"' + checked +
-          ' data-default="' + (col['default'] ? '1' : '0') + '">' +
-          '<label class="form-check-label" for="vb-col-' + col.name + '">' + col.name +
-          ' <small class="text-muted">(' + typeLabel + ')</small></label></div>';
+        html += '<label class="mg-check"><input type="checkbox" class="vb-col-check" value="' + escHtml(col.name) + '"' + checked +
+          ' data-default="' + (col['default'] ? '1' : '0') + '">' + escHtml(col.name) +
+          ' <span class="type-hint">(' + colTypeLabel(col.type) + ')</span></label>';
       });
-      $('#vb-columns').html(html);
-      $('#vb-columns-section, #vb-filters-section, #vb-order-section, #vb-generated-sql').show();
-      $('#vb-run, #vb-explain').prop('disabled', false);
-      if (callback) callback(cols);
-      else updateGeneratedSql();
+      el('vb-columns').innerHTML = html;
+      show(el('vb-columns-section')); show(el('vb-filters-section'));
+      show(el('vb-order-section')); show(el('vb-generated-sql'));
+      el('vb-run').disabled = false; el('vb-explain').disabled = false;
+      if (callback) callback(cols); else updateGeneratedSql();
     });
   }
 
-  $('#vb-table').on('change', function() {
-    loadColumnsForTable($(this).val());
+  el('vb-table').addEventListener('change', function() { loadColumnsForTable(this.value); });
+
+  el('vb-toggle-all').addEventListener('click', function() {
+    var checks = qsa('.vb-col-check');
+    var allChecked = checks.every(function(c) { return c.checked; });
+    checks.forEach(function(c) { c.checked = !allChecked; });
+    updateGeneratedSql();
   });
 
-  function colTypeLabel(type) {
-    var labels = { 'string': 'text', 'text': 'text', 'integer': 'number', 'boolean': 'yes/no',
-      'date': 'date', 'datetime': 'date/time', 'decimal': 'decimal', 'float': 'decimal' };
-    return labels[type] || type;
+  el('vb-show-defaults').addEventListener('click', function() {
+    qsa('.vb-col-check').forEach(function(c) { c.checked = c.dataset['default'] === '1'; });
+    updateGeneratedSql();
+  });
+
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('vb-col-check')) updateGeneratedSql();
+  });
+
+  function columnOptions(useAll) {
+    var cols = useAll ? currentColumns : currentColumns.filter(function(c) { return c['default']; });
+    var html = '<option value="">-- column --</option>';
+    cols.forEach(function(c) { html += '<option value="' + escHtml(c.name) + '">' + escHtml(c.name) + ' (' + colTypeLabel(c.type) + ')</option>'; });
+    return html;
   }
 
-  $('#vb-toggle-all').on('click', function(e) {
-    e.preventDefault();
-    var checks = $('.vb-col-check');
-    var allChecked = checks.filter(':checked').length === checks.length;
-    checks.prop('checked', !allChecked);
-    updateGeneratedSql();
-  });
+  function addFilterRow(useAll) {
+    var div = document.createElement('div');
+    div.className = 'mg-row mg-mb vb-filter-row';
+    div.style.alignItems = 'center';
+    div.innerHTML =
+      '<div class="mg-col-3"><select class="vb-filter-col">' + columnOptions(useAll) + '</select></div>' +
+      '<div class="mg-col-2"><select class="vb-filter-op"><option>=</option><option>!=</option><option>LIKE</option><option>></option><option><</option><option>IS NULL</option><option>IS NOT NULL</option></select></div>' +
+      '<div class="mg-col-4 vb-filter-val-container"><input type="text" class="vb-filter-val" placeholder="value"></div>' +
+      '<div><button class="mg-btn mg-btn-outline-danger mg-btn-sm vb-remove-filter">&#10005;</button></div>';
+    el('vb-filters').appendChild(div);
+  }
 
-  $('#vb-show-defaults').on('click', function(e) {
-    e.preventDefault();
-    $('.vb-col-check').each(function() {
-      $(this).prop('checked', $(this).data('default') === 1);
-    });
-    updateGeneratedSql();
-  });
+  el('vb-add-filter').addEventListener('click', function() { addFilterRow(false); updateGeneratedSql(); });
 
-  $(document).on('change', '.vb-col-check', function() { updateGeneratedSql(); });
-
-  $('#vb-add-filter').on('click', function() {
-    addFilterRow();
-    updateGeneratedSql();
-  });
-
-  $(document).on('change', '.vb-filter-col', function() {
-    var row = $(this).closest('.vb-filter-row');
-    var colName = $(this).val();
-    var colType = columnTypeMap[colName] || 'string';
-    var opSelect = row.find('.vb-filter-op');
-    var ops = getOperatorsForType(colType);
-    opSelect.empty();
-    $.each(ops, function(i, op) { opSelect.append('<option>' + op + '</option>'); });
-    updateValueInput(row, colType, opSelect.val());
-    updateGeneratedSql();
-  });
-
-  $(document).on('change', '.vb-filter-op', function() {
-    var row = $(this).closest('.vb-filter-row');
-    var colName = row.find('.vb-filter-col').val();
-    var colType = columnTypeMap[colName] || 'string';
-    updateValueInput(row, colType, $(this).val());
-    updateGeneratedSql();
-  });
-
-  $(document).on('input change', '.vb-filter-val', function() { updateGeneratedSql(); });
-
-  $(document).on('click', '.vb-remove-filter', function() {
-    $(this).closest('.vb-filter-row').remove();
-    updateGeneratedSql();
-  });
-
-  function getOperatorsForType(type) {
-    switch(type) {
-      case 'boolean':
-        return ['=', '!=', 'IS NULL', 'IS NOT NULL'];
-      case 'date': case 'datetime':
-        return ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN', 'IS NULL', 'IS NOT NULL'];
-      case 'integer': case 'decimal': case 'float':
-        return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
-      default:
-        return ['=', '!=', 'LIKE', '>', '<', 'IS NULL', 'IS NOT NULL'];
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('vb-filter-col')) {
+      var row = e.target.closest('.vb-filter-row');
+      var colType = columnTypeMap[e.target.value] || 'string';
+      var opSel = qs('.vb-filter-op', row);
+      var ops = operatorsForType(colType);
+      opSel.innerHTML = ops.map(function(o) { return '<option>' + o + '</option>'; }).join('');
+      updateValueInput(row, colType, opSel.value);
+      updateGeneratedSql();
     }
-  }
+    if (e.target.classList.contains('vb-filter-op')) {
+      var row = e.target.closest('.vb-filter-row');
+      var colName = qs('.vb-filter-col', row).value;
+      var colType = columnTypeMap[colName] || 'string';
+      updateValueInput(row, colType, e.target.value);
+      updateGeneratedSql();
+    }
+  });
+
+  document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('vb-filter-val')) updateGeneratedSql();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.vb-remove-filter')) { e.target.closest('.vb-filter-row').remove(); updateGeneratedSql(); }
+    if (e.target.closest('.vb-remove-order')) { e.target.closest('.vb-order-row').remove(); updateGeneratedSql(); }
+  });
 
   function updateValueInput(row, colType, op) {
-    var container = row.find('.vb-filter-val-container');
-    container.empty();
-    if (op === 'IS NULL' || op === 'IS NOT NULL') return;
-
+    var container = qs('.vb-filter-val-container', row);
+    if (op === 'IS NULL' || op === 'IS NOT NULL') { container.innerHTML = ''; return; }
     if (colType === 'boolean') {
-      container.html(
-        '<select class="form-control form-control-sm vb-filter-val">' +
-          '<option value="1">True</option><option value="0">False</option>' +
-        '</select>'
-      );
+      container.innerHTML = '<select class="vb-filter-val"><option value="1">True</option><option value="0">False</option></select>';
     } else if ((colType === 'date' || colType === 'datetime') && op === 'BETWEEN') {
-      container.html(
-        '<div class="input-group input-group-sm">' +
-          '<input type="text" class="form-control form-control-sm vb-filter-val vb-datepicker" placeholder="Start date">' +
-          '<div class="input-group-prepend input-group-append"><span class="input-group-text">and</span></div>' +
-          '<input type="text" class="form-control form-control-sm vb-filter-val-end vb-datepicker" placeholder="End date">' +
-        '</div>'
-      );
-      container.find('.vb-datepicker').datepicker({ dateFormat: 'yy-mm-dd', changeMonth: true, changeYear: true });
+      container.innerHTML = '<input type="date" class="vb-filter-val" style="width:45%;display:inline-block;"> <span class="mg-text-muted">and</span> <input type="date" class="vb-filter-val-end" style="width:45%;display:inline-block;">';
     } else if (colType === 'date' || colType === 'datetime') {
-      container.html('<input type="text" class="form-control form-control-sm vb-filter-val vb-datepicker" placeholder="yyyy-mm-dd">');
-      container.find('.vb-datepicker').datepicker({ dateFormat: 'yy-mm-dd', changeMonth: true, changeYear: true });
+      container.innerHTML = '<input type="date" class="vb-filter-val">';
     } else if (colType === 'integer') {
-      container.html('<input type="number" class="form-control form-control-sm vb-filter-val" placeholder="number" step="1">');
+      container.innerHTML = '<input type="number" class="vb-filter-val" placeholder="number" step="1">';
     } else if (colType === 'decimal' || colType === 'float') {
-      container.html('<input type="number" class="form-control form-control-sm vb-filter-val" placeholder="number" step="any">');
+      container.innerHTML = '<input type="number" class="vb-filter-val" placeholder="number" step="any">';
     } else {
-      var placeholder = (op === 'LIKE') ? 'use % as wildcard' : 'value';
-      container.html('<input type="text" class="form-control form-control-sm vb-filter-val" placeholder="' + placeholder + '">');
+      var ph = (op === 'LIKE') ? 'use % as wildcard' : 'value';
+      container.innerHTML = '<input type="text" class="vb-filter-val" placeholder="' + ph + '">';
     }
   }
 
   // --- Order By ---
 
-  $('#vb-add-order').on('click', function() {
-    addOrderRow();
-    updateGeneratedSql();
+  function addOrderRow(useAll) {
+    var cols = useAll ? currentColumns : currentColumns.filter(function(c) { return c['default']; });
+    var options = '<option value="">-- column --</option>';
+    cols.forEach(function(c) { options += '<option value="' + escHtml(c.name) + '">' + escHtml(c.name) + '</option>'; });
+    var div = document.createElement('div');
+    div.className = 'mg-row mg-mb vb-order-row';
+    div.style.alignItems = 'center';
+    div.innerHTML =
+      '<div class="mg-col-3"><select class="vb-order-col">' + options + '</select></div>' +
+      '<div class="mg-col-2"><select class="vb-order-dir"><option value="ASC">Ascending</option><option value="DESC">Descending</option></select></div>' +
+      '<div><button class="mg-btn mg-btn-outline-danger mg-btn-sm vb-remove-order">&#10005;</button></div>';
+    el('vb-orders').appendChild(div);
+  }
+
+  el('vb-add-order').addEventListener('click', function() { addOrderRow(false); updateGeneratedSql(); });
+
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('vb-order-col') || e.target.classList.contains('vb-order-dir')) updateGeneratedSql();
   });
 
-  $(document).on('change', '.vb-order-col, .vb-order-dir', function() { updateGeneratedSql(); });
-
-  $(document).on('click', '.vb-remove-order', function() {
-    $(this).closest('.vb-order-row').remove();
-    updateGeneratedSql();
-  });
-
-  function addOrderRow(useAllColumns) {
-    var columns = useAllColumns ? currentColumns : defaultColumns();
-    var options = '<option value="">-- column --</option>';
-    $.each(columns, function(i, col) {
-      options += '<option value="' + col.name + '">' + col.name + '</option>';
-    });
-    var html = '<div class="form-row align-items-center mb-1 vb-order-row">' +
-      '<div class="col-md-3"><select class="form-control form-control-sm vb-order-col">' + options + '</select></div>' +
-      '<div class="col-md-2"><select class="form-control form-control-sm vb-order-dir">' +
-        '<option value="ASC">Ascending</option><option value="DESC">Descending</option>' +
-      '</select></div>' +
-      '<div class="col-md-1"><button class="btn btn-sm btn-outline-danger vb-remove-order"><i class="fa fa-times"></i></button></div>' +
-    '</div>';
-    $('#vb-orders').append(html);
-  }
-
-  function defaultColumns() {
-    return currentColumns.filter(function(col) { return col['default']; });
-  }
-
-  function addFilterRow(useAllColumns) {
-    var columns = useAllColumns ? currentColumns : defaultColumns();
-    var options = '<option value="">-- column --</option>';
-    $.each(columns, function(i, col) {
-      var typeLabel = colTypeLabel(col.type);
-      options += '<option value="' + col.name + '">' + col.name + ' (' + typeLabel + ')</option>';
-    });
-    var html = '<div class="form-row align-items-center mb-1 vb-filter-row">' +
-      '<div class="col-md-3"><select class="form-control form-control-sm vb-filter-col">' + options + '</select></div>' +
-      '<div class="col-md-2"><select class="form-control form-control-sm vb-filter-op">' +
-        '<option>=</option><option>!=</option><option>LIKE</option><option>></option><option><</option><option>IS NULL</option><option>IS NOT NULL</option>' +
-      '</select></div>' +
-      '<div class="col-md-4 vb-filter-val-container"><input type="text" class="form-control form-control-sm vb-filter-val" placeholder="value"></div>' +
-      '<div class="col-md-1"><button class="btn btn-sm btn-outline-danger vb-remove-filter"><i class="fa fa-times"></i></button></div>' +
-    '</div>';
-    $('#vb-filters').append(html);
-  }
+  // --- Build SQL ---
 
   function buildSql() {
-    var table = $('#vb-table').val();
+    var table = el('vb-table').value;
     if (!table) return '';
     var cols = [];
-    $('.vb-col-check:checked').each(function() { cols.push('`' + $(this).val() + '`'); });
-    if (cols.length === 0) cols = ['*'];
+    qsa('.vb-col-check:checked').forEach(function(c) { cols.push('`' + c.value + '`'); });
+    if (!cols.length) cols = ['*'];
     var sql = 'SELECT ' + cols.join(', ') + ' FROM `' + table + '`';
     var wheres = [];
-    $('.vb-filter-row').each(function() {
-      var col = $(this).find('.vb-filter-col').val();
-      var op = $(this).find('.vb-filter-op').val();
-      var val = $(this).find('.vb-filter-val').val();
+    qsa('.vb-filter-row').forEach(function(row) {
+      var col = qs('.vb-filter-col', row).value;
+      var op = qs('.vb-filter-op', row).value;
+      var valEl = qs('.vb-filter-val', row);
+      var val = valEl ? valEl.value : '';
       if (!col) return;
       if (op === 'IS NULL' || op === 'IS NOT NULL') {
         wheres.push('`' + col + '` ' + op);
       } else if (op === 'BETWEEN') {
-        var endVal = $(this).find('.vb-filter-val-end').val();
-        wheres.push('`' + col + '` BETWEEN \'' + val.replace(/'/g, "''") + '\' AND \'' + (endVal || '').replace(/'/g, "''") + '\'');
+        var endEl = qs('.vb-filter-val-end', row);
+        var endVal = endEl ? endEl.value : '';
+        wheres.push("`" + col + "` BETWEEN '" + val.replace(/'/g, "''") + "' AND '" + endVal.replace(/'/g, "''") + "'");
       } else if (op === 'LIKE') {
-        wheres.push('`' + col + '` LIKE \'' + val.replace(/'/g, "''") + '\'');
+        wheres.push("`" + col + "` LIKE '" + val.replace(/'/g, "''") + "'");
       } else {
-        wheres.push('`' + col + '` ' + op + ' \'' + val.replace(/'/g, "''") + '\'');
+        wheres.push("`" + col + "` " + op + " '" + val.replace(/'/g, "''") + "'");
       }
     });
-    if (wheres.length > 0) sql += ' WHERE ' + wheres.join(' AND ');
+    if (wheres.length) sql += ' WHERE ' + wheres.join(' AND ');
     var orders = [];
-    $('.vb-order-row').each(function() {
-      var col = $(this).find('.vb-order-col').val();
-      var dir = $(this).find('.vb-order-dir').val();
+    qsa('.vb-order-row').forEach(function(row) {
+      var col = qs('.vb-order-col', row).value;
+      var dir = qs('.vb-order-dir', row).value;
       if (col) orders.push('`' + col + '` ' + dir);
     });
-    if (orders.length > 0) sql += ' ORDER BY ' + orders.join(', ');
+    if (orders.length) sql += ' ORDER BY ' + orders.join(', ');
     return sql;
   }
 
   function updateGeneratedSql() {
     var sql = buildSql();
-    $('#vb-sql-preview').val(sql);
-    $('#sql-input').val(sql);
+    el('vb-sql-preview').value = sql;
+    el('sql-input').value = sql;
   }
+
+  // --- Run Query ---
+
+  el('vb-run').addEventListener('click', function() {
+    var sql = buildSql();
+    if (sql) runQuery(sql, parseInt(el('vb-row-limit').value) || 25);
+  });
+
+  el('sql-run').addEventListener('click', function() {
+    var sql = el('sql-input').value.trim();
+    if (sql) runQuery(sql, parseInt(el('sql-row-limit').value) || 25);
+  });
+
+  el('sql-input').addEventListener('input', function() { el('vb-sql-preview').value = this.value; });
+
+  function runQuery(sql, rowLimit) {
+    clearResults();
+    setBtnLoading(['vb-run', 'sql-run'], true);
+    ajax('POST', ROUTES.execute, { sql: sql, row_limit: rowLimit }, function(data) {
+      renderResults(data);
+      setBtnLoading(['vb-run', 'sql-run'], false);
+    }, function(json) {
+      var cls = (json && json.timeout) ? 'mg-alert-warning' : 'mg-alert-danger';
+      el('results-alert').innerHTML = '<div class="mg-alert ' + cls + '">' + escHtml((json && json.error) || 'An unexpected error occurred.') + '</div>';
+      show(el('results-alert'));
+      setBtnLoading(['vb-run', 'sql-run'], false);
+    });
+  }
+
+  function clearResults() {
+    hide(el('results-alert')); hide(el('results-stats'));
+    hide(el('results-table-wrapper')); hide(el('results-empty'));
+    hide(el('results-truncated'));
+    el('results-thead').innerHTML = '';
+    el('results-tbody').innerHTML = '';
+  }
+
+  function renderResults(data) {
+    if (data.row_count === 0) {
+      show(el('results-empty')); show(el('results-stats'));
+      el('results-row-count').textContent = '0 rows';
+      el('results-time').textContent = data.execution_time_ms + ' ms';
+      return;
+    }
+    el('results-row-count').textContent = data.row_count + ' row' + (data.row_count !== 1 ? 's' : '');
+    el('results-time').textContent = data.execution_time_ms + ' ms';
+    if (data.truncated) show(el('results-truncated'));
+    show(el('results-stats'));
+
+    el('results-thead').innerHTML = '<tr>' + data.columns.map(function(c) { return '<th>' + escHtml(c) + '</th>'; }).join('') + '</tr>';
+    el('results-tbody').innerHTML = data.rows.map(function(row) {
+      return '<tr>' + row.map(function(val) {
+        if (val === null) return '<td><em class="null">NULL</em></td>';
+        if (val === '[REDACTED]') return '<td><span class="redacted">[REDACTED]</span></td>';
+        return '<td>' + escHtml(String(val)) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    show(el('results-table-wrapper'));
+  }
+
+  // --- Explain ---
+
+  el('vb-explain').addEventListener('click', function() { var sql = buildSql(); if (sql) runExplain(sql); });
+  el('sql-explain').addEventListener('click', function() { var sql = el('sql-input').value.trim(); if (sql) runExplain(sql); });
+  el('explain-close').addEventListener('click', function() { hide(el('explain-results')); });
+
+  function runExplain(sql, fromSlowQuery) {
+    lastExplainSql = sql;
+    hide(el('explain-results')); hide(el('optimize-results'));
+    el('explain-thead').innerHTML = '';
+    el('explain-tbody').innerHTML = '';
+    setBtnLoading(['vb-explain', 'sql-explain'], true);
+
+    var postData = { sql: sql };
+    if (fromSlowQuery) postData.from_slow_query = 'true';
+    ajax('POST', ROUTES.explain, postData, function(data) {
+      lastExplainRows = data.rows;
+      el('explain-thead').innerHTML = '<tr>' + data.columns.map(function(c) { return '<th>' + escHtml(c) + '</th>'; }).join('') + '</tr>';
+      el('explain-tbody').innerHTML = data.rows.map(function(row) {
+        return '<tr>' + row.map(function(val) {
+          return val === null ? '<td><em class="null">NULL</em></td>' : '<td>' + escHtml(String(val)) + '</td>';
+        }).join('') + '</tr>';
+      }).join('');
+      show(el('explain-results'));
+      setBtnLoading(['vb-explain', 'sql-explain'], false);
+    }, function(json) {
+      el('results-alert').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml((json && json.error) || 'Explain failed.') + '</div>';
+      show(el('results-alert'));
+      setBtnLoading(['vb-explain', 'sql-explain'], false);
+    });
+  }
+
+  // --- AI ---
+
+  var aiToggle = el('ai-toggle');
+  if (aiToggle) {
+    aiToggle.addEventListener('click', function() {
+      var panel = el('ai-panel');
+      panel.classList.toggle('mg-hidden');
+    });
+  }
+
+  var aiSuggest = el('ai-suggest');
+  if (aiSuggest) {
+    aiSuggest.addEventListener('click', function() {
+      var prompt = el('ai-prompt').value.trim();
+      if (!prompt) return;
+      aiSuggest.disabled = true;
+      aiSuggest.innerHTML = '<span class="mg-spinner"></span> Thinking...';
+      hide(el('ai-result'));
+
+      ajax('POST', ROUTES.suggest, { prompt: prompt }, function(data) {
+        el('sql-input').value = data.sql || '';
+        if (data.explanation) {
+          el('ai-explanation').textContent = data.explanation;
+          show(el('ai-result'));
+        }
+        parseSqlToBuilder(data.sql);
+        aiSuggest.disabled = false;
+        aiSuggest.innerHTML = '&#9889; Suggest Query';
+      }, function(json) {
+        el('results-alert').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml((json && json.error) || 'AI suggestion failed.') + '</div>';
+        show(el('results-alert'));
+        aiSuggest.disabled = false;
+        aiSuggest.innerHTML = '&#9889; Suggest Query';
+      });
+    });
+  }
+
+  var explainOptimize = el('explain-optimize');
+  if (explainOptimize) {
+    explainOptimize.addEventListener('click', function() {
+      explainOptimize.disabled = true;
+      explainOptimize.innerHTML = '<span class="mg-spinner"></span> Analyzing...';
+      hide(el('optimize-results'));
+
+      var data = { sql: lastExplainSql };
+      lastExplainRows.forEach(function(row, i) {
+        row.forEach(function(val, j) {
+          data['explain_rows[' + i + '][' + j + ']'] = val == null ? '' : val;
+        });
+      });
+
+      ajax('POST', ROUTES.optimize, data, function(resp) {
+        el('optimize-content').innerHTML = formatMarkdown(resp.suggestions || 'No suggestions available.');
+        show(el('optimize-results'));
+        explainOptimize.disabled = false;
+        explainOptimize.innerHTML = '&#9889; AI Optimization';
+      }, function(json) {
+        el('optimize-content').textContent = (json && json.error) || 'Optimization failed.';
+        show(el('optimize-results'));
+        explainOptimize.disabled = false;
+        explainOptimize.innerHTML = '&#9889; AI Optimization';
+      });
+    });
+  }
+
+  // --- Slow Queries ---
+
+  function loadSlowQueries() {
+    show(el('slow-loading'));
+    hide(el('slow-empty')); hide(el('slow-table-wrapper'));
+    el('slow-tbody').innerHTML = '';
+
+    ajaxGet(ROUTES.slow_queries, {}, function(data) {
+      hide(el('slow-loading'));
+      if (!data || !data.length) { show(el('slow-empty')); el('slow-count').textContent = '0'; return; }
+      el('slow-count').textContent = data.length + ' queries';
+      el('slow-tbody').innerHTML = data.map(function(q) {
+        var d = q.duration_ms;
+        var cls = d >= 2000 ? 'mg-badge-danger' : d >= 1000 ? 'mg-badge-warning' : 'mg-badge-info';
+        var sqlEsc = escHtml(q.sql);
+        var sqlShort = sqlEsc.length > 200 ? sqlEsc.substring(0, 200) + '...' : sqlEsc;
+        return '<tr><td><span class="mg-badge ' + cls + '">' + d + ' ms</span></td>' +
+          '<td><small>' + escHtml(q.timestamp) + '</small></td>' +
+          '<td><code title="' + sqlEsc + '">' + sqlShort + '</code></td>' +
+          '<td><button class="mg-btn mg-btn-outline mg-btn-sm slow-explain-btn" data-sql="' + sqlEsc.replace(/"/g, '&quot;') + '">Explain</button> ' +
+          '<button class="mg-btn mg-btn-outline-secondary mg-btn-sm slow-use-btn" data-sql="' + sqlEsc.replace(/"/g, '&quot;') + '">Use</button></td></tr>';
+      }).join('');
+      show(el('slow-table-wrapper'));
+    }, function() {
+      hide(el('slow-loading'));
+      el('slow-empty').textContent = 'Failed to load slow queries.';
+      show(el('slow-empty'));
+    });
+  }
+
+  el('slow-refresh').addEventListener('click', loadSlowQueries);
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.slow-explain-btn');
+    if (btn) runExplain(btn.dataset.sql, true);
+    var useBtn = e.target.closest('.slow-use-btn');
+    if (useBtn) {
+      el('sql-input').value = useBtn.dataset.sql;
+      qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
+      qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
+      qs('[data-tab="sql"]').classList.add('active');
+      el('tab-sql').classList.add('active');
+    }
+  });
+
+  // --- SQL to Builder sync ---
 
   function parseSqlToBuilder(sql) {
     if (!sql) return;
@@ -460,335 +659,98 @@ $(document).ready(function() {
     var tableMatch = sql.match(/FROM\s+`?(\w+)`?/i);
     if (!tableMatch) return;
     var tableName = tableMatch[1];
-    if ($('#vb-table option[value="' + tableName + '"]').length === 0) return;
+    if (!qs('#vb-table option[value="' + tableName + '"]')) return;
 
     var colMatch = sql.match(/SELECT\s+(.*?)\s+FROM/i);
     var selectedCols = [];
     if (colMatch && colMatch[1].trim() !== '*') {
-      $.each(colMatch[1].split(','), function(i, part) {
-        var name = part.trim().replace(/`/g, '');
-        if (name) selectedCols.push(name);
-      });
+      colMatch[1].split(',').forEach(function(p) { var n = p.trim().replace(/`/g, ''); if (n) selectedCols.push(n); });
     }
 
     var whereMatch = sql.match(/WHERE\s+(.*?)(?:\s+ORDER\s+BY\b|\s+LIMIT\b|\s*$)/i);
-    var conditions = [];
-    if (whereMatch) conditions = parseWhereClause(whereMatch[1]);
+    var conditions = whereMatch ? parseWhereClause(whereMatch[1]) : [];
 
     var orderMatch = sql.match(/ORDER\s+BY\s+(.*?)(?:\s+LIMIT\b|\s*$)/i);
     var orders = [];
     if (orderMatch) {
-      $.each(orderMatch[1].split(','), function(i, part) {
-        var m = part.trim().match(/`?(\w+)`?\s*(ASC|DESC)?/i);
+      orderMatch[1].split(',').forEach(function(p) {
+        var m = p.trim().match(/`?(\w+)`?\s*(ASC|DESC)?/i);
         if (m) orders.push({ column: m[1], direction: (m[2] || 'ASC').toUpperCase() });
       });
     }
 
-    $('#vb-table').val(tableName);
+    el('vb-table').value = tableName;
     loadColumnsForTable(tableName, function() {
-      if (selectedCols.length > 0) {
-        $('.vb-col-check').prop('checked', false);
-        $.each(selectedCols, function(i, name) {
-          $('.vb-col-check[value="' + name + '"]').prop('checked', true);
-        });
+      if (selectedCols.length) {
+        qsa('.vb-col-check').forEach(function(c) { c.checked = selectedCols.indexOf(c.value) !== -1; });
       }
-      $('#vb-filters').empty();
-      $.each(conditions, function(i, cond) {
+      el('vb-filters').innerHTML = '';
+      conditions.forEach(function(cond) {
         addFilterRow(true);
-        var row = $('#vb-filters .vb-filter-row').last();
-        row.find('.vb-filter-col').val(cond.column).trigger('change');
-        row.find('.vb-filter-op').val(cond.operator).trigger('change');
+        var row = el('vb-filters').lastElementChild;
+        qs('.vb-filter-col', row).value = cond.column;
+        var colType = columnTypeMap[cond.column] || 'string';
+        var opSel = qs('.vb-filter-op', row);
+        opSel.innerHTML = operatorsForType(colType).map(function(o) { return '<option>' + o + '</option>'; }).join('');
+        opSel.value = cond.operator;
+        updateValueInput(row, colType, cond.operator);
         if (cond.operator !== 'IS NULL' && cond.operator !== 'IS NOT NULL') {
-          if (cond.operator === 'BETWEEN') {
-            row.find('.vb-filter-val').val(cond.value);
-            row.find('.vb-filter-val-end').val(cond.endValue);
-          } else {
-            row.find('.vb-filter-val').val(cond.value);
-          }
+          var valEl = qs('.vb-filter-val', row);
+          if (valEl) valEl.value = cond.value;
+          if (cond.operator === 'BETWEEN') { var endEl = qs('.vb-filter-val-end', row); if (endEl) endEl.value = cond.endValue; }
         }
       });
-      $('#vb-orders').empty();
-      $.each(orders, function(i, ord) {
+      el('vb-orders').innerHTML = '';
+      orders.forEach(function(ord) {
         addOrderRow(true);
-        var row = $('#vb-orders .vb-order-row').last();
-        row.find('.vb-order-col').val(ord.column);
-        row.find('.vb-order-dir').val(ord.direction);
+        var row = el('vb-orders').lastElementChild;
+        qs('.vb-order-col', row).value = ord.column;
+        qs('.vb-order-dir', row).value = ord.direction;
       });
       updateGeneratedSql();
     });
   }
 
-  function parseWhereClause(whereStr) {
+  function parseWhereClause(str) {
     var conditions = [];
-    var betweenRegex = /`?(\w+)`?\s+BETWEEN\s+'([^']*)'\s+AND\s+'([^']*)'/gi;
-    var match;
-    while ((match = betweenRegex.exec(whereStr)) !== null) {
-      conditions.push({ column: match[1], operator: 'BETWEEN', value: match[2], endValue: match[3] });
-    }
-    var remaining = whereStr.replace(betweenRegex, '{{BETWEEN}}');
-    var parts = remaining.split(/\s+AND\s+/i);
-    $.each(parts, function(i, part) {
+    var betweenRe = /`?(\w+)`?\s+BETWEEN\s+'([^']*)'\s+AND\s+'([^']*)'/gi;
+    var m;
+    while ((m = betweenRe.exec(str)) !== null) conditions.push({ column: m[1], operator: 'BETWEEN', value: m[2], endValue: m[3] });
+    var remaining = str.replace(betweenRe, '{{B}}');
+    remaining.split(/\s+AND\s+/i).forEach(function(part) {
       part = part.trim();
-      if (!part || part === '{{BETWEEN}}') return;
+      if (!part || part === '{{B}}') return;
       var m;
-      m = part.match(/`?(\w+)`?\s+IS\s+NOT\s+NULL/i);
-      if (m) { conditions.push({ column: m[1], operator: 'IS NOT NULL', value: '' }); return; }
-      m = part.match(/`?(\w+)`?\s+IS\s+NULL/i);
-      if (m) { conditions.push({ column: m[1], operator: 'IS NULL', value: '' }); return; }
-      m = part.match(/`?(\w+)`?\s+LIKE\s+'([^']*)'/i);
-      if (m) { conditions.push({ column: m[1], operator: 'LIKE', value: m[2] }); return; }
-      m = part.match(/`?(\w+)`?\s*(!=|>=|<=|=|>|<)\s*'([^']*)'/);
-      if (m) { conditions.push({ column: m[1], operator: m[2], value: m[3] }); return; }
-      m = part.match(/`?(\w+)`?\s*(!=|>=|<=|=|>|<)\s*(\d+\.?\d*)/);
-      if (m) { conditions.push({ column: m[1], operator: m[2], value: m[3] }); return; }
+      if ((m = part.match(/`?(\w+)`?\s+IS\s+NOT\s+NULL/i))) { conditions.push({ column: m[1], operator: 'IS NOT NULL', value: '' }); return; }
+      if ((m = part.match(/`?(\w+)`?\s+IS\s+NULL/i))) { conditions.push({ column: m[1], operator: 'IS NULL', value: '' }); return; }
+      if ((m = part.match(/`?(\w+)`?\s+LIKE\s+'([^']*)'/i))) { conditions.push({ column: m[1], operator: 'LIKE', value: m[2] }); return; }
+      if ((m = part.match(/`?(\w+)`?\s*(!=|>=|<=|=|>|<)\s*'([^']*)'/))) { conditions.push({ column: m[1], operator: m[2], value: m[3] }); return; }
+      if ((m = part.match(/`?(\w+)`?\s*(!=|>=|<=|=|>|<)\s*(\d+\.?\d*)/))) { conditions.push({ column: m[1], operator: m[2], value: m[3] }); return; }
     });
     return conditions;
   }
 
-  $('#vb-run').on('click', function() {
-    var sql = buildSql();
-    if (!sql) return;
-    runQuery(sql, parseInt($('#vb-row-limit').val()) || 25);
-  });
+  // --- Utilities ---
 
-  // --- SQL Mode ---
-
-  $('#sql-input').on('input', function() { $('#vb-sql-preview').val($(this).val()); });
-
-  $('#sql-run').on('click', function() {
-    var sql = $('#sql-input').val().trim();
-    if (!sql) return;
-    runQuery(sql, parseInt($('#sql-row-limit').val()) || 25);
-  });
-
-  // --- AI Assistant ---
-
-  $('#ai-suggest').on('click', function() {
-    var prompt = $('#ai-prompt').val().trim();
-    if (!prompt) return;
-    var $btn = $(this);
-    $btn.prop('disabled', true).find('i').removeClass('fa-magic').addClass('fa-spinner fa-spin');
-    $('#ai-result').hide();
-
-    $.ajax({
-      url: ROUTES.suggest,
-      method: 'POST',
-      data: { prompt: prompt, authenticity_token: csrfToken },
-      dataType: 'json',
-      success: function(data) {
-        $('#sql-input').val(data.sql || '');
-        if (data.explanation) {
-          $('#ai-explanation').text(data.explanation).show();
-          $('#ai-result').show();
-        }
-        parseSqlToBuilder(data.sql);
-      },
-      error: function(xhr) {
-        var resp = xhr.responseJSON || {};
-        $('#results-alert').html('<div class="alert alert-danger">' + (resp.error || 'AI suggestion failed.') + '</div>').show();
-      },
-      complete: function() {
-        $btn.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-magic');
-      }
-    });
-  });
-
-  // --- Slow Queries ---
-
-  function loadSlowQueries() {
-    $('#slow-loading').show();
-    $('#slow-empty, #slow-table-wrapper').hide();
-    $('#slow-tbody').empty();
-
-    $.getJSON(ROUTES.slow_queries, function(data) {
-      $('#slow-loading').hide();
-      if (!data.length) {
-        $('#slow-empty').show();
-        $('#slow-count').text('0');
-        return;
-      }
-      $('#slow-count').text(data.length + ' queries');
-      var tbody = '';
-      $.each(data, function(i, q) {
-        var duration = q.duration_ms;
-        var badgeClass = duration >= 2000 ? 'badge-danger' : duration >= 1000 ? 'badge-warning' : 'badge-info';
-        var sqlEscaped = $('<span>').text(q.sql).html();
-        var sqlTruncated = sqlEscaped.length > 200 ? sqlEscaped.substring(0, 200) + '...' : sqlEscaped;
-        tbody += '<tr>' +
-          '<td><span class="badge ' + badgeClass + '">' + duration + ' ms</span></td>' +
-          '<td><small>' + q.timestamp + '</small></td>' +
-          '<td><code style="font-size: 12px; word-break: break-all;" title="' + sqlEscaped + '">' + sqlTruncated + '</code></td>' +
-          '<td>' +
-            '<button class="btn btn-sm btn-outline-info slow-explain-btn mr-1" data-sql="' + sqlEscaped.replace(/"/g, '&quot;') + '"><i class="fa fa-search"></i> Explain</button>' +
-            '<button class="btn btn-sm btn-outline-primary slow-use-btn" data-sql="' + sqlEscaped.replace(/"/g, '&quot;') + '"><i class="fa fa-pencil"></i> Use</button>' +
-          '</td></tr>';
-      });
-      $('#slow-tbody').html(tbody);
-      $('#slow-table-wrapper').show();
-    }).fail(function() {
-      $('#slow-loading').hide();
-      $('#slow-empty').text('Failed to load slow queries.').show();
+  function setBtnLoading(ids, loading) {
+    ids.forEach(function(id) {
+      var btn = el(id);
+      if (!btn) return;
+      btn.disabled = loading;
+      if (loading) { btn.dataset.origHtml = btn.innerHTML; btn.innerHTML = '<span class="mg-spinner"></span>'; }
+      else if (btn.dataset.origHtml) { btn.innerHTML = btn.dataset.origHtml; }
     });
   }
-
-  $('a[href="#slow"]').on('shown.bs.tab', function() { loadSlowQueries(); });
-  $('#slow-refresh').on('click', function() { loadSlowQueries(); });
-
-  $(document).on('click', '.slow-explain-btn', function() { runExplain($(this).data('sql')); });
-  $(document).on('click', '.slow-use-btn', function() {
-    $('#sql-input').val($(this).data('sql'));
-    $('#sql-tab').tab('show');
-  });
-
-  // --- Explain ---
-
-  var lastExplainSql = '';
-  var lastExplainRows = [];
-
-  function runExplain(sql) {
-    if (!sql) return;
-    lastExplainSql = sql;
-    $('#explain-results').hide();
-    $('#optimize-results').hide();
-    $('#explain-thead, #explain-tbody').empty();
-    $('#vb-explain, #sql-explain').prop('disabled', true).find('i').removeClass('fa-search').addClass('fa-spinner fa-spin');
-
-    $.ajax({
-      url: ROUTES.explain,
-      method: 'POST',
-      data: { sql: sql, authenticity_token: csrfToken },
-      dataType: 'json',
-      success: function(data) {
-        lastExplainRows = data.rows;
-        var thead = '<tr>';
-        $.each(data.columns, function(i, col) { thead += '<th>' + $('<span>').text(col).html() + '</th>'; });
-        thead += '</tr>';
-        $('#explain-thead').html(thead);
-        var tbody = '';
-        $.each(data.rows, function(i, row) {
-          tbody += '<tr>';
-          $.each(row, function(j, val) {
-            tbody += val === null
-              ? '<td><em class="text-muted">NULL</em></td>'
-              : '<td>' + $('<span>').text(val).html() + '</td>';
-          });
-          tbody += '</tr>';
-        });
-        $('#explain-tbody').html(tbody);
-        $('#explain-results').show();
-      },
-      error: function(xhr) {
-        var resp = xhr.responseJSON || {};
-        $('#results-alert').html('<div class="alert alert-danger">' + (resp.error || 'Explain failed.') + '</div>').show();
-      },
-      complete: function() {
-        $('#vb-explain, #sql-explain').prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-search');
-      }
-    });
-  }
-
-  $('#vb-explain').on('click', function() { var sql = buildSql(); if (sql) runExplain(sql); });
-  $('#sql-explain').on('click', function() { var sql = $('#sql-input').val().trim(); if (sql) runExplain(sql); });
-  $('#explain-close').on('click', function() { $('#explain-results').hide(); });
-
-  $('#explain-optimize').on('click', function() {
-    var $btn = $(this);
-    $btn.prop('disabled', true).find('i').removeClass('fa-magic').addClass('fa-spinner fa-spin');
-    $('#optimize-results').hide();
-
-    $.ajax({
-      url: ROUTES.optimize,
-      method: 'POST',
-      data: { sql: lastExplainSql, explain_rows: lastExplainRows, authenticity_token: csrfToken },
-      dataType: 'json',
-      success: function(data) {
-        $('#optimize-content').html(formatMarkdown(data.suggestions || 'No suggestions available.'));
-        $('#optimize-results').show();
-      },
-      error: function(xhr) {
-        var resp = xhr.responseJSON || {};
-        $('#optimize-content').text(resp.error || 'Optimization suggestion failed.').show();
-        $('#optimize-results').show();
-      },
-      complete: function() {
-        $btn.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-magic');
-      }
-    });
-  });
 
   function formatMarkdown(text) {
     return text
-      .replace(/```sql\n?([\s\S]*?)```/g, '<pre class="bg-light p-2 rounded"><code>$1</code></pre>')
-      .replace(/```\n?([\s\S]*?)```/g, '<pre class="bg-light p-2 rounded"><code>$1</code></pre>')
+      .replace(/```sql\n?([\s\S]*?)```/g, '<pre class="mg-pre"><code>$1</code></pre>')
+      .replace(/```\n?([\s\S]*?)```/g, '<pre class="mg-pre"><code>$1</code></pre>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
       .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
       .replace(/\n/g, '<br>');
   }
-
-  // --- Shared Query Execution ---
-
-  function runQuery(sql, rowLimit) {
-    clearResults();
-    $('#vb-run, #sql-run').prop('disabled', true).find('i').removeClass('fa-play').addClass('fa-spinner fa-spin');
-
-    $.ajax({
-      url: ROUTES.execute,
-      method: 'POST',
-      data: { sql: sql, row_limit: rowLimit, authenticity_token: csrfToken },
-      dataType: 'json',
-      success: function(data) { renderResults(data); },
-      error: function(xhr) {
-        var resp = xhr.responseJSON || {};
-        var alertClass = resp.timeout ? 'alert-warning' : 'alert-danger';
-        $('#results-alert').html('<div class="alert ' + alertClass + '">' + (resp.error || 'An unexpected error occurred.') + '</div>').show();
-      },
-      complete: function() {
-        $('#vb-run, #sql-run').prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-play');
-      }
-    });
-  }
-
-  function clearResults() {
-    $('#results-alert, #results-stats, #results-table-wrapper, #results-empty, #results-truncated').hide();
-    $('#results-thead, #results-tbody').empty();
-  }
-
-  function renderResults(data) {
-    if (data.row_count === 0) {
-      $('#results-empty').show();
-      $('#results-stats').show();
-      $('#results-row-count').text('0 rows');
-      $('#results-time').text(data.execution_time_ms + ' ms');
-      return;
-    }
-    $('#results-row-count').text(data.row_count + ' row' + (data.row_count !== 1 ? 's' : ''));
-    $('#results-time').text(data.execution_time_ms + ' ms');
-    if (data.truncated) $('#results-truncated').show();
-    $('#results-stats').show();
-
-    var thead = '<tr>';
-    $.each(data.columns, function(i, col) { thead += '<th>' + $('<span>').text(col).html() + '</th>'; });
-    thead += '</tr>';
-    $('#results-thead').html(thead);
-
-    var tbody = '';
-    $.each(data.rows, function(i, row) {
-      tbody += '<tr>';
-      $.each(row, function(j, val) {
-        if (val === null) {
-          tbody += '<td><em class="text-muted">NULL</em></td>';
-        } else if (val === '[REDACTED]') {
-          tbody += '<td><span class="text-muted">[REDACTED]</span></td>';
-        } else {
-          tbody += '<td>' + $('<span>').text(val).html() + '</td>';
-        }
-      });
-      tbody += '</tr>';
-    });
-    $('#results-tbody').html(tbody);
-    $('#results-table-wrapper').show();
-  }
-});
+})();
 </script>

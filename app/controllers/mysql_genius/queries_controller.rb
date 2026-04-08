@@ -3,21 +3,21 @@ module MysqlGenius
     FORBIDDEN_KEYWORDS = %w[INSERT UPDATE DELETE DROP ALTER CREATE TRUNCATE GRANT REVOKE].freeze
 
     def index
-      @featured_tables = if config.featured_tables.any?
-                           config.featured_tables.sort
+      @featured_tables = if mysql_genius_config.featured_tables.any?
+                           mysql_genius_config.featured_tables.sort
                          else
                            queryable_tables.sort
                          end
       @all_tables = queryable_tables.sort
-      @ai_enabled = config.ai_enabled?
+      @ai_enabled = mysql_genius_config.ai_enabled?
     end
 
     def slow_queries
-      unless config.redis_url.present?
+      unless mysql_genius_config.redis_url.present?
         return render json: { error: "Slow query monitoring is not configured." }, status: :not_found
       end
 
-      redis = Redis.new(url: config.redis_url)
+      redis = Redis.new(url: mysql_genius_config.redis_url)
       key = SlowQueryMonitor.redis_key
       raw = redis.lrange(key, 0, 199)
       queries = raw.map { |entry| JSON.parse(entry) rescue nil }.compact
@@ -28,7 +28,7 @@ module MysqlGenius
 
     def columns
       table = params[:table]
-      if config.blocked_tables.include?(table)
+      if mysql_genius_config.blocked_tables.include?(table)
         return render json: { error: "Table '#{table}' is not available for querying." }, status: :forbidden
       end
 
@@ -36,7 +36,7 @@ module MysqlGenius
         return render json: { error: "Table '#{table}' does not exist." }, status: :not_found
       end
 
-      defaults = config.default_columns[table] || []
+      defaults = mysql_genius_config.default_columns[table] || []
       cols = ActiveRecord::Base.connection.columns(table).reject { |c| masked_column?(c.name) }.map do |c|
         { name: c.name, type: c.type.to_s, default: defaults.empty? || defaults.include?(c.name) }
       end
@@ -46,9 +46,9 @@ module MysqlGenius
     def execute
       sql = params[:sql].to_s.strip
       row_limit = if params[:row_limit].present?
-                    [[params[:row_limit].to_i, 1].max, config.max_row_limit].min
+                    [[params[:row_limit].to_i, 1].max, mysql_genius_config.max_row_limit].min
                   else
-                    config.default_row_limit
+                    mysql_genius_config.default_row_limit
                   end
 
       error = validate_sql(sql)
@@ -86,7 +86,7 @@ module MysqlGenius
       rescue ActiveRecord::StatementInvalid => e
         if timeout_error?(e)
           audit(:error, sql: sql, error: "Query timeout")
-          render json: { error: "Query exceeded the #{config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity
+          render json: { error: "Query exceeded the #{mysql_genius_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity
         else
           audit(:error, sql: sql, error: e.message)
           render json: { error: "Query error: #{e.message.split(':').last.strip}" }, status: :unprocessable_entity
@@ -96,9 +96,17 @@ module MysqlGenius
 
     def explain
       sql = params[:sql].to_s.strip
+      skip_validation = params[:from_slow_query] == "true"
 
-      error = validate_sql(sql)
-      return render json: { error: error }, status: :unprocessable_entity if error
+      unless skip_validation
+        error = validate_sql(sql)
+        return render json: { error: error }, status: :unprocessable_entity if error
+      end
+
+      # Reject truncated SQL (captured slow queries are capped at 2000 chars)
+      unless sql.match?(/\)\s*$/) || sql.match?(/\w\s*$/) || sql.match?(/['"`]\s*$/) || sql.match?(/\d\s*$/)
+        return render json: { error: "This query appears to be truncated and cannot be explained." }, status: :unprocessable_entity
+      end
 
       explain_sql = "EXPLAIN #{sql.gsub(/;\s*\z/, '')}"
       results = ActiveRecord::Base.connection.exec_query(explain_sql)
@@ -109,7 +117,7 @@ module MysqlGenius
     end
 
     def suggest
-      unless config.ai_enabled?
+      unless mysql_genius_config.ai_enabled?
         return render json: { error: "AI features are not configured." }, status: :not_found
       end
 
@@ -124,7 +132,7 @@ module MysqlGenius
     end
 
     def optimize
-      unless config.ai_enabled?
+      unless mysql_genius_config.ai_enabled?
         return render json: { error: "AI features are not configured." }, status: :not_found
       end
 
@@ -144,7 +152,7 @@ module MysqlGenius
     private
 
     def queryable_tables
-      ActiveRecord::Base.connection.tables - config.blocked_tables
+      ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables
     end
 
     def validate_sql(sql)
@@ -163,7 +171,7 @@ module MysqlGenius
       end
 
       tables_in_query = extract_table_references(normalized)
-      blocked = tables_in_query & config.blocked_tables
+      blocked = tables_in_query & mysql_genius_config.blocked_tables
       if blocked.any?
         return "Access denied for table(s): #{blocked.join(', ')}."
       end
@@ -181,10 +189,10 @@ module MysqlGenius
 
     def apply_timeout_hint(sql)
       if mariadb?
-        timeout_seconds = config.query_timeout_ms / 1000
+        timeout_seconds = mysql_genius_config.query_timeout_ms / 1000
         "SET STATEMENT max_statement_time=#{timeout_seconds} FOR #{sql}"
       else
-        sql.sub(/\bSELECT\b/i, "SELECT /*+ MAX_EXECUTION_TIME(#{config.query_timeout_ms}) */")
+        sql.sub(/\bSELECT\b/i, "SELECT /*+ MAX_EXECUTION_TIME(#{mysql_genius_config.query_timeout_ms}) */")
       end
     end
 
@@ -210,7 +218,7 @@ module MysqlGenius
     end
 
     def masked_column?(column_name)
-      config.masked_column_patterns.any? { |pattern| column_name.downcase.include?(pattern) }
+      mysql_genius_config.masked_column_patterns.any? { |pattern| column_name.downcase.include?(pattern) }
     end
 
     def sanitize_ai_sql(sql)
@@ -218,7 +226,7 @@ module MysqlGenius
     end
 
     def audit(type, **attrs)
-      logger = config.audit_logger
+      logger = mysql_genius_config.audit_logger
       return unless logger
 
       prefix = "[#{Time.current.iso8601}] [mysql_genius]"

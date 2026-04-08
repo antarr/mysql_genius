@@ -4,6 +4,8 @@ require "uri"
 
 module MysqlGenius
   class AiClient
+    MAX_REDIRECTS = 3
+
     def initialize
       @config = MysqlGenius.configuration
     end
@@ -15,21 +17,14 @@ module MysqlGenius
 
       raise Error, "AI is not configured" unless @config.ai_endpoint && @config.ai_api_key
 
-      uri = URI(@config.ai_endpoint)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = uri.scheme == "https"
-
-      request = Net::HTTP::Post.new(uri)
-      request["Content-Type"] = "application/json"
-      request["api-key"] = @config.ai_api_key
-
-      request.body = {
+      body = {
         messages: messages,
         response_format: { type: "json_object" },
         temperature: temperature
-      }.to_json
+      }
+      body[:model] = @config.ai_model if @config.ai_model.present?
 
-      response = http.request(request)
+      response = post_with_redirects(URI(@config.ai_endpoint), body.to_json)
       parsed = JSON.parse(response.body)
 
       if parsed["error"]
@@ -42,6 +37,34 @@ module MysqlGenius
       JSON.parse(content)
     rescue JSON::ParserError
       { "raw" => content.to_s }
+    end
+
+    private
+
+    def post_with_redirects(uri, body, redirects = 0)
+      raise Error, "Too many redirects" if redirects > MAX_REDIRECTS
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == "https"
+      http.open_timeout = 10
+      http.read_timeout = 60
+
+      request = Net::HTTP::Post.new(uri)
+      request["Content-Type"] = "application/json"
+      if @config.ai_auth_style == :bearer
+        request["Authorization"] = "Bearer #{@config.ai_api_key}"
+      else
+        request["api-key"] = @config.ai_api_key
+      end
+      request.body = body
+
+      response = http.request(request)
+
+      if response.is_a?(Net::HTTPRedirection)
+        post_with_redirects(URI(response["location"]), body, redirects + 1)
+      else
+        response
+      end
     end
   end
 end

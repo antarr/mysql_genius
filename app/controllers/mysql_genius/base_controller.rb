@@ -1,5 +1,6 @@
 module MysqlGenius
-  class BaseController < ActionController::Base
+  class BaseController < MysqlGenius.configuration.base_controller.constantize
+    layout "mysql_genius/application"
     before_action :authenticate_mysql_genius!
 
     private
@@ -10,7 +11,7 @@ module MysqlGenius
       end
     end
 
-    def config
+    def mysql_genius_config
       MysqlGenius.configuration
     end
   end
