@@ -1,5 +1,6 @@
 require "mysql_genius/version"
 require "mysql_genius/configuration"
+require "mysql_genius/sql_validator"
 
 module MysqlGenius
   class Error < StandardError; end

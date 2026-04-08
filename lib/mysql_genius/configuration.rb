@@ -90,7 +90,7 @@ module MysqlGenius
     end
 
     def ai_enabled?
-      ai_client.present? || (ai_endpoint.present? && ai_api_key.present?)
+      !ai_client.nil? || (!ai_endpoint.nil? && !ai_endpoint.empty? && !ai_api_key.nil? && !ai_api_key.empty?)
     end
   end
 end
