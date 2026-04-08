@@ -2,6 +2,43 @@
 
 A MySQL performance dashboard and query explorer for Rails, inspired by [PgHero](https://github.com/ankane/pghero). If you've used PgHero for PostgreSQL and wished something similar existed for MySQL -- this is it, with AI-powered query suggestions and optimization on top.
 
+## Screenshots
+
+### Visual Builder
+Build queries visually -- select tables, pick columns, add type-aware filters, and sort results without writing SQL.
+
+![Visual Builder](docs/screenshots/visual_builder.png)
+
+### SQL Query with AI Assistant
+Write raw SQL or describe what you want in plain English and let the AI generate the query for you.
+
+![SQL Query](docs/screenshots/sql_query.png)
+
+### Duplicate Index Detection
+Find redundant indexes whose columns are a left-prefix of another index, with ready-to-run `DROP INDEX` statements.
+
+![Duplicate Indexes](docs/screenshots/duplicate_indexes.png)
+
+### Table Sizes
+View row counts, data size, index size, fragmentation, and a visual size chart for every table.
+
+![Table Sizes](docs/screenshots/table_sizes.png)
+
+### Query Stats
+Top queries from `performance_schema` sorted by total time, with call counts, avg/max time, and rows examined.
+
+![Query Stats](docs/screenshots/query_stats.png)
+
+### Server Dashboard
+At-a-glance server health: version, connections, InnoDB buffer pool, and query activity with AI-powered diagnostics.
+
+![Server](docs/screenshots/server.png)
+
+### AI Tools
+Schema review that finds anti-patterns -- missing primary keys, nullable foreign keys, inappropriate column types, and more.
+
+![AI Tools](docs/screenshots/ai_tools.png)
+
 ## Features
 
 - **Visual Query Builder** -- point-and-click query construction with column selection, type-aware filters, and ordering

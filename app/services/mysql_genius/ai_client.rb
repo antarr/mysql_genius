@@ -34,12 +34,26 @@ module MysqlGenius
       content = parsed.dig("choices", 0, "message", "content")
       raise Error, "No content in AI response" if content.nil?
 
-      JSON.parse(content)
-    rescue JSON::ParserError
-      { "raw" => content.to_s }
+      parse_json_content(content)
     end
 
     private
+
+    def parse_json_content(content)
+      # Try direct parse first
+      JSON.parse(content)
+    rescue JSON::ParserError
+      # Strip markdown code fences that some models wrap around JSON
+      stripped = content.to_s
+        .gsub(/\A\s*```(?:json)?\s*/i, "")
+        .gsub(/\s*```\s*\z/, "")
+        .strip
+      begin
+        JSON.parse(stripped)
+      rescue JSON::ParserError
+        { "raw" => content.to_s }
+      end
+    end
 
     def post_with_redirects(uri, body, redirects = 0)
       raise Error, "Too many redirects" if redirects > MAX_REDIRECTS

@@ -6,6 +6,12 @@
   <button class="mg-tab" data-tab="slow">Slow Queries</button>
   <button class="mg-tab" data-tab="indexes">Duplicate Indexes</button>
   <button class="mg-tab" data-tab="sizes">Table Sizes</button>
+  <button class="mg-tab" data-tab="qstats">Query Stats</button>
+  <button class="mg-tab" data-tab="unused">Unused Indexes</button>
+  <button class="mg-tab" data-tab="server">Server</button>
+  <% if @ai_enabled %>
+    <button class="mg-tab" data-tab="aitools">AI Tools</button>
+  <% end %>
 </div>
 
 <!-- Visual Builder Tab -->
@@ -103,6 +109,10 @@
       <label>&nbsp;</label>
       <button id="sql-run" class="mg-btn mg-btn-primary">&#9654; Run Query</button>
       <button id="sql-explain" class="mg-btn mg-btn-outline">&#128270; Explain</button>
+      <% if @ai_enabled %>
+        <button id="sql-describe" class="mg-btn mg-btn-outline mg-btn-sm" style="margin-left:8px;">&#9889; Describe</button>
+        <button id="sql-rewrite" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Rewrite</button>
+      <% end %>
     </div>
   </div>
 </div>
@@ -157,6 +167,12 @@
     <button id="sizes-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
   </div>
   <div id="sizes-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="sizes-chart-wrapper" class="mg-hidden" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <canvas id="sizes-pie" width="280" height="280" style="flex-shrink:0;"></canvas>
+      <div id="sizes-legend" style="font-size:12px;line-height:1.8;"></div>
+    </div>
+  </div>
   <div id="sizes-table-wrapper" class="mg-table-wrap mg-hidden">
     <table class="mg-table">
       <thead>
@@ -173,7 +189,172 @@
       <tbody id="sizes-tbody"></tbody>
     </table>
   </div>
+
 </div>
+
+<!-- Query Stats Tab -->
+<div class="mg-tab-content" id="tab-qstats">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Top queries from <code>performance_schema.events_statements_summary_by_digest</code>. <span id="qstats-count" class="mg-badge mg-badge-secondary"></span></div>
+    <div>
+      <label style="display:inline;font-size:12px;margin-right:4px;">Sort by:</label>
+      <select id="qstats-sort" style="width:auto;display:inline-block;padding:3px 6px;font-size:12px;">
+        <option value="total_time">Total Time</option>
+        <option value="avg_time">Avg Time</option>
+        <option value="calls">Calls</option>
+        <option value="rows_examined">Rows Examined</option>
+      </select>
+      <button id="qstats-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-left:4px;">&#8635; Refresh</button>
+    </div>
+  </div>
+  <div id="qstats-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="qstats-error" class="mg-hidden"></div>
+  <div id="qstats-empty" class="mg-text-center mg-text-muted mg-hidden">No query statistics available.</div>
+  <div id="qstats-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Query</th>
+          <th style="text-align:right">Calls</th>
+          <th style="text-align:right">Total Time</th>
+          <th style="text-align:right">Avg Time</th>
+          <th style="text-align:right">Max Time</th>
+          <th style="text-align:right">Rows Examined</th>
+          <th style="text-align:right">Rows Sent</th>
+          <th style="text-align:right">Exam/Sent</th>
+        </tr>
+      </thead>
+      <tbody id="qstats-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Unused Indexes Tab -->
+<div class="mg-tab-content" id="tab-unused">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Indexes with zero reads since last server restart, from <code>performance_schema</code>. <span id="unused-count" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="unused-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="unused-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning...</div>
+  <div id="unused-error" class="mg-hidden"></div>
+  <div id="unused-empty" class="mg-text-center mg-text-muted mg-hidden">No unused indexes found.</div>
+  <div id="unused-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Index</th>
+          <th style="text-align:right">Reads</th>
+          <th style="text-align:right">Writes</th>
+          <th style="text-align:right">Table Rows</th>
+          <th>DROP Statement</th>
+        </tr>
+      </thead>
+      <tbody id="unused-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Server Tab -->
+<div class="mg-tab-content" id="tab-server">
+  <div class="mg-row" style="justify-content:flex-end;margin-bottom:12px;">
+    <% if @ai_enabled %>
+      <button id="server-root-cause" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Why is it slow?</button>
+      <button id="server-anomaly" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Anomaly Detection</button>
+    <% end %>
+    <button id="server-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="server-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="server-error" class="mg-hidden"></div>
+  <div id="server-content" class="mg-hidden">
+    <!-- Server Info -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px;">
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Server</strong></div>
+        <div class="mg-card-body">
+          <div class="mg-stat-grid" id="server-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Connections</strong></div>
+        <div class="mg-card-body">
+          <div id="conn-bar" style="margin-bottom:8px;"></div>
+          <div class="mg-stat-grid" id="conn-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>InnoDB Buffer Pool</strong></div>
+        <div class="mg-card-body">
+          <div id="innodb-bar" style="margin-bottom:8px;"></div>
+          <div class="mg-stat-grid" id="innodb-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Query Activity</strong></div>
+        <div class="mg-card-body">
+          <div class="mg-stat-grid" id="query-info"></div>
+        </div>
+      </div>
+    </div>
+    <div id="server-ai-result" class="mg-mt mg-hidden">
+      <div class="mg-card">
+        <div class="mg-card-header">
+          <span id="server-ai-title"><strong>&#9889; AI Analysis</strong></span>
+          <button id="server-ai-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
+        </div>
+        <div class="mg-card-body">
+          <div id="server-ai-content" style="font-size:13px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Tools Tab -->
+<% if @ai_enabled %>
+<div class="mg-tab-content" id="tab-aitools">
+  <!-- Schema Review -->
+  <div class="mg-card mg-mb">
+    <div class="mg-card-header"><strong>&#9889; Schema Review</strong></div>
+    <div class="mg-card-body">
+      <div class="mg-text-muted mg-mb" style="font-size:12px;">Analyze your schema for anti-patterns: inappropriate column types, missing indexes, naming inconsistencies, and more.</div>
+      <div class="mg-row" style="align-items:flex-end;">
+        <div class="mg-col-4 mg-field">
+          <label for="schema-table">Table (leave blank for all)</label>
+          <select id="schema-table">
+            <option value="">All tables (top 20)</option>
+            <% @all_tables.each do |table| %>
+              <option value="<%= table %>"><%= table %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="mg-field">
+          <button id="schema-review-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Analyze Schema</button>
+        </div>
+      </div>
+      <div id="schema-result" class="mg-mt mg-hidden">
+        <div id="schema-result-content" class="mg-alert mg-alert-info" style="font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Migration Risk Assessment -->
+  <div class="mg-card">
+    <div class="mg-card-header"><strong>&#9889; Migration Risk Assessment</strong></div>
+    <div class="mg-card-body">
+      <div class="mg-text-muted mg-mb" style="font-size:12px;">Paste a Rails migration or DDL and get a risk assessment: lock duration, impact on active queries, deployment strategy.</div>
+      <div class="mg-field">
+        <textarea id="migration-input" rows="8" placeholder="class AddIndexToUsers < ActiveRecord::Migration[7.0]&#10;  def change&#10;    add_index :users, :email, unique: true&#10;  end&#10;end"></textarea>
+      </div>
+      <button id="migration-assess-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Assess Risk</button>
+      <div id="migration-result" class="mg-mt mg-hidden">
+        <div id="migration-risk-badge" style="margin-bottom:8px;"></div>
+        <div id="migration-result-content" class="mg-alert mg-alert-info" style="font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<% end %>
 
 <!-- Explain Results -->
 <div id="explain-results" class="mg-mt mg-hidden">
@@ -183,6 +364,7 @@
       <div>
         <% if @ai_enabled %>
           <button id="explain-optimize" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; AI Optimization</button>
+          <button id="explain-index-advisor" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Index Advisor</button>
         <% end %>
         <button id="explain-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005; Close</button>
       </div>
@@ -218,6 +400,19 @@
   <div id="results-empty" class="mg-text-center mg-text-muted mg-hidden">No rows returned.</div>
 </div>
 
+<!-- AI Query Analysis Results -->
+<div id="ai-query-result" class="mg-mt mg-hidden">
+  <div class="mg-card">
+    <div class="mg-card-header">
+      <span id="ai-query-title"><strong>&#9889; AI Analysis</strong></span>
+      <button id="ai-query-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
+    </div>
+    <div class="mg-card-body">
+      <div id="ai-query-content" style="font-size:13px;"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
   "use strict";
@@ -230,7 +425,17 @@
     optimize:     '<%= mysql_genius.optimize_path %>',
     slow_queries: '<%= mysql_genius.slow_queries_path %>',
     duplicate_indexes: '<%= mysql_genius.duplicate_indexes_path %>',
-    table_sizes: '<%= mysql_genius.table_sizes_path %>'
+    table_sizes: '<%= mysql_genius.table_sizes_path %>',
+    query_stats: '<%= mysql_genius.query_stats_path %>',
+    unused_indexes: '<%= mysql_genius.unused_indexes_path %>',
+    server_overview: '<%= mysql_genius.server_overview_path %>',
+    describe_query: '<%= mysql_genius.describe_query_path %>',
+    schema_review: '<%= mysql_genius.schema_review_path %>',
+    rewrite_query: '<%= mysql_genius.rewrite_query_path %>',
+    index_advisor: '<%= mysql_genius.index_advisor_path %>',
+    anomaly_detection: '<%= mysql_genius.anomaly_detection_path %>',
+    root_cause: '<%= mysql_genius.root_cause_path %>',
+    migration_risk: '<%= mysql_genius.migration_risk_path %>'
   };
 
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -307,6 +512,9 @@
       if (tab.dataset.tab === 'slow') loadSlowQueries();
       if (tab.dataset.tab === 'indexes') loadDuplicateIndexes();
       if (tab.dataset.tab === 'sizes') loadTableSizes();
+      if (tab.dataset.tab === 'qstats') loadQueryStats();
+      if (tab.dataset.tab === 'unused') loadUnusedIndexes();
+      if (tab.dataset.tab === 'server') loadServerOverview();
     });
   });
 
@@ -752,9 +960,52 @@
       '<div style="background:' + color + ';border-radius:3px;height:8px;width:' + Math.max(pct, 1) + '%;"></div></div>';
   }
 
+  var PIE_COLORS = [
+    '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
+    '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
+    '#86bcb6', '#8cd17d', '#b6992d', '#499894', '#d37295'
+  ];
+
+  function drawPieChart(canvas, slices, legendEl) {
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width;
+    var h = canvas.height;
+    var cx = w / 2;
+    var cy = h / 2;
+    var r = Math.min(cx, cy) - 4;
+    var total = slices.reduce(function(s, sl) { return s + sl.value; }, 0);
+    if (total === 0) return;
+
+    ctx.clearRect(0, 0, w, h);
+    var startAngle = -Math.PI / 2;
+
+    slices.forEach(function(sl, i) {
+      var sliceAngle = (sl.value / total) * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = PIE_COLORS[i % PIE_COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      startAngle += sliceAngle;
+    });
+
+    // Legend
+    legendEl.innerHTML = slices.map(function(sl, i) {
+      var pct = ((sl.value / total) * 100).toFixed(1);
+      return '<div style="display:flex;align-items:center;gap:6px;">' +
+        '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:' + PIE_COLORS[i % PIE_COLORS.length] + ';flex-shrink:0;"></span>' +
+        '<span>' + escHtml(sl.label) + '</span>' +
+        '<span class="mg-text-muted">' + formatMb(sl.value) + ' (' + pct + '%)</span></div>';
+    }).join('');
+  }
+
   function loadTableSizes() {
     show(el('sizes-loading'));
-    hide(el('sizes-table-wrapper'));
+    hide(el('sizes-table-wrapper')); hide(el('sizes-chart-wrapper'));
     el('sizes-tbody').innerHTML = '';
 
     ajaxGet(ROUTES.table_sizes, {}, function(data) {
@@ -764,6 +1015,14 @@
       var totalMb = data.reduce(function(sum, t) { return sum + t.total_mb; }, 0);
       el('sizes-total').textContent = data.length + ' tables, ' + formatMb(totalMb) + ' total';
       var maxMb = data[0].total_mb || 1;
+
+      // Pie chart: top 10 tables + "Other"
+      var topN = data.slice(0, 10);
+      var otherMb = data.slice(10).reduce(function(s, t) { return s + t.total_mb; }, 0);
+      var slices = topN.map(function(t) { return { label: t.table, value: t.total_mb }; });
+      if (otherMb > 0) slices.push({ label: 'Other (' + (data.length - 10) + ' tables)', value: otherMb });
+      drawPieChart(el('sizes-pie'), slices, el('sizes-legend'));
+      show(el('sizes-chart-wrapper'));
 
       el('sizes-tbody').innerHTML = data.map(function(t) {
         var pct = (t.total_mb / maxMb) * 100;
@@ -787,6 +1046,364 @@
   }
 
   el('sizes-refresh').addEventListener('click', loadTableSizes);
+
+  // --- Query Stats ---
+
+  function loadQueryStats() {
+    show(el('qstats-loading'));
+    hide(el('qstats-empty')); hide(el('qstats-table-wrapper')); hide(el('qstats-error'));
+    el('qstats-tbody').innerHTML = '';
+
+    var sort = el('qstats-sort').value;
+    ajaxGet(ROUTES.query_stats, { sort: sort }, function(data) {
+      hide(el('qstats-loading'));
+      if (data.error) {
+        el('qstats-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml(data.error) + '</div>';
+        show(el('qstats-error')); return;
+      }
+      if (!data.length) { show(el('qstats-empty')); el('qstats-count').textContent = '0'; return; }
+      el('qstats-count').textContent = data.length + ' queries';
+      el('qstats-tbody').innerHTML = data.map(function(q) {
+        var ratioClass = q.rows_ratio > 100 ? 'mg-badge-danger' : q.rows_ratio > 10 ? 'mg-badge-warning' : '';
+        var sqlShort = q.sql.length > 120 ? q.sql.substring(0, 120) + '...' : q.sql;
+        return '<tr>' +
+          '<td><code style="font-size:11px;word-break:break-all;" title="' + escHtml(q.sql) + '">' + escHtml(sqlShort) + '</code></td>' +
+          '<td style="text-align:right">' + Number(q.calls).toLocaleString() + '</td>' +
+          '<td style="text-align:right">' + formatDuration(q.total_time_ms) + '</td>' +
+          '<td style="text-align:right">' + formatDuration(q.avg_time_ms) + '</td>' +
+          '<td style="text-align:right">' + formatDuration(q.max_time_ms) + '</td>' +
+          '<td style="text-align:right">' + Number(q.rows_examined).toLocaleString() + '</td>' +
+          '<td style="text-align:right">' + Number(q.rows_sent).toLocaleString() + '</td>' +
+          '<td style="text-align:right">' + (ratioClass ? '<span class="mg-badge ' + ratioClass + '">' + q.rows_ratio + 'x</span>' : q.rows_ratio + 'x') + '</td>' +
+          '</tr>';
+      }).join('');
+      show(el('qstats-table-wrapper'));
+    }, function(json) {
+      hide(el('qstats-loading'));
+      el('qstats-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((json && json.error) || 'Failed to load query stats.') + '</div>';
+      show(el('qstats-error'));
+    });
+  }
+
+  function formatDuration(ms) {
+    if (ms >= 60000) return (ms / 60000).toFixed(1) + ' min';
+    if (ms >= 1000) return (ms / 1000).toFixed(1) + ' s';
+    return ms.toFixed(1) + ' ms';
+  }
+
+  el('qstats-refresh').addEventListener('click', loadQueryStats);
+  el('qstats-sort').addEventListener('change', loadQueryStats);
+
+  // --- Unused Indexes ---
+
+  function loadUnusedIndexes() {
+    show(el('unused-loading'));
+    hide(el('unused-empty')); hide(el('unused-table-wrapper')); hide(el('unused-error'));
+    el('unused-tbody').innerHTML = '';
+
+    ajaxGet(ROUTES.unused_indexes, {}, function(data) {
+      hide(el('unused-loading'));
+      if (data.error) {
+        el('unused-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml(data.error) + '</div>';
+        show(el('unused-error')); return;
+      }
+      if (!data.length) { show(el('unused-empty')); el('unused-count').textContent = '0'; return; }
+      el('unused-count').textContent = data.length + ' found';
+      el('unused-tbody').innerHTML = data.map(function(d) {
+        return '<tr>' +
+          '<td><strong>' + escHtml(d.table) + '</strong></td>' +
+          '<td><code>' + escHtml(d.index_name) + '</code></td>' +
+          '<td style="text-align:right">' + d.reads + '</td>' +
+          '<td style="text-align:right">' + Number(d.writes).toLocaleString() + '</td>' +
+          '<td style="text-align:right">' + Number(d.table_rows).toLocaleString() + '</td>' +
+          '<td><code style="font-size:11px;user-select:all;cursor:pointer;" title="Click to select">' + escHtml(d.drop_sql) + '</code></td>' +
+          '</tr>';
+      }).join('');
+      show(el('unused-table-wrapper'));
+    }, function(json) {
+      hide(el('unused-loading'));
+      el('unused-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((json && json.error) || 'Failed to load unused indexes.') + '</div>';
+      show(el('unused-error'));
+    });
+  }
+
+  el('unused-refresh').addEventListener('click', loadUnusedIndexes);
+
+  // --- Server Overview ---
+
+  function usageBar(pct, label) {
+    var color = pct >= 90 ? '#dc3545' : pct >= 70 ? '#ffc107' : '#28a745';
+    return '<div class="mg-usage-bar">' +
+      '<div class="mg-usage-bar-fill" style="width:' + Math.min(pct, 100) + '%;background:' + color + ';"></div>' +
+      '<div class="mg-usage-bar-text">' + label + '</div></div>';
+  }
+
+  function statRow(label, value) {
+    return '<div class="mg-stat-label">' + label + '</div><div class="mg-stat-value">' + value + '</div>';
+  }
+
+  function loadServerOverview() {
+    show(el('server-loading'));
+    hide(el('server-content')); hide(el('server-error'));
+
+    ajaxGet(ROUTES.server_overview, {}, function(data) {
+      hide(el('server-loading'));
+      if (data.error) {
+        el('server-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml(data.error) + '</div>';
+        show(el('server-error')); return;
+      }
+
+      var s = data.server;
+      var c = data.connections;
+      var db = data.innodb;
+      var q = data.queries;
+
+      // Server info
+      el('server-info').innerHTML =
+        statRow('Version', '<code>' + escHtml(s.version) + '</code>') +
+        statRow('Uptime', escHtml(s.uptime)) +
+        statRow('Queries/sec', q.qps) +
+        statRow('Total Queries', Number(q.questions).toLocaleString()) +
+        statRow('Slow Queries', Number(q.slow_queries).toLocaleString());
+
+      // Connections
+      el('conn-bar').innerHTML = usageBar(c.usage_pct, c.current + ' / ' + c.max + ' (' + c.usage_pct + '%)');
+      el('conn-info').innerHTML =
+        statRow('Threads Running', c.threads_running) +
+        statRow('Threads Cached', c.threads_cached) +
+        statRow('Threads Created', Number(c.threads_created).toLocaleString()) +
+        statRow('Max Used', c.max_used) +
+        statRow('Aborted Connects', Number(c.aborted_connects).toLocaleString()) +
+        statRow('Aborted Clients', Number(c.aborted_clients).toLocaleString());
+
+      // InnoDB
+      var poolUsedPct = db.buffer_pool_pages_total > 0
+        ? (((db.buffer_pool_pages_total - db.buffer_pool_pages_free) / db.buffer_pool_pages_total) * 100).toFixed(1)
+        : 0;
+      el('innodb-bar').innerHTML = usageBar(parseFloat(poolUsedPct), db.buffer_pool_mb + ' MB (' + poolUsedPct + '% used)');
+      el('innodb-info').innerHTML =
+        statRow('Hit Rate', db.buffer_pool_hit_rate + '%') +
+        statRow('Dirty Pages', Number(db.buffer_pool_pages_dirty).toLocaleString()) +
+        statRow('Free Pages', Number(db.buffer_pool_pages_free).toLocaleString()) +
+        statRow('Row Lock Waits', Number(db.row_lock_waits).toLocaleString()) +
+        statRow('Row Lock Time', formatDuration(db.row_lock_time_ms));
+
+      // Query activity
+      var tmpBadge = q.tmp_disk_pct > 25
+        ? '<span class="mg-badge mg-badge-danger">' + q.tmp_disk_pct + '%</span>'
+        : q.tmp_disk_pct + '%';
+      el('query-info').innerHTML =
+        statRow('Tmp Tables (disk)', Number(q.tmp_disk_tables).toLocaleString() + ' / ' + Number(q.tmp_tables).toLocaleString() + ' ' + tmpBadge) +
+        statRow('Full Joins (no index)', Number(q.select_full_join).toLocaleString()) +
+        statRow('Sort Merge Passes', Number(q.sort_merge_passes).toLocaleString());
+
+      show(el('server-content'));
+    }, function(json) {
+      hide(el('server-loading'));
+      el('server-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((json && json.error) || 'Failed to load server overview.') + '</div>';
+      show(el('server-error'));
+    });
+  }
+
+  el('server-refresh').addEventListener('click', loadServerOverview);
+
+  // --- AI Feature Handlers ---
+
+  // Generic AI call helper
+  function aiCall(url, data, onSuccess, onError) {
+    ajax('POST', url, data, function(result) {
+      if (result.error) { onError(result.error); return; }
+      onSuccess(result);
+    }, function(json) {
+      onError((json && json.error) || 'AI request failed.');
+    });
+  }
+
+  function showAiQueryResult(title, html) {
+    el('ai-query-title').innerHTML = '<strong>&#9889; ' + escHtml(title) + '</strong>';
+    el('ai-query-content').innerHTML = html;
+    show(el('ai-query-result'));
+  }
+
+  el('ai-query-close').addEventListener('click', function() { hide(el('ai-query-result')); });
+
+  // Describe Query
+  var sqlDescribe = el('sql-describe');
+  if (sqlDescribe) {
+    sqlDescribe.addEventListener('click', function() {
+      var sql = el('sql-input').value.trim();
+      if (!sql) return;
+      sqlDescribe.disabled = true;
+      sqlDescribe.innerHTML = '<span class="mg-spinner"></span>';
+      hide(el('ai-query-result'));
+      aiCall(ROUTES.describe_query, { sql: sql }, function(data) {
+        showAiQueryResult('Query Description', formatMarkdown(data.explanation || data.raw || 'No explanation returned.'));
+        sqlDescribe.disabled = false;
+        sqlDescribe.innerHTML = '&#9889; Describe';
+      }, function(err) {
+        showAiQueryResult('Error', '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>');
+        sqlDescribe.disabled = false;
+        sqlDescribe.innerHTML = '&#9889; Describe';
+      });
+    });
+  }
+
+  // Rewrite Query
+  var sqlRewrite = el('sql-rewrite');
+  if (sqlRewrite) {
+    sqlRewrite.addEventListener('click', function() {
+      var sql = el('sql-input').value.trim();
+      if (!sql) return;
+      sqlRewrite.disabled = true;
+      sqlRewrite.innerHTML = '<span class="mg-spinner"></span>';
+      hide(el('ai-query-result'));
+      aiCall(ROUTES.rewrite_query, { sql: sql }, function(data) {
+        var html = '';
+        if (data.rewritten) {
+          html += '<strong>Rewritten Query:</strong><pre class="mg-pre"><code>' + escHtml(data.rewritten) + '</code></pre>';
+        }
+        if (data.changes) {
+          html += '<strong>Changes:</strong><br>' + formatMarkdown(data.changes);
+        }
+        if (!data.rewritten && !data.changes) {
+          html = formatMarkdown(data.raw || 'No rewrite suggestions.');
+        }
+        showAiQueryResult('Query Rewrite', html);
+        sqlRewrite.disabled = false;
+        sqlRewrite.innerHTML = '&#9889; Rewrite';
+      }, function(err) {
+        showAiQueryResult('Error', '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>');
+        sqlRewrite.disabled = false;
+        sqlRewrite.innerHTML = '&#9889; Rewrite';
+      });
+    });
+  }
+
+  // Index Advisor (on EXPLAIN results)
+  var indexAdvisor = el('explain-index-advisor');
+  if (indexAdvisor) {
+    indexAdvisor.addEventListener('click', function() {
+      indexAdvisor.disabled = true;
+      indexAdvisor.innerHTML = '<span class="mg-spinner"></span> Analyzing...';
+      hide(el('optimize-results'));
+
+      var data = { sql: lastExplainSql };
+      lastExplainRows.forEach(function(row, i) {
+        row.forEach(function(val, j) {
+          data['explain_rows[' + i + '][' + j + ']'] = val == null ? '' : val;
+        });
+      });
+
+      aiCall(ROUTES.index_advisor, data, function(resp) {
+        el('optimize-content').innerHTML = formatMarkdown(resp.indexes || resp.raw || 'No suggestions.');
+        show(el('optimize-results'));
+        indexAdvisor.disabled = false;
+        indexAdvisor.innerHTML = '&#9889; Index Advisor';
+      }, function(err) {
+        el('optimize-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('optimize-results'));
+        indexAdvisor.disabled = false;
+        indexAdvisor.innerHTML = '&#9889; Index Advisor';
+      });
+    });
+  }
+
+  // Server: Root Cause Analysis
+  var rootCauseBtn = el('server-root-cause');
+  if (rootCauseBtn) {
+    rootCauseBtn.addEventListener('click', function() {
+      rootCauseBtn.disabled = true;
+      rootCauseBtn.innerHTML = '<span class="mg-spinner"></span> Diagnosing...';
+      hide(el('server-ai-result'));
+      aiCall(ROUTES.root_cause, {}, function(data) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Root Cause Analysis</strong>';
+        el('server-ai-content').innerHTML = formatMarkdown(data.diagnosis || data.raw || 'No diagnosis.');
+        show(el('server-ai-result'));
+        rootCauseBtn.disabled = false;
+        rootCauseBtn.innerHTML = '&#9889; Why is it slow?';
+      }, function(err) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('server-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('server-ai-result'));
+        rootCauseBtn.disabled = false;
+        rootCauseBtn.innerHTML = '&#9889; Why is it slow?';
+      });
+    });
+  }
+
+  el('server-ai-close').addEventListener('click', function() { hide(el('server-ai-result')); });
+
+  // Server: Anomaly Detection
+  var anomalyBtn = el('server-anomaly');
+  if (anomalyBtn) {
+    anomalyBtn.addEventListener('click', function() {
+      anomalyBtn.disabled = true;
+      anomalyBtn.innerHTML = '<span class="mg-spinner"></span> Analyzing...';
+      hide(el('server-ai-result'));
+      aiCall(ROUTES.anomaly_detection, {}, function(data) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Query Health Report</strong>';
+        el('server-ai-content').innerHTML = formatMarkdown(data.report || data.raw || 'No anomalies detected.');
+        show(el('server-ai-result'));
+        anomalyBtn.disabled = false;
+        anomalyBtn.innerHTML = '&#9889; Anomaly Detection';
+      }, function(err) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('server-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('server-ai-result'));
+        anomalyBtn.disabled = false;
+        anomalyBtn.innerHTML = '&#9889; Anomaly Detection';
+      });
+    });
+  }
+
+  // Schema Review
+  var schemaBtn = el('schema-review-btn');
+  if (schemaBtn) {
+    schemaBtn.addEventListener('click', function() {
+      schemaBtn.disabled = true;
+      schemaBtn.innerHTML = '<span class="mg-spinner"></span> Analyzing...';
+      hide(el('schema-result'));
+      var table = el('schema-table').value;
+      aiCall(ROUTES.schema_review, { table: table }, function(data) {
+        el('schema-result-content').innerHTML = formatMarkdown(data.findings || data.raw || 'No findings.');
+        show(el('schema-result'));
+        schemaBtn.disabled = false;
+        schemaBtn.innerHTML = '&#9889; Analyze Schema';
+      }, function(err) {
+        el('schema-result-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('schema-result'));
+        schemaBtn.disabled = false;
+        schemaBtn.innerHTML = '&#9889; Analyze Schema';
+      });
+    });
+  }
+
+  // Migration Risk
+  var migrationBtn = el('migration-assess-btn');
+  if (migrationBtn) {
+    migrationBtn.addEventListener('click', function() {
+      var migration = el('migration-input').value.trim();
+      if (!migration) return;
+      migrationBtn.disabled = true;
+      migrationBtn.innerHTML = '<span class="mg-spinner"></span> Assessing...';
+      hide(el('migration-result'));
+      aiCall(ROUTES.migration_risk, { migration: migration }, function(data) {
+        var level = (data.risk_level || '').toLowerCase();
+        var badgeClass = level === 'critical' ? 'mg-badge-danger' : level === 'high' ? 'mg-badge-danger' : level === 'medium' ? 'mg-badge-warning' : 'mg-badge-info';
+        el('migration-risk-badge').innerHTML = level ? '<span class="mg-badge ' + badgeClass + '" style="font-size:14px;padding:4px 12px;">Risk: ' + level.toUpperCase() + '</span>' : '';
+        el('migration-result-content').innerHTML = formatMarkdown(data.assessment || data.raw || 'No assessment.');
+        show(el('migration-result'));
+        migrationBtn.disabled = false;
+        migrationBtn.innerHTML = '&#9889; Assess Risk';
+      }, function(err) {
+        el('migration-risk-badge').innerHTML = '';
+        el('migration-result-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('migration-result'));
+        migrationBtn.disabled = false;
+        migrationBtn.innerHTML = '&#9889; Assess Risk';
+      });
+    });
+  }
 
   // --- SQL to Builder sync ---
 

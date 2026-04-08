@@ -67,6 +67,14 @@
     .mg-card-toggle { cursor: pointer; color: #007bff; text-decoration: none; font-size: 13px; }
     .mg-card-toggle:hover { text-decoration: underline; }
 
+    /* Stat grid */
+    .mg-stat-grid { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px; }
+    .mg-stat-grid .mg-stat-label { color: #666; }
+    .mg-stat-grid .mg-stat-value { text-align: right; font-weight: 500; }
+    .mg-usage-bar { background: #e9ecef; border-radius: 4px; height: 20px; position: relative; overflow: hidden; }
+    .mg-usage-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .mg-usage-bar-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 11px; font-weight: 500; }
+
     /* Table */
     .mg-table-wrap { overflow-x: auto; }
     table.mg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
