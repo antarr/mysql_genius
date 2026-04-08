@@ -1,0 +1,794 @@
+<h4><i class="fa fa-database"></i> MysqlGenius</h4>
+
+<ul class="nav nav-tabs" id="queryTabs" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link active" id="visual-tab" data-toggle="tab" href="#visual" role="tab">Visual Builder</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="sql-tab" data-toggle="tab" href="#sql" role="tab">SQL Query</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="slow-tab" data-toggle="tab" href="#slow" role="tab">Slow Queries</a>
+  </li>
+</ul>
+
+<div class="tab-content border border-top-0 p-3" id="queryTabContent">
+  <!-- Visual Builder Tab -->
+  <div class="tab-pane fade show active" id="visual" role="tabpanel">
+    <div class="form-row align-items-end">
+      <div class="form-group col-md-4">
+        <label for="vb-table">Table</label>
+        <select id="vb-table" class="form-control">
+          <option value="">-- Select a table --</option>
+          <% if @featured_tables != @all_tables %>
+            <optgroup label="Featured">
+              <% @featured_tables.each do |table| %>
+                <option value="<%= table %>"><%= table %></option>
+              <% end %>
+            </optgroup>
+            <optgroup label="All Tables">
+              <% (@all_tables - @featured_tables).each do |table| %>
+                <option value="<%= table %>"><%= table %></option>
+              <% end %>
+            </optgroup>
+          <% else %>
+            <% @all_tables.each do |table| %>
+              <option value="<%= table %>"><%= table %></option>
+            <% end %>
+          <% end %>
+        </select>
+      </div>
+      <div class="form-group col-md-2">
+        <label for="vb-row-limit">Row Limit</label>
+        <input type="number" id="vb-row-limit" class="form-control" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
+      </div>
+      <div class="form-group col-md-4">
+        <button id="vb-run" class="btn btn-primary" disabled>
+          <i class="fa fa-play"></i> Run Query
+        </button>
+        <button id="vb-explain" class="btn btn-outline-info ml-1" disabled>
+          <i class="fa fa-search"></i> Explain
+        </button>
+      </div>
+    </div>
+
+    <div id="vb-columns-section" class="mb-3" style="display:none;">
+      <label><strong>Columns</strong>
+        <a href="#" id="vb-toggle-all" class="ml-2 small">Toggle All</a>
+        <a href="#" id="vb-show-defaults" class="ml-2 small">Reset Defaults</a>
+      </label>
+      <div id="vb-columns" class="d-flex flex-wrap"></div>
+    </div>
+
+    <div id="vb-filters-section" class="mb-3" style="display:none;">
+      <label><strong>Filters</strong></label>
+      <div id="vb-filters"></div>
+      <button id="vb-add-filter" class="btn btn-sm btn-outline-secondary mt-1">
+        <i class="fa fa-plus"></i> Add Filter
+      </button>
+    </div>
+
+    <div id="vb-order-section" class="mb-3" style="display:none;">
+      <label><strong>Order By</strong></label>
+      <div id="vb-orders"></div>
+      <button id="vb-add-order" class="btn btn-sm btn-outline-secondary mt-1">
+        <i class="fa fa-plus"></i> Add Sort
+      </button>
+    </div>
+
+    <div id="vb-generated-sql" class="mb-3" style="display:none;">
+      <label><strong>Generated SQL</strong></label>
+      <textarea id="vb-sql-preview" class="form-control" rows="2" readonly style="font-family: monospace; font-size: 13px;"></textarea>
+    </div>
+  </div>
+
+  <!-- SQL Query Tab -->
+  <div class="tab-pane fade" id="sql" role="tabpanel">
+    <% if @ai_enabled %>
+      <div class="card mb-3">
+        <div class="card-header p-2">
+          <a data-toggle="collapse" href="#ai-assistant-panel" role="button" aria-expanded="false" aria-controls="ai-assistant-panel" class="text-decoration-none">
+            <i class="fa fa-magic"></i> AI Assistant
+            <small class="text-muted ml-1">- Describe what you want in plain English</small>
+          </a>
+        </div>
+        <div class="collapse" id="ai-assistant-panel">
+          <div class="card-body">
+            <div class="form-group mb-2">
+              <textarea id="ai-prompt" class="form-control" rows="2" placeholder="e.g. Show me all users created in the last 30 days"></textarea>
+              <small class="form-text text-muted">Only table names and column names are sent to the AI. No row data leaves the system.</small>
+            </div>
+            <button id="ai-suggest" class="btn btn-sm btn-primary mb-2">
+              <i class="fa fa-magic"></i> Suggest Query
+            </button>
+            <div id="ai-result" style="display:none;">
+              <div id="ai-explanation" class="alert alert-info py-2 mb-2" style="font-size: 13px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="form-group">
+      <label for="sql-input">SQL Query</label>
+      <textarea id="sql-input" class="form-control" rows="5" placeholder="SELECT * FROM users LIMIT 10" style="font-family: monospace; font-size: 13px;"></textarea>
+    </div>
+    <div class="form-row align-items-end">
+      <div class="form-group col-md-2">
+        <label for="sql-row-limit">Row Limit</label>
+        <input type="number" id="sql-row-limit" class="form-control" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
+      </div>
+      <div class="form-group col-md-4">
+        <button id="sql-run" class="btn btn-primary">
+          <i class="fa fa-play"></i> Run Query
+        </button>
+        <button id="sql-explain" class="btn btn-outline-info ml-1">
+          <i class="fa fa-search"></i> Explain
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slow Queries Tab -->
+  <div class="tab-pane fade" id="slow" role="tabpanel">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <p class="text-muted mb-0">SELECT queries exceeding <%= MysqlGenius.configuration.slow_query_threshold_ms %>ms. <span id="slow-count" class="badge badge-secondary"></span></p>
+      <button id="slow-refresh" class="btn btn-sm btn-outline-secondary">
+        <i class="fa fa-refresh"></i> Refresh
+      </button>
+    </div>
+    <div id="slow-loading" class="text-center py-3" style="display:none;">
+      <i class="fa fa-spinner fa-spin"></i> Loading...
+    </div>
+    <div id="slow-empty" class="text-muted text-center py-4" style="display:none;">
+      No slow queries recorded.
+    </div>
+    <div id="slow-table-wrapper" style="overflow-x: auto; display:none;">
+      <table class="table table-sm table-striped table-bordered">
+        <thead class="thead-light">
+          <tr>
+            <th style="width: 100px;">Duration</th>
+            <th style="width: 160px;">Time</th>
+            <th>SQL</th>
+            <th style="width: 150px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="slow-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Explain Results -->
+<div id="explain-results" class="mt-3" style="display:none;">
+  <div class="card">
+    <div class="card-header p-2 d-flex justify-content-between align-items-center">
+      <span><i class="fa fa-search"></i> <strong>EXPLAIN Output</strong></span>
+      <div>
+        <% if @ai_enabled %>
+          <button id="explain-optimize" class="btn btn-sm btn-outline-primary">
+            <i class="fa fa-magic"></i> AI Optimization Suggestions
+          </button>
+        <% end %>
+        <button id="explain-close" class="btn btn-sm btn-outline-secondary ml-1">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div class="card-body p-2">
+      <div id="explain-table-wrapper" style="overflow-x: auto;">
+        <table id="explain-table" class="table table-sm table-striped table-bordered mb-0">
+          <thead id="explain-thead"></thead>
+          <tbody id="explain-tbody"></tbody>
+        </table>
+      </div>
+      <div id="optimize-results" class="mt-2" style="display:none;">
+        <div id="optimize-content" class="alert alert-info py-2 mb-0" style="font-size: 13px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results Area -->
+<div id="query-results" class="mt-3">
+  <div id="results-alert" style="display:none;"></div>
+  <div id="results-stats" class="mb-2" style="display:none;">
+    <span id="results-row-count" class="badge badge-info"></span>
+    <span id="results-time" class="badge badge-secondary ml-1"></span>
+    <span id="results-truncated" class="badge badge-warning ml-1" style="display:none;">Results truncated</span>
+  </div>
+  <div id="results-table-wrapper" style="overflow-x: auto; display:none;">
+    <table id="results-table" class="table table-sm table-striped table-bordered">
+      <thead id="results-thead"></thead>
+      <tbody id="results-tbody"></tbody>
+    </table>
+  </div>
+  <div id="results-empty" class="text-muted text-center py-4" style="display:none;">
+    No rows returned.
+  </div>
+</div>
+
+<script>
+$(document).ready(function() {
+  var ROUTES = {
+    columns:      '<%= mysql_genius.columns_path %>',
+    execute:      '<%= mysql_genius.execute_path %>',
+    explain:      '<%= mysql_genius.explain_path %>',
+    suggest:      '<%= mysql_genius.suggest_path %>',
+    optimize:     '<%= mysql_genius.optimize_path %>',
+    slow_queries: '<%= mysql_genius.slow_queries_path %>'
+  };
+  var csrfToken = $('meta[name="csrf-token"]').attr('content');
+  var currentColumns = [];
+  var columnTypeMap = {};
+
+  // --- Visual Builder ---
+
+  function loadColumnsForTable(table, callback) {
+    $('#vb-columns').empty();
+    $('#vb-filters').empty();
+    $('#vb-orders').empty();
+    columnTypeMap = {};
+    if (!table) {
+      $('#vb-columns-section, #vb-filters-section, #vb-order-section, #vb-generated-sql').hide();
+      $('#vb-run, #vb-explain').prop('disabled', true);
+      return;
+    }
+    $.getJSON(ROUTES.columns, { table: table }, function(cols) {
+      currentColumns = cols;
+      $.each(cols, function(i, col) { columnTypeMap[col.name] = col.type; });
+      var html = '';
+      $.each(cols, function(i, col) {
+        var typeLabel = colTypeLabel(col.type);
+        var checked = col['default'] ? ' checked' : '';
+        html += '<div class="form-check form-check-inline mr-3">' +
+          '<input class="form-check-input vb-col-check" type="checkbox" value="' + col.name + '" id="vb-col-' + col.name + '"' + checked +
+          ' data-default="' + (col['default'] ? '1' : '0') + '">' +
+          '<label class="form-check-label" for="vb-col-' + col.name + '">' + col.name +
+          ' <small class="text-muted">(' + typeLabel + ')</small></label></div>';
+      });
+      $('#vb-columns').html(html);
+      $('#vb-columns-section, #vb-filters-section, #vb-order-section, #vb-generated-sql').show();
+      $('#vb-run, #vb-explain').prop('disabled', false);
+      if (callback) callback(cols);
+      else updateGeneratedSql();
+    });
+  }
+
+  $('#vb-table').on('change', function() {
+    loadColumnsForTable($(this).val());
+  });
+
+  function colTypeLabel(type) {
+    var labels = { 'string': 'text', 'text': 'text', 'integer': 'number', 'boolean': 'yes/no',
+      'date': 'date', 'datetime': 'date/time', 'decimal': 'decimal', 'float': 'decimal' };
+    return labels[type] || type;
+  }
+
+  $('#vb-toggle-all').on('click', function(e) {
+    e.preventDefault();
+    var checks = $('.vb-col-check');
+    var allChecked = checks.filter(':checked').length === checks.length;
+    checks.prop('checked', !allChecked);
+    updateGeneratedSql();
+  });
+
+  $('#vb-show-defaults').on('click', function(e) {
+    e.preventDefault();
+    $('.vb-col-check').each(function() {
+      $(this).prop('checked', $(this).data('default') === 1);
+    });
+    updateGeneratedSql();
+  });
+
+  $(document).on('change', '.vb-col-check', function() { updateGeneratedSql(); });
+
+  $('#vb-add-filter').on('click', function() {
+    addFilterRow();
+    updateGeneratedSql();
+  });
+
+  $(document).on('change', '.vb-filter-col', function() {
+    var row = $(this).closest('.vb-filter-row');
+    var colName = $(this).val();
+    var colType = columnTypeMap[colName] || 'string';
+    var opSelect = row.find('.vb-filter-op');
+    var ops = getOperatorsForType(colType);
+    opSelect.empty();
+    $.each(ops, function(i, op) { opSelect.append('<option>' + op + '</option>'); });
+    updateValueInput(row, colType, opSelect.val());
+    updateGeneratedSql();
+  });
+
+  $(document).on('change', '.vb-filter-op', function() {
+    var row = $(this).closest('.vb-filter-row');
+    var colName = row.find('.vb-filter-col').val();
+    var colType = columnTypeMap[colName] || 'string';
+    updateValueInput(row, colType, $(this).val());
+    updateGeneratedSql();
+  });
+
+  $(document).on('input change', '.vb-filter-val', function() { updateGeneratedSql(); });
+
+  $(document).on('click', '.vb-remove-filter', function() {
+    $(this).closest('.vb-filter-row').remove();
+    updateGeneratedSql();
+  });
+
+  function getOperatorsForType(type) {
+    switch(type) {
+      case 'boolean':
+        return ['=', '!=', 'IS NULL', 'IS NOT NULL'];
+      case 'date': case 'datetime':
+        return ['=', '!=', '>', '<', '>=', '<=', 'BETWEEN', 'IS NULL', 'IS NOT NULL'];
+      case 'integer': case 'decimal': case 'float':
+        return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
+      default:
+        return ['=', '!=', 'LIKE', '>', '<', 'IS NULL', 'IS NOT NULL'];
+    }
+  }
+
+  function updateValueInput(row, colType, op) {
+    var container = row.find('.vb-filter-val-container');
+    container.empty();
+    if (op === 'IS NULL' || op === 'IS NOT NULL') return;
+
+    if (colType === 'boolean') {
+      container.html(
+        '<select class="form-control form-control-sm vb-filter-val">' +
+          '<option value="1">True</option><option value="0">False</option>' +
+        '</select>'
+      );
+    } else if ((colType === 'date' || colType === 'datetime') && op === 'BETWEEN') {
+      container.html(
+        '<div class="input-group input-group-sm">' +
+          '<input type="text" class="form-control form-control-sm vb-filter-val vb-datepicker" placeholder="Start date">' +
+          '<div class="input-group-prepend input-group-append"><span class="input-group-text">and</span></div>' +
+          '<input type="text" class="form-control form-control-sm vb-filter-val-end vb-datepicker" placeholder="End date">' +
+        '</div>'
+      );
+      container.find('.vb-datepicker').datepicker({ dateFormat: 'yy-mm-dd', changeMonth: true, changeYear: true });
+    } else if (colType === 'date' || colType === 'datetime') {
+      container.html('<input type="text" class="form-control form-control-sm vb-filter-val vb-datepicker" placeholder="yyyy-mm-dd">');
+      container.find('.vb-datepicker').datepicker({ dateFormat: 'yy-mm-dd', changeMonth: true, changeYear: true });
+    } else if (colType === 'integer') {
+      container.html('<input type="number" class="form-control form-control-sm vb-filter-val" placeholder="number" step="1">');
+    } else if (colType === 'decimal' || colType === 'float') {
+      container.html('<input type="number" class="form-control form-control-sm vb-filter-val" placeholder="number" step="any">');
+    } else {
+      var placeholder = (op === 'LIKE') ? 'use % as wildcard' : 'value';
+      container.html('<input type="text" class="form-control form-control-sm vb-filter-val" placeholder="' + placeholder + '">');
+    }
+  }
+
+  // --- Order By ---
+
+  $('#vb-add-order').on('click', function() {
+    addOrderRow();
+    updateGeneratedSql();
+  });
+
+  $(document).on('change', '.vb-order-col, .vb-order-dir', function() { updateGeneratedSql(); });
+
+  $(document).on('click', '.vb-remove-order', function() {
+    $(this).closest('.vb-order-row').remove();
+    updateGeneratedSql();
+  });
+
+  function addOrderRow(useAllColumns) {
+    var columns = useAllColumns ? currentColumns : defaultColumns();
+    var options = '<option value="">-- column --</option>';
+    $.each(columns, function(i, col) {
+      options += '<option value="' + col.name + '">' + col.name + '</option>';
+    });
+    var html = '<div class="form-row align-items-center mb-1 vb-order-row">' +
+      '<div class="col-md-3"><select class="form-control form-control-sm vb-order-col">' + options + '</select></div>' +
+      '<div class="col-md-2"><select class="form-control form-control-sm vb-order-dir">' +
+        '<option value="ASC">Ascending</option><option value="DESC">Descending</option>' +
+      '</select></div>' +
+      '<div class="col-md-1"><button class="btn btn-sm btn-outline-danger vb-remove-order"><i class="fa fa-times"></i></button></div>' +
+    '</div>';
+    $('#vb-orders').append(html);
+  }
+
+  function defaultColumns() {
+    return currentColumns.filter(function(col) { return col['default']; });
+  }
+
+  function addFilterRow(useAllColumns) {
+    var columns = useAllColumns ? currentColumns : defaultColumns();
+    var options = '<option value="">-- column --</option>';
+    $.each(columns, function(i, col) {
+      var typeLabel = colTypeLabel(col.type);
+      options += '<option value="' + col.name + '">' + col.name + ' (' + typeLabel + ')</option>';
+    });
+    var html = '<div class="form-row align-items-center mb-1 vb-filter-row">' +
+      '<div class="col-md-3"><select class="form-control form-control-sm vb-filter-col">' + options + '</select></div>' +
+      '<div class="col-md-2"><select class="form-control form-control-sm vb-filter-op">' +
+        '<option>=</option><option>!=</option><option>LIKE</option><option>></option><option><</option><option>IS NULL</option><option>IS NOT NULL</option>' +
+      '</select></div>' +
+      '<div class="col-md-4 vb-filter-val-container"><input type="text" class="form-control form-control-sm vb-filter-val" placeholder="value"></div>' +
+      '<div class="col-md-1"><button class="btn btn-sm btn-outline-danger vb-remove-filter"><i class="fa fa-times"></i></button></div>' +
+    '</div>';
+    $('#vb-filters').append(html);
+  }
+
+  function buildSql() {
+    var table = $('#vb-table').val();
+    if (!table) return '';
+    var cols = [];
+    $('.vb-col-check:checked').each(function() { cols.push('`' + $(this).val() + '`'); });
+    if (cols.length === 0) cols = ['*'];
+    var sql = 'SELECT ' + cols.join(', ') + ' FROM `' + table + '`';
+    var wheres = [];
+    $('.vb-filter-row').each(function() {
+      var col = $(this).find('.vb-filter-col').val();
+      var op = $(this).find('.vb-filter-op').val();
+      var val = $(this).find('.vb-filter-val').val();
+      if (!col) return;
+      if (op === 'IS NULL' || op === 'IS NOT NULL') {
+        wheres.push('`' + col + '` ' + op);
+      } else if (op === 'BETWEEN') {
+        var endVal = $(this).find('.vb-filter-val-end').val();
+        wheres.push('`' + col + '` BETWEEN \'' + val.replace(/'/g, "''") + '\' AND \'' + (endVal || '').replace(/'/g, "''") + '\'');
+      } else if (op === 'LIKE') {
+        wheres.push('`' + col + '` LIKE \'' + val.replace(/'/g, "''") + '\'');
+      } else {
+        wheres.push('`' + col + '` ' + op + ' \'' + val.replace(/'/g, "''") + '\'');
+      }
+    });
+    if (wheres.length > 0) sql += ' WHERE ' + wheres.join(' AND ');
+    var orders = [];
+    $('.vb-order-row').each(function() {
+      var col = $(this).find('.vb-order-col').val();
+      var dir = $(this).find('.vb-order-dir').val();
+      if (col) orders.push('`' + col + '` ' + dir);
+    });
+    if (orders.length > 0) sql += ' ORDER BY ' + orders.join(', ');
+    return sql;
+  }
+
+  function updateGeneratedSql() {
+    var sql = buildSql();
+    $('#vb-sql-preview').val(sql);
+    $('#sql-input').val(sql);
+  }
+
+  function parseSqlToBuilder(sql) {
+    if (!sql) return;
+    if (sql.match(/\b(JOIN|GROUP\s+BY|HAVING|UNION)\b/i) || (sql.match(/SELECT/gi) || []).length > 1) return;
+    var tableMatch = sql.match(/FROM\s+`?(\w+)`?/i);
+    if (!tableMatch) return;
+    var tableName = tableMatch[1];
+    if ($('#vb-table option[value="' + tableName + '"]').length === 0) return;
+
+    var colMatch = sql.match(/SELECT\s+(.*?)\s+FROM/i);
+    var selectedCols = [];
+    if (colMatch && colMatch[1].trim() !== '*') {
+      $.each(colMatch[1].split(','), function(i, part) {
+        var name = part.trim().replace(/`/g, '');
+        if (name) selectedCols.push(name);
+      });
+    }
+
+    var whereMatch = sql.match(/WHERE\s+(.*?)(?:\s+ORDER\s+BY\b|\s+LIMIT\b|\s*$)/i);
+    var conditions = [];
+    if (whereMatch) conditions = parseWhereClause(whereMatch[1]);
+
+    var orderMatch = sql.match(/ORDER\s+BY\s+(.*?)(?:\s+LIMIT\b|\s*$)/i);
+    var orders = [];
+    if (orderMatch) {
+      $.each(orderMatch[1].split(','), function(i, part) {
+        var m = part.trim().match(/`?(\w+)`?\s*(ASC|DESC)?/i);
+        if (m) orders.push({ column: m[1], direction: (m[2] || 'ASC').toUpperCase() });
+      });
+    }
+
+    $('#vb-table').val(tableName);
+    loadColumnsForTable(tableName, function() {
+      if (selectedCols.length > 0) {
+        $('.vb-col-check').prop('checked', false);
+        $.each(selectedCols, function(i, name) {
+          $('.vb-col-check[value="' + name + '"]').prop('checked', true);
+        });
+      }
+      $('#vb-filters').empty();
+      $.each(conditions, function(i, cond) {
+        addFilterRow(true);
+        var row = $('#vb-filters .vb-filter-row').last();
+        row.find('.vb-filter-col').val(cond.column).trigger('change');
+        row.find('.vb-filter-op').val(cond.operator).trigger('change');
+        if (cond.operator !== 'IS NULL' && cond.operator !== 'IS NOT NULL') {
+          if (cond.operator === 'BETWEEN') {
+            row.find('.vb-filter-val').val(cond.value);
+            row.find('.vb-filter-val-end').val(cond.endValue);
+          } else {
+            row.find('.vb-filter-val').val(cond.value);
+          }
+        }
+      });
+      $('#vb-orders').empty();
+      $.each(orders, function(i, ord) {
+        addOrderRow(true);
+        var row = $('#vb-orders .vb-order-row').last();
+        row.find('.vb-order-col').val(ord.column);
+        row.find('.vb-order-dir').val(ord.direction);
+      });
+      updateGeneratedSql();
+    });
+  }
+
+  function parseWhereClause(whereStr) {
+    var conditions = [];
+    var betweenRegex = /`?(\w+)`?\s+BETWEEN\s+'([^']*)'\s+AND\s+'([^']*)'/gi;
+    var match;
+    while ((match = betweenRegex.exec(whereStr)) !== null) {
+      conditions.push({ column: match[1], operator: 'BETWEEN', value: match[2], endValue: match[3] });
+    }
+    var remaining = whereStr.replace(betweenRegex, '{{BETWEEN}}');
+    var parts = remaining.split(/\s+AND\s+/i);
+    $.each(parts, function(i, part) {
+      part = part.trim();
+      if (!part || part === '{{BETWEEN}}') return;
+      var m;
+      m = part.match(/`?(\w+)`?\s+IS\s+NOT\s+NULL/i);
+      if (m) { conditions.push({ column: m[1], operator: 'IS NOT NULL', value: '' }); return; }
+      m = part.match(/`?(\w+)`?\s+IS\s+NULL/i);
+      if (m) { conditions.push({ column: m[1], operator: 'IS NULL', value: '' }); return; }
+      m = part.match(/`?(\w+)`?\s+LIKE\s+'([^']*)'/i);
+      if (m) { conditions.push({ column: m[1], operator: 'LIKE', value: m[2] }); return; }
+      m = part.match(/`?(\w+)`?\s*(!=|>=|<=|=|>|<)\s*'([^']*)'/);
+      if (m) { conditions.push({ column: m[1], operator: m[2], value: m[3] }); return; }
+      m = part.match(/`?(\w+)`?\s*(!=|>=|<=|=|>|<)\s*(\d+\.?\d*)/);
+      if (m) { conditions.push({ column: m[1], operator: m[2], value: m[3] }); return; }
+    });
+    return conditions;
+  }
+
+  $('#vb-run').on('click', function() {
+    var sql = buildSql();
+    if (!sql) return;
+    runQuery(sql, parseInt($('#vb-row-limit').val()) || 25);
+  });
+
+  // --- SQL Mode ---
+
+  $('#sql-input').on('input', function() { $('#vb-sql-preview').val($(this).val()); });
+
+  $('#sql-run').on('click', function() {
+    var sql = $('#sql-input').val().trim();
+    if (!sql) return;
+    runQuery(sql, parseInt($('#sql-row-limit').val()) || 25);
+  });
+
+  // --- AI Assistant ---
+
+  $('#ai-suggest').on('click', function() {
+    var prompt = $('#ai-prompt').val().trim();
+    if (!prompt) return;
+    var $btn = $(this);
+    $btn.prop('disabled', true).find('i').removeClass('fa-magic').addClass('fa-spinner fa-spin');
+    $('#ai-result').hide();
+
+    $.ajax({
+      url: ROUTES.suggest,
+      method: 'POST',
+      data: { prompt: prompt, authenticity_token: csrfToken },
+      dataType: 'json',
+      success: function(data) {
+        $('#sql-input').val(data.sql || '');
+        if (data.explanation) {
+          $('#ai-explanation').text(data.explanation).show();
+          $('#ai-result').show();
+        }
+        parseSqlToBuilder(data.sql);
+      },
+      error: function(xhr) {
+        var resp = xhr.responseJSON || {};
+        $('#results-alert').html('<div class="alert alert-danger">' + (resp.error || 'AI suggestion failed.') + '</div>').show();
+      },
+      complete: function() {
+        $btn.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-magic');
+      }
+    });
+  });
+
+  // --- Slow Queries ---
+
+  function loadSlowQueries() {
+    $('#slow-loading').show();
+    $('#slow-empty, #slow-table-wrapper').hide();
+    $('#slow-tbody').empty();
+
+    $.getJSON(ROUTES.slow_queries, function(data) {
+      $('#slow-loading').hide();
+      if (!data.length) {
+        $('#slow-empty').show();
+        $('#slow-count').text('0');
+        return;
+      }
+      $('#slow-count').text(data.length + ' queries');
+      var tbody = '';
+      $.each(data, function(i, q) {
+        var duration = q.duration_ms;
+        var badgeClass = duration >= 2000 ? 'badge-danger' : duration >= 1000 ? 'badge-warning' : 'badge-info';
+        var sqlEscaped = $('<span>').text(q.sql).html();
+        var sqlTruncated = sqlEscaped.length > 200 ? sqlEscaped.substring(0, 200) + '...' : sqlEscaped;
+        tbody += '<tr>' +
+          '<td><span class="badge ' + badgeClass + '">' + duration + ' ms</span></td>' +
+          '<td><small>' + q.timestamp + '</small></td>' +
+          '<td><code style="font-size: 12px; word-break: break-all;" title="' + sqlEscaped + '">' + sqlTruncated + '</code></td>' +
+          '<td>' +
+            '<button class="btn btn-sm btn-outline-info slow-explain-btn mr-1" data-sql="' + sqlEscaped.replace(/"/g, '&quot;') + '"><i class="fa fa-search"></i> Explain</button>' +
+            '<button class="btn btn-sm btn-outline-primary slow-use-btn" data-sql="' + sqlEscaped.replace(/"/g, '&quot;') + '"><i class="fa fa-pencil"></i> Use</button>' +
+          '</td></tr>';
+      });
+      $('#slow-tbody').html(tbody);
+      $('#slow-table-wrapper').show();
+    }).fail(function() {
+      $('#slow-loading').hide();
+      $('#slow-empty').text('Failed to load slow queries.').show();
+    });
+  }
+
+  $('a[href="#slow"]').on('shown.bs.tab', function() { loadSlowQueries(); });
+  $('#slow-refresh').on('click', function() { loadSlowQueries(); });
+
+  $(document).on('click', '.slow-explain-btn', function() { runExplain($(this).data('sql')); });
+  $(document).on('click', '.slow-use-btn', function() {
+    $('#sql-input').val($(this).data('sql'));
+    $('#sql-tab').tab('show');
+  });
+
+  // --- Explain ---
+
+  var lastExplainSql = '';
+  var lastExplainRows = [];
+
+  function runExplain(sql) {
+    if (!sql) return;
+    lastExplainSql = sql;
+    $('#explain-results').hide();
+    $('#optimize-results').hide();
+    $('#explain-thead, #explain-tbody').empty();
+    $('#vb-explain, #sql-explain').prop('disabled', true).find('i').removeClass('fa-search').addClass('fa-spinner fa-spin');
+
+    $.ajax({
+      url: ROUTES.explain,
+      method: 'POST',
+      data: { sql: sql, authenticity_token: csrfToken },
+      dataType: 'json',
+      success: function(data) {
+        lastExplainRows = data.rows;
+        var thead = '<tr>';
+        $.each(data.columns, function(i, col) { thead += '<th>' + $('<span>').text(col).html() + '</th>'; });
+        thead += '</tr>';
+        $('#explain-thead').html(thead);
+        var tbody = '';
+        $.each(data.rows, function(i, row) {
+          tbody += '<tr>';
+          $.each(row, function(j, val) {
+            tbody += val === null
+              ? '<td><em class="text-muted">NULL</em></td>'
+              : '<td>' + $('<span>').text(val).html() + '</td>';
+          });
+          tbody += '</tr>';
+        });
+        $('#explain-tbody').html(tbody);
+        $('#explain-results').show();
+      },
+      error: function(xhr) {
+        var resp = xhr.responseJSON || {};
+        $('#results-alert').html('<div class="alert alert-danger">' + (resp.error || 'Explain failed.') + '</div>').show();
+      },
+      complete: function() {
+        $('#vb-explain, #sql-explain').prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-search');
+      }
+    });
+  }
+
+  $('#vb-explain').on('click', function() { var sql = buildSql(); if (sql) runExplain(sql); });
+  $('#sql-explain').on('click', function() { var sql = $('#sql-input').val().trim(); if (sql) runExplain(sql); });
+  $('#explain-close').on('click', function() { $('#explain-results').hide(); });
+
+  $('#explain-optimize').on('click', function() {
+    var $btn = $(this);
+    $btn.prop('disabled', true).find('i').removeClass('fa-magic').addClass('fa-spinner fa-spin');
+    $('#optimize-results').hide();
+
+    $.ajax({
+      url: ROUTES.optimize,
+      method: 'POST',
+      data: { sql: lastExplainSql, explain_rows: lastExplainRows, authenticity_token: csrfToken },
+      dataType: 'json',
+      success: function(data) {
+        $('#optimize-content').html(formatMarkdown(data.suggestions || 'No suggestions available.'));
+        $('#optimize-results').show();
+      },
+      error: function(xhr) {
+        var resp = xhr.responseJSON || {};
+        $('#optimize-content').text(resp.error || 'Optimization suggestion failed.').show();
+        $('#optimize-results').show();
+      },
+      complete: function() {
+        $btn.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-magic');
+      }
+    });
+  });
+
+  function formatMarkdown(text) {
+    return text
+      .replace(/```sql\n?([\s\S]*?)```/g, '<pre class="bg-light p-2 rounded"><code>$1</code></pre>')
+      .replace(/```\n?([\s\S]*?)```/g, '<pre class="bg-light p-2 rounded"><code>$1</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // --- Shared Query Execution ---
+
+  function runQuery(sql, rowLimit) {
+    clearResults();
+    $('#vb-run, #sql-run').prop('disabled', true).find('i').removeClass('fa-play').addClass('fa-spinner fa-spin');
+
+    $.ajax({
+      url: ROUTES.execute,
+      method: 'POST',
+      data: { sql: sql, row_limit: rowLimit, authenticity_token: csrfToken },
+      dataType: 'json',
+      success: function(data) { renderResults(data); },
+      error: function(xhr) {
+        var resp = xhr.responseJSON || {};
+        var alertClass = resp.timeout ? 'alert-warning' : 'alert-danger';
+        $('#results-alert').html('<div class="alert ' + alertClass + '">' + (resp.error || 'An unexpected error occurred.') + '</div>').show();
+      },
+      complete: function() {
+        $('#vb-run, #sql-run').prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-play');
+      }
+    });
+  }
+
+  function clearResults() {
+    $('#results-alert, #results-stats, #results-table-wrapper, #results-empty, #results-truncated').hide();
+    $('#results-thead, #results-tbody').empty();
+  }
+
+  function renderResults(data) {
+    if (data.row_count === 0) {
+      $('#results-empty').show();
+      $('#results-stats').show();
+      $('#results-row-count').text('0 rows');
+      $('#results-time').text(data.execution_time_ms + ' ms');
+      return;
+    }
+    $('#results-row-count').text(data.row_count + ' row' + (data.row_count !== 1 ? 's' : ''));
+    $('#results-time').text(data.execution_time_ms + ' ms');
+    if (data.truncated) $('#results-truncated').show();
+    $('#results-stats').show();
+
+    var thead = '<tr>';
+    $.each(data.columns, function(i, col) { thead += '<th>' + $('<span>').text(col).html() + '</th>'; });
+    thead += '</tr>';
+    $('#results-thead').html(thead);
+
+    var tbody = '';
+    $.each(data.rows, function(i, row) {
+      tbody += '<tr>';
+      $.each(row, function(j, val) {
+        if (val === null) {
+          tbody += '<td><em class="text-muted">NULL</em></td>';
+        } else if (val === '[REDACTED]') {
+          tbody += '<td><span class="text-muted">[REDACTED]</span></td>';
+        } else {
+          tbody += '<td>' + $('<span>').text(val).html() + '</td>';
+        }
+      });
+      tbody += '</tr>';
+    });
+    $('#results-tbody').html(tbody);
+    $('#results-table-wrapper').show();
+  }
+});
+</script>
