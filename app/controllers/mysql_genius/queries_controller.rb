@@ -1,7 +1,5 @@
 module MysqlGenius
   class QueriesController < BaseController
-    FORBIDDEN_KEYWORDS = %w[INSERT UPDATE DELETE DROP ALTER CREATE TRUNCATE GRANT REVOKE].freeze
-
     def index
       @featured_tables = if mysql_genius_config.featured_tables.any?
                            mysql_genius_config.featured_tables.sort
@@ -149,6 +147,76 @@ module MysqlGenius
       render json: { error: "Optimization failed: #{e.message}" }, status: :unprocessable_entity
     end
 
+    def duplicate_indexes
+      connection = ActiveRecord::Base.connection
+      duplicates = []
+
+      queryable_tables.each do |table|
+        indexes = connection.indexes(table)
+        next if indexes.size < 2
+
+        indexes.each do |idx|
+          indexes.each do |other|
+            next if idx.name == other.name
+            # idx is duplicate if its columns are a left-prefix of other's columns
+            if idx.columns.size <= other.columns.size &&
+               other.columns.first(idx.columns.size) == idx.columns &&
+               !(idx.unique && !other.unique) # don't drop a unique index covered by a non-unique one
+              duplicates << {
+                table: table,
+                duplicate_index: idx.name,
+                duplicate_columns: idx.columns,
+                covered_by_index: other.name,
+                covered_by_columns: other.columns,
+                unique: idx.unique
+              }
+            end
+          end
+        end
+      end
+
+      # Deduplicate (A covers B and B covers A when columns are identical — keep only one)
+      seen = Set.new
+      duplicates = duplicates.reject do |d|
+        key = [d[:table], [d[:duplicate_index], d[:covered_by_index]].sort].flatten.join(":")
+        seen.include?(key) ? true : (seen.add(key); false)
+      end
+
+      render json: duplicates
+    end
+
+    def table_sizes
+      connection = ActiveRecord::Base.connection
+      db_name = connection.current_database
+
+      results = connection.exec_query(<<~SQL)
+        SELECT
+          table_name,
+          table_rows,
+          ROUND(data_length / 1024 / 1024, 2) AS data_mb,
+          ROUND(index_length / 1024 / 1024, 2) AS index_mb,
+          ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb,
+          ROUND(data_free / 1024 / 1024, 2) AS fragmented_mb
+        FROM information_schema.tables
+        WHERE table_schema = #{connection.quote(db_name)}
+          AND table_type = 'BASE TABLE'
+        ORDER BY (data_length + index_length) DESC
+      SQL
+
+      tables = results.map do |row|
+        {
+          table: row["table_name"] || row["TABLE_NAME"],
+          rows: row["table_rows"] || row["TABLE_ROWS"],
+          data_mb: row["data_mb"].to_f,
+          index_mb: row["index_mb"].to_f,
+          total_mb: row["total_mb"].to_f,
+          fragmented_mb: row["fragmented_mb"].to_f
+        }
+      end
+
+      render json: tables
+    end
+
     private
 
     def queryable_tables
@@ -156,35 +224,7 @@ module MysqlGenius
     end
 
     def validate_sql(sql)
-      return "Please enter a query." if sql.blank?
-
-      normalized = sql.gsub(/--.*$/, "").gsub(%r{/\*.*?\*/}m, "").strip
-
-      unless normalized.match?(/\ASELECT\b/i) || normalized.match?(/\AWITH\b/i)
-        return "Only SELECT queries are allowed."
-      end
-
-      return "Access to system schemas is not allowed." if normalized.match?(/\b(information_schema|mysql|performance_schema|sys)\b/i)
-
-      FORBIDDEN_KEYWORDS.each do |keyword|
-        return "#{keyword} statements are not allowed." if normalized.match?(/\b#{keyword}\b/i)
-      end
-
-      tables_in_query = extract_table_references(normalized)
-      blocked = tables_in_query & mysql_genius_config.blocked_tables
-      if blocked.any?
-        return "Access denied for table(s): #{blocked.join(', ')}."
-      end
-
-      nil
-    end
-
-    def extract_table_references(sql)
-      tables = []
-      sql.scan(/\bFROM\s+((?:`?\w+`?(?:\s*,\s*`?\w+`?)*)+)/i) { |m| m[0].scan(/`?(\w+)`?/) { |t| tables << t[0] } }
-      sql.scan(/\bJOIN\s+`?(\w+)`?/i) { |m| tables << m[0] }
-      sql.scan(/\b(?:INTO|UPDATE)\s+`?(\w+)`?/i) { |m| tables << m[0] }
-      tables.uniq.map(&:downcase) & ActiveRecord::Base.connection.tables
+      SqlValidator.validate(sql, blocked_tables: mysql_genius_config.blocked_tables, connection: ActiveRecord::Base.connection)
     end
 
     def apply_timeout_hint(sql)
@@ -201,15 +241,7 @@ module MysqlGenius
     end
 
     def apply_row_limit(sql, limit)
-      if sql.match?(/\bLIMIT\s+\d+\s*,\s*\d+/i)
-        sql.gsub(/\bLIMIT\s+(\d+)\s*,\s*(\d+)/i) do
-          "LIMIT #{::Regexp.last_match(1).to_i}, #{[::Regexp.last_match(2).to_i, limit].min}"
-        end
-      elsif sql.match?(/\bLIMIT\s+\d+/i)
-        sql.gsub(/\bLIMIT\s+(\d+)/i) { "LIMIT #{[::Regexp.last_match(1).to_i, limit].min}" }
-      else
-        "#{sql.gsub(/;\s*\z/, '')} LIMIT #{limit}"
-      end
+      SqlValidator.apply_row_limit(sql, limit)
     end
 
     def timeout_error?(exception)
@@ -218,7 +250,7 @@ module MysqlGenius
     end
 
     def masked_column?(column_name)
-      mysql_genius_config.masked_column_patterns.any? { |pattern| column_name.downcase.include?(pattern) }
+      SqlValidator.masked_column?(column_name, mysql_genius_config.masked_column_patterns)
     end
 
     def sanitize_ai_sql(sql)

@@ -1,9 +1,11 @@
-<h4>&#128024; MysqlGenius</h4>
+<h4>&#128024; MySQLGenius</h4>
 
 <div class="mg-tabs">
   <button class="mg-tab active" data-tab="visual">Visual Builder</button>
   <button class="mg-tab" data-tab="sql">SQL Query</button>
   <button class="mg-tab" data-tab="slow">Slow Queries</button>
+  <button class="mg-tab" data-tab="indexes">Duplicate Indexes</button>
+  <button class="mg-tab" data-tab="sizes">Table Sizes</button>
 </div>
 
 <!-- Visual Builder Tab -->
@@ -123,6 +125,56 @@
   </div>
 </div>
 
+<!-- Duplicate Indexes Tab -->
+<div class="mg-tab-content" id="tab-indexes">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Indexes whose columns are a left-prefix of another index on the same table. These are redundant and can safely be dropped. <span id="dup-count" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="dup-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="dup-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning indexes...</div>
+  <div id="dup-empty" class="mg-text-center mg-text-muted mg-hidden">No duplicate indexes found.</div>
+  <div id="dup-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Duplicate Index</th>
+          <th>Columns</th>
+          <th>Covered By</th>
+          <th>Covered Columns</th>
+          <th>DROP Statement</th>
+        </tr>
+      </thead>
+      <tbody id="dup-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Table Sizes Tab -->
+<div class="mg-tab-content" id="tab-sizes">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Table sizes from <code>information_schema</code>, sorted by total size. Row counts are estimates. <span id="sizes-total" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="sizes-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="sizes-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="sizes-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th style="text-align:right">Rows (est.)</th>
+          <th style="text-align:right">Data</th>
+          <th style="text-align:right">Indexes</th>
+          <th style="text-align:right">Total</th>
+          <th style="text-align:right">Fragmented</th>
+          <th style="width:200px"></th>
+        </tr>
+      </thead>
+      <tbody id="sizes-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- Explain Results -->
 <div id="explain-results" class="mg-mt mg-hidden">
   <div class="mg-card">
@@ -176,7 +228,9 @@
     explain:      '<%= mysql_genius.explain_path %>',
     suggest:      '<%= mysql_genius.suggest_path %>',
     optimize:     '<%= mysql_genius.optimize_path %>',
-    slow_queries: '<%= mysql_genius.slow_queries_path %>'
+    slow_queries: '<%= mysql_genius.slow_queries_path %>',
+    duplicate_indexes: '<%= mysql_genius.duplicate_indexes_path %>',
+    table_sizes: '<%= mysql_genius.table_sizes_path %>'
   };
 
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
@@ -251,6 +305,8 @@
       tab.classList.add('active');
       el('tab-' + tab.dataset.tab).classList.add('active');
       if (tab.dataset.tab === 'slow') loadSlowQueries();
+      if (tab.dataset.tab === 'indexes') loadDuplicateIndexes();
+      if (tab.dataset.tab === 'sizes') loadTableSizes();
     });
   });
 
@@ -650,6 +706,87 @@
       el('tab-sql').classList.add('active');
     }
   });
+
+  // --- Duplicate Indexes ---
+
+  function loadDuplicateIndexes() {
+    show(el('dup-loading'));
+    hide(el('dup-empty')); hide(el('dup-table-wrapper'));
+    el('dup-tbody').innerHTML = '';
+
+    ajaxGet(ROUTES.duplicate_indexes, {}, function(data) {
+      hide(el('dup-loading'));
+      if (!data || !data.length) { show(el('dup-empty')); el('dup-count').textContent = '0'; return; }
+      el('dup-count').textContent = data.length + ' found';
+      el('dup-tbody').innerHTML = data.map(function(d) {
+        var dropSql = 'ALTER TABLE `' + d.table + '` DROP INDEX `' + d.duplicate_index + '`;';
+        return '<tr>' +
+          '<td><strong>' + escHtml(d.table) + '</strong></td>' +
+          '<td><code>' + escHtml(d.duplicate_index) + '</code>' + (d.unique ? ' <span class="mg-badge mg-badge-warning">UNIQUE</span>' : '') + '</td>' +
+          '<td>' + d.duplicate_columns.map(function(c) { return '<code>' + escHtml(c) + '</code>'; }).join(', ') + '</td>' +
+          '<td><code>' + escHtml(d.covered_by_index) + '</code></td>' +
+          '<td>' + d.covered_by_columns.map(function(c) { return '<code>' + escHtml(c) + '</code>'; }).join(', ') + '</td>' +
+          '<td><code style="font-size:11px;user-select:all;cursor:pointer;" title="Click to select">' + escHtml(dropSql) + '</code></td>' +
+          '</tr>';
+      }).join('');
+      show(el('dup-table-wrapper'));
+    }, function() {
+      hide(el('dup-loading'));
+      el('dup-empty').textContent = 'Failed to scan indexes.';
+      show(el('dup-empty'));
+    });
+  }
+
+  el('dup-refresh').addEventListener('click', loadDuplicateIndexes);
+
+  // --- Table Sizes ---
+
+  function formatMb(mb) {
+    if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+    if (mb >= 1) return mb.toFixed(2) + ' MB';
+    return (mb * 1024).toFixed(0) + ' KB';
+  }
+
+  function sizeBar(pct, color) {
+    return '<div style="background:#e9ecef;border-radius:3px;height:8px;width:100%;">' +
+      '<div style="background:' + color + ';border-radius:3px;height:8px;width:' + Math.max(pct, 1) + '%;"></div></div>';
+  }
+
+  function loadTableSizes() {
+    show(el('sizes-loading'));
+    hide(el('sizes-table-wrapper'));
+    el('sizes-tbody').innerHTML = '';
+
+    ajaxGet(ROUTES.table_sizes, {}, function(data) {
+      hide(el('sizes-loading'));
+      if (!data || !data.length) { el('sizes-total').textContent = '0 tables'; show(el('sizes-table-wrapper')); return; }
+
+      var totalMb = data.reduce(function(sum, t) { return sum + t.total_mb; }, 0);
+      el('sizes-total').textContent = data.length + ' tables, ' + formatMb(totalMb) + ' total';
+      var maxMb = data[0].total_mb || 1;
+
+      el('sizes-tbody').innerHTML = data.map(function(t) {
+        var pct = (t.total_mb / maxMb) * 100;
+        var color = t.total_mb >= 100 ? '#dc3545' : t.total_mb >= 10 ? '#ffc107' : '#28a745';
+        var rows = t.rows != null ? Number(t.rows).toLocaleString() : '?';
+        return '<tr>' +
+          '<td><strong>' + escHtml(t.table) + '</strong></td>' +
+          '<td style="text-align:right">' + rows + '</td>' +
+          '<td style="text-align:right">' + formatMb(t.data_mb) + '</td>' +
+          '<td style="text-align:right">' + formatMb(t.index_mb) + '</td>' +
+          '<td style="text-align:right"><strong>' + formatMb(t.total_mb) + '</strong></td>' +
+          '<td style="text-align:right">' + (t.fragmented_mb > 0 ? formatMb(t.fragmented_mb) : '-') + '</td>' +
+          '<td>' + sizeBar(pct, color) + '</td>' +
+          '</tr>';
+      }).join('');
+      show(el('sizes-table-wrapper'));
+    }, function() {
+      hide(el('sizes-loading'));
+      el('sizes-total').textContent = 'Failed to load';
+    });
+  }
+
+  el('sizes-refresh').addEventListener('click', loadTableSizes);
 
   // --- SQL to Builder sync ---
 

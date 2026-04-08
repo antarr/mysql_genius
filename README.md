@@ -1,6 +1,6 @@
-# MysqlGenius
+# MySQLGenius
 
-A MySQL performance dashboard and query explorer for Rails. Like [PgHero](https://github.com/ankane/pghero), but for MySQL -- with AI-powered query suggestions and optimization.
+A MySQL performance dashboard and query explorer for Rails, inspired by [PgHero](https://github.com/ankane/pghero). If you've used PgHero for PostgreSQL and wished something similar existed for MySQL -- this is it, with AI-powered query suggestions and optimization on top.
 
 ## Features
 
@@ -10,6 +10,8 @@ A MySQL performance dashboard and query explorer for Rails. Like [PgHero](https:
 - **AI Query Suggestions** -- describe what you want in plain English, get SQL back (optional, any OpenAI-compatible API)
 - **AI Query Optimization** -- get actionable optimization suggestions from EXPLAIN output (optional)
 - **Slow Query Monitoring** -- captures slow SELECT queries via ActiveSupport notifications and Redis
+- **Duplicate Index Detection** -- finds redundant indexes whose columns are a left-prefix of another index
+- **Table Size Dashboard** -- view row counts, data size, index size, and fragmentation for all tables
 - **Audit Logging** -- logs all query executions, rejections, and errors
 - **MariaDB Support** -- automatically detects MariaDB and uses appropriate timeout syntax
 - **Self-contained UI** -- no external CSS/JS dependencies, works with any Rails layout
@@ -118,7 +120,7 @@ end
 
 ### 3. AI Features (optional)
 
-MysqlGenius supports AI-powered query suggestions and optimization via any OpenAI-compatible API, including OpenAI, Azure OpenAI, Ollama Cloud, and local Ollama instances.
+MySQLGenius supports AI-powered query suggestions and optimization via any OpenAI-compatible API, including OpenAI, Azure OpenAI, Ollama Cloud, and local Ollama instances.
 
 ```ruby
 MysqlGenius.configure do |config|
@@ -176,7 +178,7 @@ When AI is not configured, the AI Assistant panel and optimization buttons are h
 
 ## Usage
 
-Visit `/mysql_genius` in your browser. The dashboard has three tabs:
+Visit `/mysql_genius` in your browser. The dashboard has five tabs:
 
 ### Visual Builder
 Select a table, pick columns, add type-aware filters (dates get date pickers, booleans get dropdowns), add sort orders, and run queries -- no SQL knowledge required. The generated SQL is shown and synced with the SQL tab.
@@ -189,6 +191,12 @@ View slow SELECT queries captured from your application in real time. Each slow 
 - **Explained** -- run EXPLAIN to see the execution plan (bypasses blocked table restrictions)
 - **Used** -- copy to the SQL tab for editing and re-running
 - **Optimized** -- get AI-powered optimization suggestions with specific index and rewrite recommendations
+
+### Duplicate Indexes
+Scans all tables for redundant indexes -- indexes whose columns are a left-prefix of another index on the same table. Shows the `ALTER TABLE ... DROP INDEX` statement for each duplicate, ready to copy and run.
+
+### Table Sizes
+Displays every table sorted by total size, with columns for estimated row count, data size, index size, total size, and fragmented space. Includes a visual size bar for quick comparison.
 
 ## Configuration Reference
 
