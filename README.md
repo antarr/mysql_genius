@@ -5,39 +5,47 @@ A MySQL performance dashboard and query explorer for Rails, inspired by [PgHero]
 ## Screenshots
 
 ### Dashboard
+
 At-a-glance server health, top slow queries, most expensive queries, and index alerts.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
 ### Slow Queries
+
 SELECT queries exceeding the configured threshold, captured via ActiveSupport notifications and Redis.
 
 ### Query Stats
+
 Top queries from `performance_schema` sorted by total time, with call counts, avg/max time, and rows examined.
 
 ![Query Stats](docs/screenshots/query_stats.png)
 
 ### Server Dashboard
+
 Server health: version, connections, InnoDB buffer pool, and query activity with AI-powered diagnostics.
 
 ![Server](docs/screenshots/server.png)
 
 ### Table Sizes
+
 View row counts, data size, index size, fragmentation, and a visual size chart for every table.
 
 ![Table Sizes](docs/screenshots/table_sizes.png)
 
 ### Duplicate Index Detection
+
 Find redundant indexes whose columns are a left-prefix of another index, with ready-to-run `DROP INDEX` statements.
 
 ![Duplicate Indexes](docs/screenshots/duplicate_indexes.png)
 
 ### Query Explorer
+
 Build queries visually or write raw SQL. Optional AI assistant generates queries from plain English descriptions.
 
 ![Query Explorer](docs/screenshots/query_explore.png)
 
 ### AI Tools
+
 Schema review that finds anti-patterns -- missing primary keys, nullable foreign keys, inappropriate column types, and more.
 
 ![AI Tools](docs/screenshots/ai_tools.png)
@@ -80,8 +88,8 @@ gem "mysql_genius", github: "antarr/mysql_genius"
 
 Then run:
 
-```
-bundle install
+```bash
+RAILS_VERSION=6.1 bundle update && bundle exec rspec
 ```
 
 ## Setup
@@ -221,12 +229,15 @@ When AI is not configured, the AI Assistant panel and optimization buttons are h
 Visit `/mysql_genius` in your browser. The dashboard loads automatically with an overview of your database health.
 
 ### Dashboard
+
 The default landing page shows server health cards, top 5 slow queries, top 5 most expensive queries (from performance_schema), and index alert badges for duplicate and unused indexes. Each section links to its detailed tab.
 
 ### Query Explorer
+
 Combines the visual query builder and raw SQL editor in one tab. Toggle between Visual mode (point-and-click with column selection, filters, and ordering) and SQL mode (raw SQL with optional AI assistant). Generated SQL syncs between modes.
 
 ### Monitoring Tabs
+
 - **Slow Queries** -- slow SELECT queries captured from your application in real time, with Explain and Optimize actions
 - **Query Stats** -- top queries from `performance_schema` sorted by total time, avg time, calls, or rows examined
 - **Server** -- connections, InnoDB buffer pool, query activity, with AI-powered diagnostics
@@ -274,7 +285,7 @@ Tested against:
 
 ## Development
 
-```
+```bash
 git clone https://github.com/antarr/mysql_genius.git
 cd mysql_genius
 bin/setup
@@ -283,7 +294,7 @@ bundle exec rspec
 
 To test against a specific Rails version:
 
-```
+```bash
 RAILS_VERSION=6.1 bundle update && bundle exec rspec
 ```
 
