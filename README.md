@@ -89,7 +89,7 @@ gem "mysql_genius", github: "antarr/mysql_genius"
 Then run:
 
 ```bash
-RAILS_VERSION=6.1 bundle update && bundle exec rspec
+bundle install
 ```
 
 ## Setup
