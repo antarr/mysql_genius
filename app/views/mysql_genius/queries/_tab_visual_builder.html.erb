@@ -1,0 +1,61 @@
+<!-- Visual Builder Tab -->
+<div class="mg-tab-content active" id="tab-visual">
+  <div class="mg-row mg-mb">
+    <div class="mg-col-4 mg-field">
+      <label for="vb-table">Table</label>
+      <select id="vb-table">
+        <option value="">-- Select a table --</option>
+        <% if @featured_tables != @all_tables %>
+          <optgroup label="Featured">
+            <% @featured_tables.each do |table| %>
+              <option value="<%= table %>"><%= table %></option>
+            <% end %>
+          </optgroup>
+          <optgroup label="All Tables">
+            <% (@all_tables - @featured_tables).each do |table| %>
+              <option value="<%= table %>"><%= table %></option>
+            <% end %>
+          </optgroup>
+        <% else %>
+          <% @all_tables.each do |table| %>
+            <option value="<%= table %>"><%= table %></option>
+          <% end %>
+        <% end %>
+      </select>
+    </div>
+    <div class="mg-col-2 mg-field">
+      <label for="vb-row-limit">Row Limit</label>
+      <input type="number" id="vb-row-limit" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
+    </div>
+    <div class="mg-field">
+      <label>&nbsp;</label>
+      <button id="vb-run" class="mg-btn mg-btn-primary" disabled>&#9654; Run Query</button>
+      <button id="vb-explain" class="mg-btn mg-btn-outline" disabled>&#128270; Explain</button>
+    </div>
+  </div>
+
+  <div id="vb-columns-section" class="mg-mb mg-hidden">
+    <label>Columns
+      <span id="vb-toggle-all" class="mg-link">Toggle All</span>
+      <span id="vb-show-defaults" class="mg-link">Reset Defaults</span>
+    </label>
+    <div id="vb-columns" class="mg-checks"></div>
+  </div>
+
+  <div id="vb-filters-section" class="mg-mb mg-hidden">
+    <label>Filters</label>
+    <div id="vb-filters"></div>
+    <button id="vb-add-filter" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-top:4px;">+ Add Filter</button>
+  </div>
+
+  <div id="vb-order-section" class="mg-mb mg-hidden">
+    <label>Order By</label>
+    <div id="vb-orders"></div>
+    <button id="vb-add-order" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-top:4px;">+ Add Sort</button>
+  </div>
+
+  <div id="vb-generated-sql" class="mg-mb mg-hidden">
+    <label>Generated SQL</label>
+    <textarea id="vb-sql-preview" rows="2" readonly></textarea>
+  </div>
+</div>

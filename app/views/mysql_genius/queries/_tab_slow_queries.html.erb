@@ -1,0 +1,17 @@
+<!-- Slow Queries Tab -->
+<div class="mg-tab-content" id="tab-slow">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">SELECT queries exceeding <%= MysqlGenius.configuration.slow_query_threshold_ms %>ms. <span id="slow-count" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="slow-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="slow-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="slow-empty" class="mg-text-center mg-text-muted mg-hidden">No slow queries recorded.</div>
+  <div id="slow-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr><th style="width:100px">Duration</th><th style="width:160px">Time</th><th>SQL</th><th style="width:150px">Actions</th></tr>
+      </thead>
+      <tbody id="slow-tbody"></tbody>
+    </table>
+  </div>
+</div>

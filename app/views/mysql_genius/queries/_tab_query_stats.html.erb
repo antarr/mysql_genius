@@ -1,0 +1,36 @@
+<!-- Query Stats Tab -->
+<div class="mg-tab-content" id="tab-qstats">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Top queries from <code>performance_schema.events_statements_summary_by_digest</code>. <span id="qstats-count" class="mg-badge mg-badge-secondary"></span></div>
+    <div>
+      <label style="display:inline;font-size:12px;margin-right:4px;">Sort by:</label>
+      <select id="qstats-sort" style="width:auto;display:inline-block;padding:3px 6px;font-size:12px;">
+        <option value="total_time">Total Time</option>
+        <option value="avg_time">Avg Time</option>
+        <option value="calls">Calls</option>
+        <option value="rows_examined">Rows Examined</option>
+      </select>
+      <button id="qstats-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-left:4px;">&#8635; Refresh</button>
+    </div>
+  </div>
+  <div id="qstats-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="qstats-error" class="mg-hidden"></div>
+  <div id="qstats-empty" class="mg-text-center mg-text-muted mg-hidden">No query statistics available.</div>
+  <div id="qstats-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Query</th>
+          <th style="text-align:right">Calls</th>
+          <th style="text-align:right">Total Time</th>
+          <th style="text-align:right">Avg Time</th>
+          <th style="text-align:right">Max Time</th>
+          <th style="text-align:right">Rows Examined</th>
+          <th style="text-align:right">Rows Sent</th>
+          <th style="text-align:right">Exam/Sent</th>
+        </tr>
+      </thead>
+      <tbody id="qstats-tbody"></tbody>
+    </table>
+  </div>
+</div>

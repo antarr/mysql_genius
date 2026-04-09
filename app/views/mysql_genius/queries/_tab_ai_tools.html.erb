@@ -1,0 +1,43 @@
+<!-- AI Tools Tab -->
+<div class="mg-tab-content" id="tab-aitools">
+  <!-- Schema Review -->
+  <div class="mg-card mg-mb">
+    <div class="mg-card-header"><strong>&#9889; Schema Review</strong></div>
+    <div class="mg-card-body">
+      <div class="mg-text-muted mg-mb" style="font-size:12px;">Analyze your schema for anti-patterns: inappropriate column types, missing indexes, naming inconsistencies, and more.</div>
+      <div class="mg-row" style="align-items:flex-end;">
+        <div class="mg-col-4 mg-field">
+          <label for="schema-table">Table (leave blank for all)</label>
+          <select id="schema-table">
+            <option value="">All tables (top 20)</option>
+            <% @all_tables.each do |table| %>
+              <option value="<%= table %>"><%= table %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="mg-field">
+          <button id="schema-review-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Analyze Schema</button>
+        </div>
+      </div>
+      <div id="schema-result" class="mg-mt mg-hidden">
+        <div id="schema-result-content" style="font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Migration Risk Assessment -->
+  <div class="mg-card">
+    <div class="mg-card-header"><strong>&#9889; Migration Risk Assessment</strong></div>
+    <div class="mg-card-body">
+      <div class="mg-text-muted mg-mb" style="font-size:12px;">Paste a Rails migration or DDL and get a risk assessment: lock duration, impact on active queries, deployment strategy.</div>
+      <div class="mg-field">
+        <textarea id="migration-input" rows="8" placeholder="class AddIndexToUsers < ActiveRecord::Migration[7.0]&#10;  def change&#10;    add_index :users, :email, unique: true&#10;  end&#10;end"></textarea>
+      </div>
+      <button id="migration-assess-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Assess Risk</button>
+      <div id="migration-result" class="mg-mt mg-hidden">
+        <div id="migration-risk-badge" style="margin-bottom:8px;"></div>
+        <div id="migration-result-content" style="font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+</div>

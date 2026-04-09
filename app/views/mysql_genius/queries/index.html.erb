@@ -14,404 +14,19 @@
   <% end %>
 </div>
 
-<!-- Visual Builder Tab -->
-<div class="mg-tab-content active" id="tab-visual">
-  <div class="mg-row mg-mb">
-    <div class="mg-col-4 mg-field">
-      <label for="vb-table">Table</label>
-      <select id="vb-table">
-        <option value="">-- Select a table --</option>
-        <% if @featured_tables != @all_tables %>
-          <optgroup label="Featured">
-            <% @featured_tables.each do |table| %>
-              <option value="<%= table %>"><%= table %></option>
-            <% end %>
-          </optgroup>
-          <optgroup label="All Tables">
-            <% (@all_tables - @featured_tables).each do |table| %>
-              <option value="<%= table %>"><%= table %></option>
-            <% end %>
-          </optgroup>
-        <% else %>
-          <% @all_tables.each do |table| %>
-            <option value="<%= table %>"><%= table %></option>
-          <% end %>
-        <% end %>
-      </select>
-    </div>
-    <div class="mg-col-2 mg-field">
-      <label for="vb-row-limit">Row Limit</label>
-      <input type="number" id="vb-row-limit" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
-    </div>
-    <div class="mg-field">
-      <label>&nbsp;</label>
-      <button id="vb-run" class="mg-btn mg-btn-primary" disabled>&#9654; Run Query</button>
-      <button id="vb-explain" class="mg-btn mg-btn-outline" disabled>&#128270; Explain</button>
-    </div>
-  </div>
-
-  <div id="vb-columns-section" class="mg-mb mg-hidden">
-    <label>Columns
-      <span id="vb-toggle-all" class="mg-link">Toggle All</span>
-      <span id="vb-show-defaults" class="mg-link">Reset Defaults</span>
-    </label>
-    <div id="vb-columns" class="mg-checks"></div>
-  </div>
-
-  <div id="vb-filters-section" class="mg-mb mg-hidden">
-    <label>Filters</label>
-    <div id="vb-filters"></div>
-    <button id="vb-add-filter" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-top:4px;">+ Add Filter</button>
-  </div>
-
-  <div id="vb-order-section" class="mg-mb mg-hidden">
-    <label>Order By</label>
-    <div id="vb-orders"></div>
-    <button id="vb-add-order" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-top:4px;">+ Add Sort</button>
-  </div>
-
-  <div id="vb-generated-sql" class="mg-mb mg-hidden">
-    <label>Generated SQL</label>
-    <textarea id="vb-sql-preview" rows="2" readonly></textarea>
-  </div>
-</div>
-
-<!-- SQL Query Tab -->
-<div class="mg-tab-content" id="tab-sql">
-  <% if @ai_enabled %>
-    <div class="mg-card mg-mb">
-      <div class="mg-card-header">
-        <span class="mg-card-toggle" id="ai-toggle">&#9889; AI Assistant <span class="mg-text-muted">- Describe what you want in plain English</span></span>
-      </div>
-      <div class="mg-card-body mg-hidden" id="ai-panel">
-        <div class="mg-field">
-          <textarea id="ai-prompt" rows="2" placeholder="e.g. Show me all users created in the last 30 days"></textarea>
-          <div class="mg-text-muted" style="margin-top:2px;">Only table names and column names are sent to the AI. No row data leaves the system.</div>
-        </div>
-        <button id="ai-suggest" class="mg-btn mg-btn-primary mg-btn-sm mg-mb">&#9889; Suggest Query</button>
-        <div id="ai-result" class="mg-hidden">
-          <div id="ai-explanation" class="mg-alert mg-alert-info"></div>
-        </div>
-      </div>
-    </div>
-  <% end %>
-
-  <div class="mg-field">
-    <label for="sql-input">SQL Query</label>
-    <textarea id="sql-input" rows="5" placeholder="SELECT * FROM users LIMIT 10"></textarea>
-  </div>
-  <div class="mg-row">
-    <div class="mg-col-2 mg-field">
-      <label for="sql-row-limit">Row Limit</label>
-      <input type="number" id="sql-row-limit" value="25" min="1" max="<%= MysqlGenius.configuration.max_row_limit %>">
-    </div>
-    <div class="mg-field">
-      <label>&nbsp;</label>
-      <button id="sql-run" class="mg-btn mg-btn-primary">&#9654; Run Query</button>
-      <button id="sql-explain" class="mg-btn mg-btn-outline">&#128270; Explain</button>
-      <% if @ai_enabled %>
-        <button id="sql-describe" class="mg-btn mg-btn-outline mg-btn-sm" style="margin-left:8px;">&#9889; Describe</button>
-        <button id="sql-rewrite" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Rewrite</button>
-      <% end %>
-    </div>
-  </div>
-</div>
-
-<!-- Slow Queries Tab -->
-<div class="mg-tab-content" id="tab-slow">
-  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div class="mg-text-muted">SELECT queries exceeding <%= MysqlGenius.configuration.slow_query_threshold_ms %>ms. <span id="slow-count" class="mg-badge mg-badge-secondary"></span></div>
-    <button id="slow-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
-  </div>
-  <div id="slow-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
-  <div id="slow-empty" class="mg-text-center mg-text-muted mg-hidden">No slow queries recorded.</div>
-  <div id="slow-table-wrapper" class="mg-table-wrap mg-hidden">
-    <table class="mg-table">
-      <thead>
-        <tr><th style="width:100px">Duration</th><th style="width:160px">Time</th><th>SQL</th><th style="width:150px">Actions</th></tr>
-      </thead>
-      <tbody id="slow-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Duplicate Indexes Tab -->
-<div class="mg-tab-content" id="tab-indexes">
-  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div class="mg-text-muted">Indexes whose columns are a left-prefix of another index on the same table. These are redundant and can safely be dropped. <span id="dup-count" class="mg-badge mg-badge-secondary"></span></div>
-    <button id="dup-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
-  </div>
-  <div id="dup-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning indexes...</div>
-  <div id="dup-empty" class="mg-text-center mg-text-muted mg-hidden">No duplicate indexes found.</div>
-  <div id="dup-table-wrapper" class="mg-table-wrap mg-hidden">
-    <table class="mg-table">
-      <thead>
-        <tr>
-          <th>Table</th>
-          <th>Duplicate Index</th>
-          <th>Columns</th>
-          <th>Covered By</th>
-          <th>Covered Columns</th>
-          <th>DROP Statement</th>
-        </tr>
-      </thead>
-      <tbody id="dup-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Table Sizes Tab -->
-<div class="mg-tab-content" id="tab-sizes">
-  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div class="mg-text-muted">Table sizes from <code>information_schema</code>, sorted by total size. Row counts are estimates. <span id="sizes-total" class="mg-badge mg-badge-secondary"></span></div>
-    <button id="sizes-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
-  </div>
-  <div id="sizes-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
-  <div id="sizes-chart-wrapper" class="mg-hidden" style="margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
-      <canvas id="sizes-pie" width="280" height="280" style="flex-shrink:0;"></canvas>
-      <div id="sizes-legend" style="font-size:12px;line-height:1.8;"></div>
-    </div>
-  </div>
-  <div id="sizes-table-wrapper" class="mg-table-wrap mg-hidden">
-    <table class="mg-table">
-      <thead>
-        <tr>
-          <th>Table</th>
-          <th style="text-align:right">Rows (est.)</th>
-          <th style="text-align:right">Data</th>
-          <th style="text-align:right">Indexes</th>
-          <th style="text-align:right">Total</th>
-          <th style="text-align:right">Fragmented</th>
-          <th style="width:200px"></th>
-        </tr>
-      </thead>
-      <tbody id="sizes-tbody"></tbody>
-    </table>
-  </div>
-
-</div>
-
-<!-- Query Stats Tab -->
-<div class="mg-tab-content" id="tab-qstats">
-  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div class="mg-text-muted">Top queries from <code>performance_schema.events_statements_summary_by_digest</code>. <span id="qstats-count" class="mg-badge mg-badge-secondary"></span></div>
-    <div>
-      <label style="display:inline;font-size:12px;margin-right:4px;">Sort by:</label>
-      <select id="qstats-sort" style="width:auto;display:inline-block;padding:3px 6px;font-size:12px;">
-        <option value="total_time">Total Time</option>
-        <option value="avg_time">Avg Time</option>
-        <option value="calls">Calls</option>
-        <option value="rows_examined">Rows Examined</option>
-      </select>
-      <button id="qstats-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-left:4px;">&#8635; Refresh</button>
-    </div>
-  </div>
-  <div id="qstats-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
-  <div id="qstats-error" class="mg-hidden"></div>
-  <div id="qstats-empty" class="mg-text-center mg-text-muted mg-hidden">No query statistics available.</div>
-  <div id="qstats-table-wrapper" class="mg-table-wrap mg-hidden">
-    <table class="mg-table">
-      <thead>
-        <tr>
-          <th>Query</th>
-          <th style="text-align:right">Calls</th>
-          <th style="text-align:right">Total Time</th>
-          <th style="text-align:right">Avg Time</th>
-          <th style="text-align:right">Max Time</th>
-          <th style="text-align:right">Rows Examined</th>
-          <th style="text-align:right">Rows Sent</th>
-          <th style="text-align:right">Exam/Sent</th>
-        </tr>
-      </thead>
-      <tbody id="qstats-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Unused Indexes Tab -->
-<div class="mg-tab-content" id="tab-unused">
-  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div class="mg-text-muted">Indexes with zero reads since last server restart, from <code>performance_schema</code>. <span id="unused-count" class="mg-badge mg-badge-secondary"></span></div>
-    <button id="unused-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
-  </div>
-  <div id="unused-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning...</div>
-  <div id="unused-error" class="mg-hidden"></div>
-  <div id="unused-empty" class="mg-text-center mg-text-muted mg-hidden">No unused indexes found.</div>
-  <div id="unused-table-wrapper" class="mg-table-wrap mg-hidden">
-    <table class="mg-table">
-      <thead>
-        <tr>
-          <th>Table</th>
-          <th>Index</th>
-          <th style="text-align:right">Reads</th>
-          <th style="text-align:right">Writes</th>
-          <th style="text-align:right">Table Rows</th>
-          <th>DROP Statement</th>
-        </tr>
-      </thead>
-      <tbody id="unused-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Server Tab -->
-<div class="mg-tab-content" id="tab-server">
-  <div class="mg-row" style="justify-content:flex-end;margin-bottom:12px;">
-    <% if @ai_enabled %>
-      <button id="server-root-cause" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Why is it slow?</button>
-      <button id="server-anomaly" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Anomaly Detection</button>
-    <% end %>
-    <button id="server-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
-  </div>
-  <div id="server-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
-  <div id="server-error" class="mg-hidden"></div>
-  <div id="server-content" class="mg-hidden">
-    <!-- Server Info -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px;">
-      <div class="mg-card">
-        <div class="mg-card-header"><strong>Server</strong></div>
-        <div class="mg-card-body">
-          <div class="mg-stat-grid" id="server-info"></div>
-        </div>
-      </div>
-      <div class="mg-card">
-        <div class="mg-card-header"><strong>Connections</strong></div>
-        <div class="mg-card-body">
-          <div id="conn-bar" style="margin-bottom:8px;"></div>
-          <div class="mg-stat-grid" id="conn-info"></div>
-        </div>
-      </div>
-      <div class="mg-card">
-        <div class="mg-card-header"><strong>InnoDB Buffer Pool</strong></div>
-        <div class="mg-card-body">
-          <div id="innodb-bar" style="margin-bottom:8px;"></div>
-          <div class="mg-stat-grid" id="innodb-info"></div>
-        </div>
-      </div>
-      <div class="mg-card">
-        <div class="mg-card-header"><strong>Query Activity</strong></div>
-        <div class="mg-card-body">
-          <div class="mg-stat-grid" id="query-info"></div>
-        </div>
-      </div>
-    </div>
-    <div id="server-ai-result" class="mg-mt mg-hidden">
-      <div class="mg-card">
-        <div class="mg-card-header">
-          <span id="server-ai-title"><strong>&#9889; AI Analysis</strong></span>
-          <button id="server-ai-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
-        </div>
-        <div class="mg-card-body">
-          <div id="server-ai-content" style="font-size:13px;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- AI Tools Tab -->
+<%= render "mysql_genius/queries/tab_visual_builder" %>
+<%= render "mysql_genius/queries/tab_sql_query" %>
+<%= render "mysql_genius/queries/tab_slow_queries" %>
+<%= render "mysql_genius/queries/tab_duplicate_indexes" %>
+<%= render "mysql_genius/queries/tab_table_sizes" %>
+<%= render "mysql_genius/queries/tab_query_stats" %>
+<%= render "mysql_genius/queries/tab_unused_indexes" %>
+<%= render "mysql_genius/queries/tab_server" %>
 <% if @ai_enabled %>
-<div class="mg-tab-content" id="tab-aitools">
-  <!-- Schema Review -->
-  <div class="mg-card mg-mb">
-    <div class="mg-card-header"><strong>&#9889; Schema Review</strong></div>
-    <div class="mg-card-body">
-      <div class="mg-text-muted mg-mb" style="font-size:12px;">Analyze your schema for anti-patterns: inappropriate column types, missing indexes, naming inconsistencies, and more.</div>
-      <div class="mg-row" style="align-items:flex-end;">
-        <div class="mg-col-4 mg-field">
-          <label for="schema-table">Table (leave blank for all)</label>
-          <select id="schema-table">
-            <option value="">All tables (top 20)</option>
-            <% @all_tables.each do |table| %>
-              <option value="<%= table %>"><%= table %></option>
-            <% end %>
-          </select>
-        </div>
-        <div class="mg-field">
-          <button id="schema-review-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Analyze Schema</button>
-        </div>
-      </div>
-      <div id="schema-result" class="mg-mt mg-hidden">
-        <div id="schema-result-content" class="mg-alert mg-alert-info" style="font-size:13px;"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Migration Risk Assessment -->
-  <div class="mg-card">
-    <div class="mg-card-header"><strong>&#9889; Migration Risk Assessment</strong></div>
-    <div class="mg-card-body">
-      <div class="mg-text-muted mg-mb" style="font-size:12px;">Paste a Rails migration or DDL and get a risk assessment: lock duration, impact on active queries, deployment strategy.</div>
-      <div class="mg-field">
-        <textarea id="migration-input" rows="8" placeholder="class AddIndexToUsers < ActiveRecord::Migration[7.0]&#10;  def change&#10;    add_index :users, :email, unique: true&#10;  end&#10;end"></textarea>
-      </div>
-      <button id="migration-assess-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Assess Risk</button>
-      <div id="migration-result" class="mg-mt mg-hidden">
-        <div id="migration-risk-badge" style="margin-bottom:8px;"></div>
-        <div id="migration-result-content" class="mg-alert mg-alert-info" style="font-size:13px;"></div>
-      </div>
-    </div>
-  </div>
-</div>
+  <%= render "mysql_genius/queries/tab_ai_tools" %>
 <% end %>
 
-<!-- Explain Results -->
-<div id="explain-results" class="mg-mt mg-hidden">
-  <div class="mg-card">
-    <div class="mg-card-header">
-      <span><strong>&#128270; EXPLAIN Output</strong></span>
-      <div>
-        <% if @ai_enabled %>
-          <button id="explain-optimize" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; AI Optimization</button>
-          <button id="explain-index-advisor" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Index Advisor</button>
-        <% end %>
-        <button id="explain-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005; Close</button>
-      </div>
-    </div>
-    <div class="mg-card-body">
-      <div class="mg-table-wrap">
-        <table class="mg-table">
-          <thead id="explain-thead"></thead>
-          <tbody id="explain-tbody"></tbody>
-        </table>
-      </div>
-      <div id="optimize-results" class="mg-hidden mg-mt">
-        <div id="optimize-content" class="mg-alert mg-alert-info"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Results Area -->
-<div id="query-results" class="mg-mt">
-  <div id="results-alert" class="mg-hidden"></div>
-  <div id="results-stats" class="mg-mb mg-hidden">
-    <span id="results-row-count" class="mg-badge mg-badge-info"></span>
-    <span id="results-time" class="mg-badge mg-badge-secondary"></span>
-    <span id="results-truncated" class="mg-badge mg-badge-warning mg-hidden">Results truncated</span>
-  </div>
-  <div id="results-table-wrapper" class="mg-table-wrap mg-hidden">
-    <table class="mg-table">
-      <thead id="results-thead"></thead>
-      <tbody id="results-tbody"></tbody>
-    </table>
-  </div>
-  <div id="results-empty" class="mg-text-center mg-text-muted mg-hidden">No rows returned.</div>
-</div>
-
-<!-- AI Query Analysis Results -->
-<div id="ai-query-result" class="mg-mt mg-hidden">
-  <div class="mg-card">
-    <div class="mg-card-header">
-      <span id="ai-query-title"><strong>&#9889; AI Analysis</strong></span>
-      <button id="ai-query-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
-    </div>
-    <div class="mg-card-body">
-      <div id="ai-query-content" style="font-size:13px;"></div>
-    </div>
-  </div>
-</div>
+<%= render "mysql_genius/queries/shared_results" %>
 
 <script>
 (function() {
@@ -487,7 +102,6 @@
       }
       xhr.send(parts.join('&'));
     } else if (method === 'GET' && data) {
-      // data is already in the URL
       xhr.send();
     } else {
       xhr.send();
@@ -1365,7 +979,7 @@
       hide(el('schema-result'));
       var table = el('schema-table').value;
       aiCall(ROUTES.schema_review, { table: table }, function(data) {
-        el('schema-result-content').innerHTML = formatMarkdown(data.findings || data.raw || 'No findings.');
+        el('schema-result-content').innerHTML = formatFindings(data.findings || data.raw || '');
         show(el('schema-result'));
         schemaBtn.disabled = false;
         schemaBtn.innerHTML = '&#9889; Analyze Schema';
@@ -1383,7 +997,12 @@
   if (migrationBtn) {
     migrationBtn.addEventListener('click', function() {
       var migration = el('migration-input').value.trim();
-      if (!migration) return;
+      if (!migration) {
+        el('migration-risk-badge').innerHTML = '';
+        el('migration-result-content').innerHTML = '<div class="mg-alert mg-alert-warning">Please paste a Rails migration or DDL statement above.</div>';
+        show(el('migration-result'));
+        return;
+      }
       migrationBtn.disabled = true;
       migrationBtn.innerHTML = '<span class="mg-spinner"></span> Assessing...';
       hide(el('migration-result'));
@@ -1391,7 +1010,7 @@
         var level = (data.risk_level || '').toLowerCase();
         var badgeClass = level === 'critical' ? 'mg-badge-danger' : level === 'high' ? 'mg-badge-danger' : level === 'medium' ? 'mg-badge-warning' : 'mg-badge-info';
         el('migration-risk-badge').innerHTML = level ? '<span class="mg-badge ' + badgeClass + '" style="font-size:14px;padding:4px 12px;">Risk: ' + level.toUpperCase() + '</span>' : '';
-        el('migration-result-content').innerHTML = formatMarkdown(data.assessment || data.raw || 'No assessment.');
+        el('migration-result-content').innerHTML = formatFindings(data.assessment || data.raw || '');
         show(el('migration-result'));
         migrationBtn.disabled = false;
         migrationBtn.innerHTML = '&#9889; Assess Risk';
@@ -1497,14 +1116,70 @@
   }
 
   function formatMarkdown(text) {
+    if (!text) return '';
+    // Normalize literal \n from JSON strings to actual newlines
+    text = text.replace(/\\n/g, '\n');
     return text
       .replace(/```sql\n?([\s\S]*?)```/g, '<pre class="mg-pre"><code>$1</code></pre>')
       .replace(/```\n?([\s\S]*?)```/g, '<pre class="mg-pre"><code>$1</code></pre>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/^####\s+(.+)$/gm, '<h5 style="margin:12px 0 4px;">$1</h5>')
+      .replace(/^###\s+(.+)$/gm, '<h4 style="margin:16px 0 6px;">$1</h4>')
+      .replace(/^##\s+(.+)$/gm, '<h3 style="margin:20px 0 8px;">$1</h3>')
+      .replace(/^#\s+(.+)$/gm, '<h3 style="margin:20px 0 8px;">$1</h3>')
+      .replace(/^---+$/gm, '<hr style="margin:12px 0;">')
       .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
       .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul style="margin:4px 0 4px 16px;padding:0;">$1</ul>')
+      .replace(/<\/ul>\s*<ul[^>]*>/g, '')
+      .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>');
+  }
+
+  function formatFindings(text) {
+    if (!text) return '<div class="mg-text-muted">No findings.</div>';
+    text = text.replace(/\\n/g, '\n');
+
+    // Split into severity sections
+    var sections = [];
+    var current = null;
+    text.split('\n').forEach(function(line) {
+      var heading = line.match(/^#{1,3}\s+(.+)/);
+      if (heading) {
+        var title = heading[1].replace(/\*\*/g, '');
+        var severity = 'info';
+        var titleLower = title.toLowerCase();
+        if (titleLower.indexOf('critical') !== -1) severity = 'danger';
+        else if (titleLower.indexOf('warning') !== -1) severity = 'warning';
+        else if (titleLower.indexOf('suggestion') !== -1 || titleLower.indexOf('info') !== -1) severity = 'info';
+        current = { title: title, severity: severity, lines: [] };
+        sections.push(current);
+      } else if (current) {
+        current.lines.push(line);
+      } else {
+        if (!sections.length) sections.push({ title: '', severity: 'info', lines: [] });
+        if (!current) current = sections[0];
+        current.lines.push(line);
+      }
+    });
+
+    if (!sections.length) return formatMarkdown(text);
+
+    var badgeColors = { danger: '#dc3545', warning: '#ffc107', info: '#17a2b8' };
+    var bgColors = { danger: '#fff5f5', warning: '#fffbeb', info: '#f0f9ff' };
+    var borderColors = { danger: '#f5c6cb', warning: '#ffeeba', info: '#bee5eb' };
+
+    return sections.map(function(sec) {
+      var content = formatMarkdown(sec.lines.join('\n').trim());
+      if (!content || content === '<br>') return '';
+      var badge = badgeColors[sec.severity] || badgeColors.info;
+      var bg = bgColors[sec.severity] || bgColors.info;
+      var border = borderColors[sec.severity] || borderColors.info;
+      return '<div class="mg-card mg-mb" style="border-left:4px solid ' + badge + ';background:' + bg + ';border-color:' + border + ';">' +
+        (sec.title ? '<div class="mg-card-header" style="background:transparent;border-bottom:1px solid ' + border + ';"><strong>' + escHtml(sec.title) + '</strong></div>' : '') +
+        '<div class="mg-card-body" style="font-size:13px;">' + content + '</div></div>';
+    }).filter(function(s) { return s; }).join('');
   }
 })();
 </script>

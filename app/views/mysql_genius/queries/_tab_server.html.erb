@@ -1,0 +1,54 @@
+<!-- Server Tab -->
+<div class="mg-tab-content" id="tab-server">
+  <div class="mg-row" style="justify-content:flex-end;margin-bottom:12px;">
+    <% if @ai_enabled %>
+      <button id="server-root-cause" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Why is it slow?</button>
+      <button id="server-anomaly" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Anomaly Detection</button>
+    <% end %>
+    <button id="server-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="server-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="server-error" class="mg-hidden"></div>
+  <div id="server-content" class="mg-hidden">
+    <!-- Server Info -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:16px;">
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Server</strong></div>
+        <div class="mg-card-body">
+          <div class="mg-stat-grid" id="server-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Connections</strong></div>
+        <div class="mg-card-body">
+          <div id="conn-bar" style="margin-bottom:8px;"></div>
+          <div class="mg-stat-grid" id="conn-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>InnoDB Buffer Pool</strong></div>
+        <div class="mg-card-body">
+          <div id="innodb-bar" style="margin-bottom:8px;"></div>
+          <div class="mg-stat-grid" id="innodb-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Query Activity</strong></div>
+        <div class="mg-card-body">
+          <div class="mg-stat-grid" id="query-info"></div>
+        </div>
+      </div>
+    </div>
+    <div id="server-ai-result" class="mg-mt mg-hidden">
+      <div class="mg-card">
+        <div class="mg-card-header">
+          <span id="server-ai-title"><strong>&#9889; AI Analysis</strong></span>
+          <button id="server-ai-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
+        </div>
+        <div class="mg-card-body">
+          <div id="server-ai-content" style="font-size:13px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

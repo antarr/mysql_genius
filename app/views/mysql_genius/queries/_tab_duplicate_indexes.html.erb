@@ -1,0 +1,24 @@
+<!-- Duplicate Indexes Tab -->
+<div class="mg-tab-content" id="tab-indexes">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Indexes whose columns are a left-prefix of another index on the same table. These are redundant and can safely be dropped. <span id="dup-count" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="dup-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="dup-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning indexes...</div>
+  <div id="dup-empty" class="mg-text-center mg-text-muted mg-hidden">No duplicate indexes found.</div>
+  <div id="dup-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Duplicate Index</th>
+          <th>Columns</th>
+          <th>Covered By</th>
+          <th>Covered Columns</th>
+          <th>DROP Statement</th>
+        </tr>
+      </thead>
+      <tbody id="dup-tbody"></tbody>
+    </table>
+  </div>
+</div>

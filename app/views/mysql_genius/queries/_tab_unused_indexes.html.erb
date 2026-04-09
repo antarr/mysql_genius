@@ -1,0 +1,25 @@
+<!-- Unused Indexes Tab -->
+<div class="mg-tab-content" id="tab-unused">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Indexes with zero reads since last server restart, from <code>performance_schema</code>. <span id="unused-count" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="unused-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="unused-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning...</div>
+  <div id="unused-error" class="mg-hidden"></div>
+  <div id="unused-empty" class="mg-text-center mg-text-muted mg-hidden">No unused indexes found.</div>
+  <div id="unused-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th>Index</th>
+          <th style="text-align:right">Reads</th>
+          <th style="text-align:right">Writes</th>
+          <th style="text-align:right">Table Rows</th>
+          <th>DROP Statement</th>
+        </tr>
+      </thead>
+      <tbody id="unused-tbody"></tbody>
+    </table>
+  </div>
+</div>

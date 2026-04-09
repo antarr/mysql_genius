@@ -1,0 +1,56 @@
+<!-- Explain Results -->
+<div id="explain-results" class="mg-mt mg-hidden">
+  <div class="mg-card">
+    <div class="mg-card-header">
+      <span><strong>&#128270; EXPLAIN Output</strong></span>
+      <div>
+        <% if @ai_enabled %>
+          <button id="explain-optimize" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; AI Optimization</button>
+          <button id="explain-index-advisor" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Index Advisor</button>
+        <% end %>
+        <button id="explain-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005; Close</button>
+      </div>
+    </div>
+    <div class="mg-card-body">
+      <div class="mg-table-wrap">
+        <table class="mg-table">
+          <thead id="explain-thead"></thead>
+          <tbody id="explain-tbody"></tbody>
+        </table>
+      </div>
+      <div id="optimize-results" class="mg-hidden mg-mt">
+        <div id="optimize-content" class="mg-alert mg-alert-info"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results Area -->
+<div id="query-results" class="mg-mt">
+  <div id="results-alert" class="mg-hidden"></div>
+  <div id="results-stats" class="mg-mb mg-hidden">
+    <span id="results-row-count" class="mg-badge mg-badge-info"></span>
+    <span id="results-time" class="mg-badge mg-badge-secondary"></span>
+    <span id="results-truncated" class="mg-badge mg-badge-warning mg-hidden">Results truncated</span>
+  </div>
+  <div id="results-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead id="results-thead"></thead>
+      <tbody id="results-tbody"></tbody>
+    </table>
+  </div>
+  <div id="results-empty" class="mg-text-center mg-text-muted mg-hidden">No rows returned.</div>
+</div>
+
+<!-- AI Query Analysis Results -->
+<div id="ai-query-result" class="mg-mt mg-hidden">
+  <div class="mg-card">
+    <div class="mg-card-header">
+      <span id="ai-query-title"><strong>&#9889; AI Analysis</strong></span>
+      <button id="ai-query-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
+    </div>
+    <div class="mg-card-body">
+      <div id="ai-query-content" style="font-size:13px;"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,31 @@
+<!-- Table Sizes Tab -->
+<div class="mg-tab-content" id="tab-sizes">
+  <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="mg-text-muted">Table sizes from <code>information_schema</code>, sorted by total size. Row counts are estimates. <span id="sizes-total" class="mg-badge mg-badge-secondary"></span></div>
+    <button id="sizes-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+  </div>
+  <div id="sizes-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
+  <div id="sizes-chart-wrapper" class="mg-hidden" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <canvas id="sizes-pie" width="280" height="280" style="flex-shrink:0;"></canvas>
+      <div id="sizes-legend" style="font-size:12px;line-height:1.8;"></div>
+    </div>
+  </div>
+  <div id="sizes-table-wrapper" class="mg-table-wrap mg-hidden">
+    <table class="mg-table">
+      <thead>
+        <tr>
+          <th>Table</th>
+          <th style="text-align:right">Rows (est.)</th>
+          <th style="text-align:right">Data</th>
+          <th style="text-align:right">Indexes</th>
+          <th style="text-align:right">Total</th>
+          <th style="text-align:right">Fragmented</th>
+          <th style="width:200px"></th>
+        </tr>
+      </thead>
+      <tbody id="sizes-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
