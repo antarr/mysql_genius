@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 module MysqlGenius
   class AiOptimizationService
     def call(sql, explain_rows, allowed_tables)
       schema = build_schema_description(allowed_tables)
       messages = [
         { role: "system", content: system_prompt(schema) },
-        { role: "user", content: user_prompt(sql, explain_rows) }
+        { role: "user", content: user_prompt(sql, explain_rows) },
       ]
 
       AiClient.new.chat(messages: messages)
@@ -38,6 +40,7 @@ module MysqlGenius
 
     def format_explain(explain_rows)
       return explain_rows if explain_rows.is_a?(String)
+
       explain_rows.map { |row| row.join(" | ") }.join("\n")
     end
 
@@ -45,10 +48,11 @@ module MysqlGenius
       connection = ActiveRecord::Base.connection
       allowed_tables.map do |table|
         next unless connection.tables.include?(table)
+
         columns = connection.columns(table).map { |c| "#{c.name} (#{c.type})" }
-        indexes = connection.indexes(table).map { |idx| "#{idx.name}: [#{idx.columns.join(', ')}]#{idx.unique ? ' UNIQUE' : ''}" }
-        desc = "#{table}: #{columns.join(', ')}"
-        desc += "\n  Indexes: #{indexes.join('; ')}" if indexes.any?
+        indexes = connection.indexes(table).map { |idx| "#{idx.name}: [#{idx.columns.join(", ")}]#{" UNIQUE" if idx.unique}" }
+        desc = "#{table}: #{columns.join(", ")}"
+        desc += "\n  Indexes: #{indexes.join("; ")}" if indexes.any?
         desc
       end.compact.join("\n")
     end

@@ -4,37 +4,48 @@ A MySQL performance dashboard and query explorer for Rails, inspired by [PgHero]
 
 ## Screenshots
 
-### Visual Builder
-Build queries visually -- select tables, pick columns, add type-aware filters, and sort results without writing SQL.
+### Dashboard
 
-![Visual Builder](docs/screenshots/visual_builder.png)
+At-a-glance server health, top slow queries, most expensive queries, and index alerts.
 
-### SQL Query with AI Assistant
-Write raw SQL or describe what you want in plain English and let the AI generate the query for you.
+![Dashboard](docs/screenshots/dashboard.png)
 
-![SQL Query](docs/screenshots/sql_query.png)
+### Slow Queries
 
-### Duplicate Index Detection
-Find redundant indexes whose columns are a left-prefix of another index, with ready-to-run `DROP INDEX` statements.
-
-![Duplicate Indexes](docs/screenshots/duplicate_indexes.png)
-
-### Table Sizes
-View row counts, data size, index size, fragmentation, and a visual size chart for every table.
-
-![Table Sizes](docs/screenshots/table_sizes.png)
+SELECT queries exceeding the configured threshold, captured via ActiveSupport notifications and Redis.
 
 ### Query Stats
+
 Top queries from `performance_schema` sorted by total time, with call counts, avg/max time, and rows examined.
 
 ![Query Stats](docs/screenshots/query_stats.png)
 
 ### Server Dashboard
-At-a-glance server health: version, connections, InnoDB buffer pool, and query activity with AI-powered diagnostics.
+
+Server health: version, connections, InnoDB buffer pool, and query activity with AI-powered diagnostics.
 
 ![Server](docs/screenshots/server.png)
 
+### Table Sizes
+
+View row counts, data size, index size, fragmentation, and a visual size chart for every table.
+
+![Table Sizes](docs/screenshots/table_sizes.png)
+
+### Duplicate Index Detection
+
+Find redundant indexes whose columns are a left-prefix of another index, with ready-to-run `DROP INDEX` statements.
+
+![Duplicate Indexes](docs/screenshots/duplicate_indexes.png)
+
+### Query Explorer
+
+Build queries visually or write raw SQL. Optional AI assistant generates queries from plain English descriptions.
+
+![Query Explorer](docs/screenshots/query_explore.png)
+
 ### AI Tools
+
 Schema review that finds anti-patterns -- missing primary keys, nullable foreign keys, inappropriate column types, and more.
 
 ![AI Tools](docs/screenshots/ai_tools.png)
@@ -77,7 +88,7 @@ gem "mysql_genius", github: "antarr/mysql_genius"
 
 Then run:
 
-```
+```bash
 bundle install
 ```
 
@@ -215,25 +226,24 @@ When AI is not configured, the AI Assistant panel and optimization buttons are h
 
 ## Usage
 
-Visit `/mysql_genius` in your browser. The dashboard has five tabs:
+Visit `/mysql_genius` in your browser. The dashboard loads automatically with an overview of your database health.
 
-### Visual Builder
-Select a table, pick columns, add type-aware filters (dates get date pickers, booleans get dropdowns), add sort orders, and run queries -- no SQL knowledge required. The generated SQL is shown and synced with the SQL tab.
+### Dashboard
 
-### SQL Query
-Write raw SQL directly. The optional AI Assistant lets you describe what you want in plain English and generates a query. AI-generated queries are synced back to the Visual Builder for further refinement.
+The default landing page shows server health cards, top 5 slow queries, top 5 most expensive queries (from performance_schema), and index alert badges for duplicate and unused indexes. Each section links to its detailed tab.
 
-### Slow Queries
-View slow SELECT queries captured from your application in real time. Each slow query can be:
-- **Explained** -- run EXPLAIN to see the execution plan (bypasses blocked table restrictions)
-- **Used** -- copy to the SQL tab for editing and re-running
-- **Optimized** -- get AI-powered optimization suggestions with specific index and rewrite recommendations
+### Query Explorer
 
-### Duplicate Indexes
-Scans all tables for redundant indexes -- indexes whose columns are a left-prefix of another index on the same table. Shows the `ALTER TABLE ... DROP INDEX` statement for each duplicate, ready to copy and run.
+Combines the visual query builder and raw SQL editor in one tab. Toggle between Visual mode (point-and-click with column selection, filters, and ordering) and SQL mode (raw SQL with optional AI assistant). Generated SQL syncs between modes.
 
-### Table Sizes
-Displays every table sorted by total size, with columns for estimated row count, data size, index size, total size, and fragmented space. Includes a visual size bar for quick comparison.
+### Monitoring Tabs
+
+- **Slow Queries** -- slow SELECT queries captured from your application in real time, with Explain and Optimize actions
+- **Query Stats** -- top queries from `performance_schema` sorted by total time, avg time, calls, or rows examined
+- **Server** -- connections, InnoDB buffer pool, query activity, with AI-powered diagnostics
+- **Table Sizes** -- row counts, data size, index size, fragmentation for all tables
+- **Unused Indexes** -- indexes with zero reads since server restart
+- **Duplicate Indexes** -- redundant indexes with ready-to-run DROP statements
 
 ## Configuration Reference
 
@@ -264,16 +274,18 @@ Tested against:
 
 | Rails | Ruby |
 |-------|------|
-| 5.2   | 2.6, 2.7, 3.0 |
-| 6.0   | 2.6, 2.7, 3.0, 3.1 |
-| 6.1   | 2.6, 2.7, 3.0, 3.1, 3.2, 3.3 |
+| 5.2   | 2.7, 3.0 |
+| 6.0   | 2.7, 3.0, 3.1 |
+| 6.1   | 2.7, 3.0, 3.1, 3.2, 3.3 |
 | 7.0   | 2.7, 3.0, 3.1, 3.2, 3.3 |
-| 7.1   | 2.7, 3.0, 3.1, 3.2, 3.3 |
-| 7.2   | 3.1, 3.2, 3.3 |
+| 7.1   | 2.7, 3.0, 3.1, 3.2, 3.3, 3.4 |
+| 7.2   | 3.1, 3.2, 3.3, 3.4 |
+| 8.0   | 3.2, 3.3, 3.4 |
+| 8.1   | 3.2, 3.3, 3.4 |
 
 ## Development
 
-```
+```bash
 git clone https://github.com/antarr/mysql_genius.git
 cd mysql_genius
 bin/setup
@@ -282,7 +294,7 @@ bundle exec rspec
 
 To test against a specific Rails version:
 
-```
+```bash
 RAILS_VERSION=6.1 bundle update && bundle exec rspec
 ```
 

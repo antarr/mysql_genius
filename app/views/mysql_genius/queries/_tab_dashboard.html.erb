@@ -1,0 +1,95 @@
+<!-- Dashboard Tab -->
+<div class="mg-tab-content active" id="tab-dashboard">
+  <div id="dash-loading" class="mg-text-center"><span class="mg-spinner"></span> Loading dashboard...</div>
+  <div id="dash-error" class="mg-hidden"></div>
+  <div id="dash-content" class="mg-hidden">
+
+    <!-- Server Summary -->
+    <div class="mg-card mg-mb">
+      <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>Server</strong>
+        <button class="mg-btn mg-btn-outline-secondary mg-btn-sm dash-jump-tab" data-target="server">Details &rarr;</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px;">
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Overview</strong></div>
+        <div class="mg-card-body">
+          <div class="mg-stat-grid" id="dash-server-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Connections</strong></div>
+        <div class="mg-card-body">
+          <div id="dash-conn-bar" style="margin-bottom:8px;"></div>
+          <div class="mg-stat-grid" id="dash-conn-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>InnoDB Buffer Pool</strong></div>
+        <div class="mg-card-body">
+          <div id="dash-innodb-bar" style="margin-bottom:8px;"></div>
+          <div class="mg-stat-grid" id="dash-innodb-info"></div>
+        </div>
+      </div>
+      <div class="mg-card">
+        <div class="mg-card-header"><strong>Query Activity</strong></div>
+        <div class="mg-card-body">
+          <div class="mg-stat-grid" id="dash-query-info"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 5 Slow Queries -->
+    <div class="mg-card mg-mb">
+      <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>Slow Queries</strong>
+        <button class="mg-btn mg-btn-outline-secondary mg-btn-sm dash-jump-tab" data-target="slow">View all &rarr;</button>
+      </div>
+      <div class="mg-card-body">
+        <div id="dash-slow-empty" class="mg-text-muted mg-hidden"></div>
+        <div id="dash-slow-table" class="mg-table-wrap mg-hidden">
+          <table class="mg-table">
+            <thead><tr><th style="width:100px">Duration</th><th style="width:160px">Time</th><th>SQL</th></tr></thead>
+            <tbody id="dash-slow-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 5 Expensive Queries -->
+    <div class="mg-card mg-mb">
+      <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>Most Expensive Queries</strong>
+        <button class="mg-btn mg-btn-outline-secondary mg-btn-sm dash-jump-tab" data-target="qstats">View all &rarr;</button>
+      </div>
+      <div class="mg-card-body">
+        <div id="dash-qstats-empty" class="mg-text-muted mg-hidden"></div>
+        <div id="dash-qstats-error" class="mg-hidden"></div>
+        <div id="dash-qstats-table" class="mg-table-wrap mg-hidden">
+          <table class="mg-table">
+            <thead><tr><th>Query</th><th style="text-align:right">Calls</th><th style="text-align:right">Total Time</th><th style="text-align:right">Avg Time</th></tr></thead>
+            <tbody id="dash-qstats-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Index Alerts -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+      <div class="mg-card dash-jump-tab" data-target="indexes" style="cursor:pointer;">
+        <div class="mg-card-body mg-text-center">
+          <div id="dash-dup-count" style="font-size:24px;font-weight:700;">--</div>
+          <div class="mg-text-muted">Duplicate Indexes</div>
+        </div>
+      </div>
+      <div class="mg-card dash-jump-tab" data-target="unused" style="cursor:pointer;">
+        <div class="mg-card-body mg-text-center">
+          <div id="dash-unused-count" style="font-size:24px;font-weight:700;">--</div>
+          <div class="mg-text-muted">Unused Indexes</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

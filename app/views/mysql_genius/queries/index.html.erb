@@ -1,27 +1,27 @@
 <h4>&#128024; MySQLGenius</h4>
 
 <div class="mg-tabs">
-  <button class="mg-tab active" data-tab="visual">Visual Builder</button>
-  <button class="mg-tab" data-tab="sql">SQL Query</button>
+  <button class="mg-tab active" data-tab="dashboard">Dashboard</button>
   <button class="mg-tab" data-tab="slow">Slow Queries</button>
-  <button class="mg-tab" data-tab="indexes">Duplicate Indexes</button>
-  <button class="mg-tab" data-tab="sizes">Table Sizes</button>
   <button class="mg-tab" data-tab="qstats">Query Stats</button>
-  <button class="mg-tab" data-tab="unused">Unused Indexes</button>
   <button class="mg-tab" data-tab="server">Server</button>
+  <button class="mg-tab" data-tab="sizes">Table Sizes</button>
+  <button class="mg-tab" data-tab="unused">Unused Indexes</button>
+  <button class="mg-tab" data-tab="indexes">Duplicate Indexes</button>
+  <button class="mg-tab" data-tab="explorer">Query Explorer</button>
   <% if @ai_enabled %>
     <button class="mg-tab" data-tab="aitools">AI Tools</button>
   <% end %>
 </div>
 
-<%= render "mysql_genius/queries/tab_visual_builder" %>
-<%= render "mysql_genius/queries/tab_sql_query" %>
+<%= render "mysql_genius/queries/tab_dashboard" %>
 <%= render "mysql_genius/queries/tab_slow_queries" %>
-<%= render "mysql_genius/queries/tab_duplicate_indexes" %>
-<%= render "mysql_genius/queries/tab_table_sizes" %>
 <%= render "mysql_genius/queries/tab_query_stats" %>
-<%= render "mysql_genius/queries/tab_unused_indexes" %>
 <%= render "mysql_genius/queries/tab_server" %>
+<%= render "mysql_genius/queries/tab_table_sizes" %>
+<%= render "mysql_genius/queries/tab_unused_indexes" %>
+<%= render "mysql_genius/queries/tab_duplicate_indexes" %>
+<%= render "mysql_genius/queries/tab_query_explorer" %>
 <% if @ai_enabled %>
   <%= render "mysql_genius/queries/tab_ai_tools" %>
 <% end %>
@@ -53,6 +53,8 @@
     migration_risk: '<%= mysql_genius.migration_risk_path %>'
   };
 
+  var RAILS_MIGRATION_VERSION = '<%= Rails::VERSION::MAJOR %>.<%= Rails::VERSION::MINOR %>';
+
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
   var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
   var currentColumns = [];
@@ -68,6 +70,36 @@
   function show(e) { e.classList.remove('mg-hidden'); }
   function hide(e) { e.classList.add('mg-hidden'); }
   function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function migrationTimestamp() {
+    var now = new Date();
+    return now.getFullYear().toString() +
+      ('0' + (now.getMonth() + 1)).slice(-2) +
+      ('0' + now.getDate()).slice(-2) +
+      ('0' + now.getHours()).slice(-2) +
+      ('0' + now.getMinutes()).slice(-2) +
+      ('0' + now.getSeconds()).slice(-2);
+  }
+
+  function copyToClipboard(text, btn) {
+    var done = function() {
+      btn.innerHTML = '&#10003; Copied';
+      setTimeout(function() { btn.innerHTML = '&#128203; Copy'; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    }
+  }
 
   function ajax(method, url, data, onSuccess, onError) {
     var xhr = new XMLHttpRequest();
@@ -123,12 +155,192 @@
       qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
       tab.classList.add('active');
       el('tab-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'dashboard') loadDashboard();
       if (tab.dataset.tab === 'slow') loadSlowQueries();
       if (tab.dataset.tab === 'indexes') loadDuplicateIndexes();
       if (tab.dataset.tab === 'sizes') loadTableSizes();
       if (tab.dataset.tab === 'qstats') loadQueryStats();
       if (tab.dataset.tab === 'unused') loadUnusedIndexes();
       if (tab.dataset.tab === 'server') loadServerOverview();
+    });
+  });
+
+  // --- Dashboard ---
+
+  function loadDashboard() {
+    show(el('dash-loading'));
+    hide(el('dash-content')); hide(el('dash-error'));
+    // Reset previous data
+    hide(el('dash-slow-table')); hide(el('dash-slow-empty'));
+    hide(el('dash-qstats-table')); hide(el('dash-qstats-empty')); hide(el('dash-qstats-error'));
+    el('dash-slow-tbody').innerHTML = '';
+    el('dash-qstats-tbody').innerHTML = '';
+    el('dash-dup-count').textContent = '--';
+    el('dash-unused-count').textContent = '--';
+
+    var loaded = { server: false, slow: false, qstats: false, dup: false, unused: false };
+
+    function checkAllLoaded() {
+      if (!loaded.server || !loaded.slow || !loaded.qstats || !loaded.dup || !loaded.unused) return;
+      hide(el('dash-loading'));
+      show(el('dash-content'));
+    }
+
+    // Server overview
+    ajaxGet(ROUTES.server_overview, {}, function(data) {
+      if (data.error) { loaded.server = true; checkAllLoaded(); return; }
+      var s = data.server;
+      var c = data.connections;
+      var db = data.innodb;
+      var q = data.queries;
+
+      el('dash-server-info').innerHTML =
+        statRow('Version', '<code>' + escHtml(s.version) + '</code>') +
+        statRow('Uptime', escHtml(s.uptime)) +
+        statRow('Queries/sec', q.qps);
+
+      el('dash-conn-bar').innerHTML = usageBar(c.usage_pct, c.current + ' / ' + c.max + ' (' + c.usage_pct + '%)');
+      el('dash-conn-info').innerHTML =
+        statRow('Threads Running', c.threads_running) +
+        statRow('Max Used', c.max_used);
+
+      var poolUsedPct = db.buffer_pool_pages_total > 0
+        ? (((db.buffer_pool_pages_total - db.buffer_pool_pages_free) / db.buffer_pool_pages_total) * 100).toFixed(1)
+        : 0;
+      el('dash-innodb-bar').innerHTML = usageBar(parseFloat(poolUsedPct), db.buffer_pool_mb + ' MB (' + poolUsedPct + '% used)');
+      el('dash-innodb-info').innerHTML =
+        statRow('Hit Rate', db.buffer_pool_hit_rate + '%') +
+        statRow('Dirty Pages', Number(db.buffer_pool_pages_dirty).toLocaleString());
+
+      var tmpBadge = q.tmp_disk_pct > 25
+        ? '<span class="mg-badge mg-badge-danger">' + q.tmp_disk_pct + '%</span>'
+        : q.tmp_disk_pct + '%';
+      el('dash-query-info').innerHTML =
+        statRow('Slow Queries', Number(q.slow_queries).toLocaleString()) +
+        statRow('Tmp Disk Tables', tmpBadge);
+
+      loaded.server = true;
+      checkAllLoaded();
+    }, function() { loaded.server = true; checkAllLoaded(); });
+
+    // Top 5 slow queries
+    ajaxGet(ROUTES.slow_queries, {}, function(data) {
+      if (!data || !data.length) {
+        el('dash-slow-empty').textContent = 'No slow queries recorded.';
+        show(el('dash-slow-empty'));
+      } else {
+        var top5 = data.slice(0, 5);
+        el('dash-slow-tbody').innerHTML = top5.map(function(q) {
+          var d = q.duration_ms;
+          var cls = d >= 2000 ? 'mg-badge-danger' : d >= 1000 ? 'mg-badge-warning' : 'mg-badge-info';
+          var sqlShort = escHtml(q.sql).length > 120 ? escHtml(q.sql).substring(0, 120) + '...' : escHtml(q.sql);
+          return '<tr><td><span class="mg-badge ' + cls + '">' + d + ' ms</span></td>' +
+            '<td><small>' + escHtml(q.timestamp) + '</small></td>' +
+            '<td><code>' + sqlShort + '</code></td></tr>';
+        }).join('');
+        show(el('dash-slow-table'));
+      }
+      loaded.slow = true;
+      checkAllLoaded();
+    }, function() {
+      el('dash-slow-empty').textContent = 'Configure redis_url to monitor slow queries.';
+      show(el('dash-slow-empty'));
+      loaded.slow = true;
+      checkAllLoaded();
+    });
+
+    // Top 5 expensive queries
+    ajaxGet(ROUTES.query_stats, { sort: 'total_time', limit: 5 }, function(data) {
+      if (data.error) {
+        el('dash-qstats-error').innerHTML = '<div class="mg-text-muted">' + escHtml(data.error) + '</div>';
+        show(el('dash-qstats-error'));
+      } else if (!data.length) {
+        el('dash-qstats-empty').textContent = 'No query statistics available.';
+        show(el('dash-qstats-empty'));
+      } else {
+        el('dash-qstats-tbody').innerHTML = data.map(function(q) {
+          var sqlShort = q.sql.length > 120 ? q.sql.substring(0, 120) + '...' : q.sql;
+          return '<tr>' +
+            '<td><code style="font-size:11px;word-break:break-all;">' + escHtml(sqlShort) + '</code></td>' +
+            '<td style="text-align:right">' + Number(q.calls).toLocaleString() + '</td>' +
+            '<td style="text-align:right">' + formatDuration(q.total_time_ms) + '</td>' +
+            '<td style="text-align:right">' + formatDuration(q.avg_time_ms) + '</td></tr>';
+        }).join('');
+        show(el('dash-qstats-table'));
+      }
+      loaded.qstats = true;
+      checkAllLoaded();
+    }, function() {
+      el('dash-qstats-empty').textContent = 'Query statistics unavailable.';
+      show(el('dash-qstats-empty'));
+      loaded.qstats = true;
+      checkAllLoaded();
+    });
+
+    // Duplicate indexes count
+    ajaxGet(ROUTES.duplicate_indexes, {}, function(data) {
+      var count = Array.isArray(data) ? data.length : 0;
+      var countEl = el('dash-dup-count');
+      if (count === 0) {
+        countEl.innerHTML = '<span style="color:#28a745;">&#10003; 0</span>';
+      } else {
+        countEl.innerHTML = '<span style="color:#dc3545;">' + count + '</span>';
+      }
+      loaded.dup = true;
+      checkAllLoaded();
+    }, function() { el('dash-dup-count').textContent = '?'; loaded.dup = true; checkAllLoaded(); });
+
+    // Unused indexes count
+    ajaxGet(ROUTES.unused_indexes, {}, function(data) {
+      var count = Array.isArray(data) ? data.length : 0;
+      var countEl = el('dash-unused-count');
+      if (count === 0) {
+        countEl.innerHTML = '<span style="color:#28a745;">&#10003; 0</span>';
+      } else {
+        countEl.innerHTML = '<span style="color:#dc3545;">' + count + '</span>';
+      }
+      loaded.unused = true;
+      checkAllLoaded();
+    }, function() { el('dash-unused-count').textContent = '?'; loaded.unused = true; checkAllLoaded(); });
+  }
+
+  // Dashboard tab-jump buttons
+  document.addEventListener('click', function(e) {
+    var jumpBtn = e.target.closest('.dash-jump-tab');
+    if (jumpBtn) {
+      var target = jumpBtn.dataset.target;
+      qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
+      qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
+      qs('[data-tab="' + target + '"]').classList.add('active');
+      el('tab-' + target).classList.add('active');
+      if (target === 'slow') loadSlowQueries();
+      if (target === 'indexes') loadDuplicateIndexes();
+      if (target === 'qstats') loadQueryStats();
+      if (target === 'unused') loadUnusedIndexes();
+      if (target === 'server') loadServerOverview();
+    }
+  });
+
+  // Load dashboard on page load
+  loadDashboard();
+
+  // --- Query Explorer Mode Toggle ---
+
+  qsa('.qe-mode').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      qsa('.qe-mode').forEach(function(b) {
+        b.classList.remove('active');
+        b.classList.add('mg-btn-outline');
+      });
+      btn.classList.add('active');
+      btn.classList.remove('mg-btn-outline');
+      if (btn.dataset.mode === 'visual') {
+        show(el('qe-visual'));
+        hide(el('qe-sql'));
+      } else {
+        hide(el('qe-visual'));
+        show(el('qe-sql'));
+      }
     });
   });
 
@@ -524,8 +736,14 @@
       el('sql-input').value = useBtn.dataset.sql;
       qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
       qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
-      qs('[data-tab="sql"]').classList.add('active');
-      el('tab-sql').classList.add('active');
+      qs('[data-tab="explorer"]').classList.add('active');
+      el('tab-explorer').classList.add('active');
+      // Switch to SQL mode within Query Explorer
+      qsa('.qe-mode').forEach(function(b) { b.classList.remove('active'); b.classList.add('mg-btn-outline'); });
+      qs('.qe-mode[data-mode="sql"]').classList.add('active');
+      qs('.qe-mode[data-mode="sql"]').classList.remove('mg-btn-outline');
+      hide(el('qe-visual'));
+      show(el('qe-sql'));
     }
   });
 
@@ -552,6 +770,17 @@
           '</tr>';
       }).join('');
       show(el('dup-table-wrapper'));
+
+      // Generate migration
+      var ts = migrationTimestamp();
+      var migrationLines = ['# ' + ts + '_remove_duplicate_indexes.rb', '',
+        'class RemoveDuplicateIndexes < ActiveRecord::Migration[' + RAILS_MIGRATION_VERSION + ']', '  def change'];
+      data.forEach(function(d) {
+        migrationLines.push('    remove_index :' + d.table + ', name: :' + d.duplicate_index);
+      });
+      migrationLines.push('  end', 'end');
+      el('dup-migration-code').textContent = migrationLines.join('\n');
+      show(el('dup-migration'));
     }, function() {
       hide(el('dup-loading'));
       el('dup-empty').textContent = 'Failed to scan indexes.';
@@ -560,6 +789,9 @@
   }
 
   el('dup-refresh').addEventListener('click', loadDuplicateIndexes);
+  el('dup-copy-migration').addEventListener('click', function() {
+    copyToClipboard(el('dup-migration-code').textContent, el('dup-copy-migration'));
+  });
 
   // --- Table Sizes ---
 
@@ -734,6 +966,17 @@
           '</tr>';
       }).join('');
       show(el('unused-table-wrapper'));
+
+      // Generate migration
+      var ts = migrationTimestamp();
+      var migrationLines = ['# ' + ts + '_remove_unused_indexes.rb', '',
+        'class RemoveUnusedIndexes < ActiveRecord::Migration[' + RAILS_MIGRATION_VERSION + ']', '  def change'];
+      data.forEach(function(d) {
+        migrationLines.push('    remove_index :' + d.table + ', name: :' + d.index_name);
+      });
+      migrationLines.push('  end', 'end');
+      el('unused-migration-code').textContent = migrationLines.join('\n');
+      show(el('unused-migration'));
     }, function(json) {
       hide(el('unused-loading'));
       el('unused-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((json && json.error) || 'Failed to load unused indexes.') + '</div>';
@@ -742,6 +985,9 @@
   }
 
   el('unused-refresh').addEventListener('click', loadUnusedIndexes);
+  el('unused-copy-migration').addEventListener('click', function() {
+    copyToClipboard(el('unused-migration-code').textContent, el('unused-copy-migration'));
+  });
 
   // --- Server Overview ---
 

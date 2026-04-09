@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module MysqlGenius
   module DatabaseAnalysis
     extend ActiveSupport::Concern
@@ -13,19 +15,20 @@ module MysqlGenius
         indexes.each do |idx|
           indexes.each do |other|
             next if idx.name == other.name
+
             # idx is duplicate if its columns are a left-prefix of other's columns
-            if idx.columns.size <= other.columns.size &&
-               other.columns.first(idx.columns.size) == idx.columns &&
-               !(idx.unique && !other.unique) # don't drop a unique index covered by a non-unique one
-              duplicates << {
-                table: table,
-                duplicate_index: idx.name,
-                duplicate_columns: idx.columns,
-                covered_by_index: other.name,
-                covered_by_columns: other.columns,
-                unique: idx.unique
-              }
-            end
+            next unless idx.columns.size <= other.columns.size &&
+              other.columns.first(idx.columns.size) == idx.columns &&
+              !(idx.unique && !other.unique) # don't drop a unique index covered by a non-unique one
+
+            duplicates << {
+              table: table,
+              duplicate_index: idx.name,
+              duplicate_columns: idx.columns,
+              covered_by_index: other.name,
+              covered_by_columns: other.columns,
+              unique: idx.unique,
+            }
           end
         end
       end
@@ -34,10 +37,15 @@ module MysqlGenius
       seen = Set.new
       duplicates = duplicates.reject do |d|
         key = [d[:table], [d[:duplicate_index], d[:covered_by_index]].sort].flatten.join(":")
-        seen.include?(key) ? true : (seen.add(key); false)
+        if seen.include?(key)
+          true
+        else
+          (seen.add(key)
+           false)
+        end
       end
 
-      render json: duplicates
+      render(json: duplicates)
     end
 
     def table_sizes
@@ -65,23 +73,25 @@ module MysqlGenius
           data_mb: row["data_mb"].to_f,
           index_mb: row["index_mb"].to_f,
           total_mb: row["total_mb"].to_f,
-          fragmented_mb: row["fragmented_mb"].to_f
+          fragmented_mb: row["fragmented_mb"].to_f,
         }
       end
 
-      render json: tables
+      render(json: tables)
     end
 
     def query_stats
       connection = ActiveRecord::Base.connection
-      sort = %w[total_time avg_time calls rows_examined].include?(params[:sort]) ? params[:sort] : "total_time"
+      sort = ["total_time", "avg_time", "calls", "rows_examined"].include?(params[:sort]) ? params[:sort] : "total_time"
 
       order_clause = case sort
-                     when "total_time"    then "SUM_TIMER_WAIT DESC"
-                     when "avg_time"      then "AVG_TIMER_WAIT DESC"
-                     when "calls"         then "COUNT_STAR DESC"
-                     when "rows_examined" then "SUM_ROWS_EXAMINED DESC"
-                     end
+      when "total_time"    then "SUM_TIMER_WAIT DESC"
+      when "avg_time"      then "AVG_TIMER_WAIT DESC"
+      when "calls"         then "COUNT_STAR DESC"
+      when "rows_examined" then "SUM_ROWS_EXAMINED DESC"
+      end
+
+      limit = params.fetch(:limit, 50).to_i.clamp(1, 50)
 
       results = connection.exec_query(<<~SQL)
         SELECT
@@ -101,7 +111,7 @@ module MysqlGenius
           AND DIGEST_TEXT IS NOT NULL
           AND DIGEST_TEXT NOT LIKE 'EXPLAIN%'
         ORDER BY #{order_clause}
-        LIMIT 50
+        LIMIT #{limit}
       SQL
 
       queries = results.map do |row|
@@ -121,13 +131,13 @@ module MysqlGenius
           tmp_disk_tables: (row["tmp_disk_tables"] || row["TMP_DISK_TABLES"] || 0).to_i,
           sort_rows: (row["sort_rows"] || row["SORT_ROWS"] || 0).to_i,
           first_seen: row["FIRST_SEEN"] || row["first_seen"],
-          last_seen: row["LAST_SEEN"] || row["last_seen"]
+          last_seen: row["LAST_SEEN"] || row["last_seen"],
         }
       end
 
-      render json: queries
+      render(json: queries)
     rescue ActiveRecord::StatementInvalid => e
-      render json: { error: "Query statistics require performance_schema to be enabled. #{e.message.split(':').last.strip}" }, status: :unprocessable_entity
+      render(json: { error: "Query statistics require performance_schema to be enabled. #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
     end
 
     def unused_indexes
@@ -162,13 +172,13 @@ module MysqlGenius
           reads: (row["reads"] || row["READS"] || 0).to_i,
           writes: (row["writes"] || row["WRITES"] || 0).to_i,
           table_rows: (row["table_rows"] || row["TABLE_ROWS"] || 0).to_i,
-          drop_sql: "ALTER TABLE `#{table}` DROP INDEX `#{index_name}`;"
+          drop_sql: "ALTER TABLE `#{table}` DROP INDEX `#{index_name}`;",
         }
       end
 
-      render json: indexes
+      render(json: indexes)
     rescue ActiveRecord::StatementInvalid => e
-      render json: { error: "Unused index detection requires performance_schema. #{e.message.split(':').last.strip}" }, status: :unprocessable_entity
+      render(json: { error: "Unused index detection requires performance_schema. #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
     end
 
     def server_overview
@@ -215,11 +225,11 @@ module MysqlGenius
       questions = status["Questions"].to_i
       qps = uptime_seconds > 0 ? (questions.to_f / uptime_seconds).round(1) : 0
 
-      render json: {
+      render(json: {
         server: {
           version: version,
           uptime: "#{days}d #{hours}h #{minutes}m",
-          uptime_seconds: uptime_seconds
+          uptime_seconds: uptime_seconds,
         },
         connections: {
           max: max_conn,
@@ -230,7 +240,7 @@ module MysqlGenius
           threads_created: status["Threads_created"].to_i,
           aborted_connects: status["Aborted_connects"].to_i,
           aborted_clients: status["Aborted_clients"].to_i,
-          max_used: status["Max_used_connections"].to_i
+          max_used: status["Max_used_connections"].to_i,
         },
         innodb: {
           buffer_pool_mb: buffer_pool_mb,
@@ -239,7 +249,7 @@ module MysqlGenius
           buffer_pool_pages_free: status["Innodb_buffer_pool_pages_free"].to_i,
           buffer_pool_pages_total: status["Innodb_buffer_pool_pages_total"].to_i,
           row_lock_waits: status["Innodb_row_lock_waits"].to_i,
-          row_lock_time_ms: (status["Innodb_row_lock_time"].to_f).round(0)
+          row_lock_time_ms: status["Innodb_row_lock_time"].to_f.round(0),
         },
         queries: {
           questions: questions,
@@ -249,11 +259,11 @@ module MysqlGenius
           tmp_disk_tables: tmp_disk_tables,
           tmp_disk_pct: tmp_disk_pct,
           select_full_join: status["Select_full_join"].to_i,
-          sort_merge_passes: status["Sort_merge_passes"].to_i
-        }
-      }
+          sort_merge_passes: status["Sort_merge_passes"].to_i,
+        },
+      })
     rescue => e
-      render json: { error: "Failed to load server overview: #{e.message}" }, status: :unprocessable_entity
+      render(json: { error: "Failed to load server overview: #{e.message}" }, status: :unprocessable_entity)
     end
   end
 end

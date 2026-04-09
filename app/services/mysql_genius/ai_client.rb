@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "net/http"
 require "json"
 require "uri"
@@ -20,7 +22,7 @@ module MysqlGenius
       body = {
         messages: messages,
         response_format: { type: "json_object" },
-        temperature: temperature
+        temperature: temperature,
       }
       body[:model] = @config.ai_model if @config.ai_model && !@config.ai_model.empty?
 
@@ -28,7 +30,7 @@ module MysqlGenius
       parsed = JSON.parse(response.body)
 
       if parsed["error"]
-        raise Error, "AI API error: #{parsed['error']['message'] || parsed['error']}"
+        raise Error, "AI API error: #{parsed["error"]["message"] || parsed["error"]}"
       end
 
       content = parsed.dig("choices", 0, "message", "content")
@@ -60,6 +62,11 @@ module MysqlGenius
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
+      if http.use_ssl?
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        cert_file = ENV["SSL_CERT_FILE"] || OpenSSL::X509::DEFAULT_CERT_FILE
+        http.ca_file = cert_file if File.exist?(cert_file)
+      end
       http.open_timeout = 10
       http.read_timeout = 60
 

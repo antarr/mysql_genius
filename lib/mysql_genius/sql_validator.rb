@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 module MysqlGenius
   module SqlValidator
-    FORBIDDEN_KEYWORDS = %w[INSERT UPDATE DELETE DROP ALTER CREATE TRUNCATE GRANT REVOKE].freeze
+    FORBIDDEN_KEYWORDS = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "GRANT", "REVOKE"].freeze
 
-    module_function
+    extend self
 
     def validate(sql, blocked_tables:, connection:)
       return "Please enter a query." if sql.nil? || sql.strip.empty?
@@ -22,7 +24,7 @@ module MysqlGenius
       tables_in_query = extract_table_references(normalized, connection)
       blocked = tables_in_query & blocked_tables
       if blocked.any?
-        return "Access denied for table(s): #{blocked.join(', ')}."
+        return "Access denied for table(s): #{blocked.join(", ")}."
       end
 
       nil
@@ -44,7 +46,7 @@ module MysqlGenius
       elsif sql.match?(/\bLIMIT\s+\d+/i)
         sql.gsub(/\bLIMIT\s+(\d+)/i) { "LIMIT #{[::Regexp.last_match(1).to_i, limit].min}" }
       else
-        "#{sql.gsub(/;\s*\z/, '')} LIMIT #{limit}"
+        "#{sql.gsub(/;\s*\z/, "")} LIMIT #{limit}"
       end
     end
 

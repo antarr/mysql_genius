@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 require "active_support/notifications"
 require "mysql_genius/slow_query_monitor"
@@ -12,10 +14,10 @@ unless defined?(Redis)
   end
 end
 
-RSpec.describe MysqlGenius::SlowQueryMonitor do
+RSpec.describe(MysqlGenius::SlowQueryMonitor) do
   describe ".redis_key" do
     it "returns the expected key" do
-      expect(described_class.redis_key).to eq("mysql_genius:slow_queries")
+      expect(described_class.redis_key).to(eq("mysql_genius:slow_queries"))
     end
   end
 
@@ -28,16 +30,20 @@ RSpec.describe MysqlGenius::SlowQueryMonitor do
         c.slow_query_threshold_ms = 250
       end
 
-      allow(Redis).to receive(:new).and_return(redis)
-      allow(redis).to receive(:lpush)
-      allow(redis).to receive(:ltrim)
+      allow(Redis).to(receive(:new).and_return(redis))
+      allow(redis).to(receive(:lpush))
+      allow(redis).to(receive(:ltrim))
 
       # Clear any existing subscriptions
-      ActiveSupport::Notifications.unsubscribe("sql.active_record") rescue nil
+      begin
+        ActiveSupport::Notifications.unsubscribe("sql.active_record")
+      rescue
+        nil
+      end
     end
 
     it "subscribes to sql.active_record notifications" do
-      expect(ActiveSupport::Notifications).to receive(:subscribe).with("sql.active_record")
+      expect(ActiveSupport::Notifications).to(receive(:subscribe).with("sql.active_record"))
       described_class.subscribe!
     end
 
@@ -59,42 +65,42 @@ RSpec.describe MysqlGenius::SlowQueryMonitor do
       end
 
       it "captures slow SELECT queries" do
-        expect(redis).to receive(:lpush).with("mysql_genius:slow_queries", anything)
-        expect(redis).to receive(:ltrim).with("mysql_genius:slow_queries", 0, 199)
+        expect(redis).to(receive(:lpush).with("mysql_genius:slow_queries", anything))
+        expect(redis).to(receive(:ltrim).with("mysql_genius:slow_queries", 0, 199))
 
         fire_callback(callback, duration_sec: 0.5, sql: "SELECT * FROM users", name: "User Load")
       end
 
       it "ignores queries below the threshold" do
-        expect(redis).not_to receive(:lpush)
+        expect(redis).not_to(receive(:lpush))
 
         fire_callback(callback, duration_sec: 0.01, sql: "SELECT * FROM users", name: "User Load")
       end
 
       it "ignores non-SELECT queries" do
-        expect(redis).not_to receive(:lpush)
+        expect(redis).not_to(receive(:lpush))
 
         fire_callback(callback, duration_sec: 1.0, sql: "INSERT INTO users VALUES (1)")
       end
 
       it "ignores EXPLAIN queries" do
-        expect(redis).not_to receive(:lpush)
+        expect(redis).not_to(receive(:lpush))
 
         fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM users EXPLAIN something")
       end
 
       it "ignores SCHEMA queries" do
-        expect(redis).not_to receive(:lpush)
+        expect(redis).not_to(receive(:lpush))
 
         fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM SCHEMA tables", name: "SCHEMA")
       end
 
       it "gracefully handles Redis errors" do
-        allow(redis).to receive(:lpush).and_raise(StandardError.new("Connection refused"))
+        allow(redis).to(receive(:lpush).and_raise(StandardError.new("Connection refused")))
 
-        expect {
+        expect do
           fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM users")
-        }.not_to raise_error
+        end.not_to(raise_error)
       end
     end
   end

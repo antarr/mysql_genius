@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 module MysqlGenius
   class AiSuggestionService
     def call(user_prompt, allowed_tables)
       schema = build_schema_description(allowed_tables)
       messages = [
         { role: "system", content: system_prompt(schema) },
-        { role: "user", content: user_prompt }
+        { role: "user", content: user_prompt },
       ]
 
       AiClient.new.chat(messages: messages)
@@ -48,8 +50,9 @@ module MysqlGenius
       connection = ActiveRecord::Base.connection
       allowed_tables.map do |table|
         next unless connection.tables.include?(table)
+
         columns = connection.columns(table).map { |c| "#{c.name} (#{c.type})" }
-        "#{table}: #{columns.join(', ')}"
+        "#{table}: #{columns.join(", ")}"
       end.compact.join("\n")
     end
   end
