@@ -1,4 +1,5 @@
 require "json"
+require "time"
 
 module MysqlGenius
   class SlowQueryMonitor
@@ -21,9 +22,9 @@ module MysqlGenius
         begin
           redis = Redis.new(url: MysqlGenius.configuration.redis_url)
           entry = {
-            sql: sql.truncate(10_000),
+            sql: sql.length > 10_000 ? sql[0, 10_000] : sql,
             duration_ms: duration_ms,
-            timestamp: Time.current.iso8601,
+            timestamp: Time.now.iso8601,
             name: payload[:name]
           }.to_json
 

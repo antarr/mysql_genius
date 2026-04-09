@@ -5,28 +5,21 @@ require "mysql_genius/ai_suggestion_service"
 RSpec.describe MysqlGenius::AiSuggestionService do
   subject(:service) { described_class.new }
 
-  let(:connection) do
-    double("connection",
-      tables: %w[users posts comments],
-      columns: lambda { |table|
-        case table
-        when "users"
-          [
-            double(name: "id", type: :integer),
-            double(name: "name", type: :string),
-            double(name: "email", type: :string)
-          ]
-        when "posts"
-          [
-            double(name: "id", type: :integer),
-            double(name: "title", type: :string),
-            double(name: "user_id", type: :integer)
-          ]
-        else
-          []
-        end
-      }
-    )
+  let(:connection) { double("connection", tables: %w[users posts comments]) }
+
+  let(:columns_map) do
+    {
+      "users" => [
+        double(name: "id", type: :integer),
+        double(name: "name", type: :string),
+        double(name: "email", type: :string)
+      ],
+      "posts" => [
+        double(name: "id", type: :integer),
+        double(name: "title", type: :string),
+        double(name: "user_id", type: :integer)
+      ]
+    }
   end
 
   before do
@@ -38,7 +31,7 @@ RSpec.describe MysqlGenius::AiSuggestionService do
     end
 
     allow(ActiveRecord::Base).to receive(:connection).and_return(connection)
-    allow(connection).to receive(:columns) { |table| connection.columns.call(table) }
+    allow(connection).to receive(:columns) { |table| columns_map[table] || [] }
   end
 
   describe "#call" do

@@ -19,7 +19,7 @@ module MysqlGenius
         You are a SQL query assistant for a MySQL database.
       PROMPT
 
-      if custom_context.present?
+      if custom_context && !custom_context.empty?
         prompt += <<~PROMPT
 
           Domain context:

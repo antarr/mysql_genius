@@ -5,30 +5,20 @@ require "mysql_genius/ai_optimization_service"
 RSpec.describe MysqlGenius::AiOptimizationService do
   subject(:service) { described_class.new }
 
-  let(:connection) do
-    double("connection",
-      tables: %w[users posts],
-      columns: lambda { |table|
-        case table
-        when "users"
-          [double(name: "id", type: :integer), double(name: "email", type: :string)]
-        when "posts"
-          [double(name: "id", type: :integer), double(name: "user_id", type: :integer)]
-        else
-          []
-        end
-      },
-      indexes: lambda { |table|
-        case table
-        when "users"
-          [double(name: "index_users_on_email", columns: ["email"], unique: true)]
-        when "posts"
-          [double(name: "index_posts_on_user_id", columns: ["user_id"], unique: false)]
-        else
-          []
-        end
-      }
-    )
+  let(:connection) { double("connection", tables: %w[users posts]) }
+
+  let(:columns_map) do
+    {
+      "users" => [double(name: "id", type: :integer), double(name: "email", type: :string)],
+      "posts" => [double(name: "id", type: :integer), double(name: "user_id", type: :integer)]
+    }
+  end
+
+  let(:indexes_map) do
+    {
+      "users" => [double(name: "index_users_on_email", columns: ["email"], unique: true)],
+      "posts" => [double(name: "index_posts_on_user_id", columns: ["user_id"], unique: false)]
+    }
   end
 
   before do
@@ -39,8 +29,8 @@ RSpec.describe MysqlGenius::AiOptimizationService do
     end
 
     allow(ActiveRecord::Base).to receive(:connection).and_return(connection)
-    allow(connection).to receive(:columns) { |table| connection.columns.call(table) }
-    allow(connection).to receive(:indexes) { |table| connection.indexes.call(table) }
+    allow(connection).to receive(:columns) { |table| columns_map[table] || [] }
+    allow(connection).to receive(:indexes) { |table| indexes_map[table] || [] }
   end
 
   describe "#call" do

@@ -1,5 +1,16 @@
 require "spec_helper"
+require "active_support/notifications"
 require "mysql_genius/slow_query_monitor"
+
+# Stub Redis if not available
+unless defined?(Redis)
+  class Redis
+    class ConnectionError < StandardError; end
+    def initialize(**opts); end
+    def lpush(key, value); end
+    def ltrim(key, start, stop); end
+  end
+end
 
 RSpec.describe MysqlGenius::SlowQueryMonitor do
   describe ".redis_key" do
@@ -31,110 +42,58 @@ RSpec.describe MysqlGenius::SlowQueryMonitor do
     end
 
     context "when processing notifications" do
-      before do
-        described_class.subscribe!
+      # We invoke the subscriber callback directly since ActiveSupport::Notifications.publish
+      # does not dispatch to block-based (Timed) subscribers.
+      let(:callback) do
+        described_class.subscribe!.instance_variable_get(:@delegate)
       end
 
       after do
         ActiveSupport::Notifications.unsubscribe("sql.active_record")
       end
 
+      def fire_callback(callback, duration_sec:, sql:, name: "SQL")
+        start = Time.now
+        finish = start + duration_sec
+        callback.call("sql.active_record", start, finish, "test-id", { sql: sql, name: name })
+      end
+
       it "captures slow SELECT queries" do
         expect(redis).to receive(:lpush).with("mysql_genius:slow_queries", anything)
         expect(redis).to receive(:ltrim).with("mysql_genius:slow_queries", 0, 199)
 
-        start = Time.now
-        finish = start + 0.5 # 500ms, above 250ms threshold
-
-        ActiveSupport::Notifications.instrument("sql.active_record", sql: "SELECT * FROM users", name: "User Load") do
-          # Simulate slow query by using publish directly
-        end
-
-        # Trigger the subscriber directly since instrument timing won't work
-        ActiveSupport::Notifications.publish(
-          "sql.active_record",
-          start,
-          finish,
-          "test-id",
-          { sql: "SELECT * FROM users", name: "User Load" }
-        )
+        fire_callback(callback, duration_sec: 0.5, sql: "SELECT * FROM users", name: "User Load")
       end
 
       it "ignores queries below the threshold" do
         expect(redis).not_to receive(:lpush)
 
-        start = Time.now
-        finish = start + 0.01 # 10ms, below threshold
-
-        ActiveSupport::Notifications.publish(
-          "sql.active_record",
-          start,
-          finish,
-          "test-id",
-          { sql: "SELECT * FROM users", name: "User Load" }
-        )
+        fire_callback(callback, duration_sec: 0.01, sql: "SELECT * FROM users", name: "User Load")
       end
 
       it "ignores non-SELECT queries" do
         expect(redis).not_to receive(:lpush)
 
-        start = Time.now
-        finish = start + 1.0
-
-        ActiveSupport::Notifications.publish(
-          "sql.active_record",
-          start,
-          finish,
-          "test-id",
-          { sql: "INSERT INTO users VALUES (1)", name: "SQL" }
-        )
+        fire_callback(callback, duration_sec: 1.0, sql: "INSERT INTO users VALUES (1)")
       end
 
       it "ignores EXPLAIN queries" do
         expect(redis).not_to receive(:lpush)
 
-        start = Time.now
-        finish = start + 1.0
-
-        ActiveSupport::Notifications.publish(
-          "sql.active_record",
-          start,
-          finish,
-          "test-id",
-          { sql: "SELECT * FROM users EXPLAIN something", name: "SQL" }
-        )
+        fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM users EXPLAIN something")
       end
 
       it "ignores SCHEMA queries" do
         expect(redis).not_to receive(:lpush)
 
-        start = Time.now
-        finish = start + 1.0
-
-        ActiveSupport::Notifications.publish(
-          "sql.active_record",
-          start,
-          finish,
-          "test-id",
-          { sql: "SELECT * FROM SCHEMA tables", name: "SCHEMA" }
-        )
+        fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM SCHEMA tables", name: "SCHEMA")
       end
 
       it "gracefully handles Redis errors" do
-        allow(redis).to receive(:lpush).and_raise(Redis::ConnectionError.new("Connection refused")) if defined?(Redis::ConnectionError)
         allow(redis).to receive(:lpush).and_raise(StandardError.new("Connection refused"))
 
-        start = Time.now
-        finish = start + 1.0
-
         expect {
-          ActiveSupport::Notifications.publish(
-            "sql.active_record",
-            start,
-            finish,
-            "test-id",
-            { sql: "SELECT * FROM users", name: "SQL" }
-          )
+          fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM users")
         }.not_to raise_error
       end
     end

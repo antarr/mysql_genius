@@ -22,7 +22,7 @@ module MysqlGenius
         response_format: { type: "json_object" },
         temperature: temperature
       }
-      body[:model] = @config.ai_model if @config.ai_model.present?
+      body[:model] = @config.ai_model if @config.ai_model && !@config.ai_model.empty?
 
       response = post_with_redirects(URI(@config.ai_endpoint), body.to_json)
       parsed = JSON.parse(response.body)
