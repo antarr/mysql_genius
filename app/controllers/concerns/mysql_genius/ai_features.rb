@@ -68,14 +68,19 @@ module MysqlGenius
       schema_desc = tables_to_review.map do |t|
         next unless connection.tables.include?(t)
         cols = connection.columns(t).map { |c| "#{c.name} #{c.sql_type}#{c.null ? '' : ' NOT NULL'}#{c.default ? " DEFAULT #{c.default}" : ''}" }
+        pk = connection.primary_key(t)
         indexes = connection.indexes(t).map { |idx| "#{idx.unique ? 'UNIQUE ' : ''}INDEX #{idx.name} (#{idx.columns.join(', ')})" }
         row_count = connection.exec_query("SELECT TABLE_ROWS FROM information_schema.tables WHERE table_schema = #{connection.quote(connection.current_database)} AND table_name = #{connection.quote(t)}").rows.first&.first
-        "Table: #{t} (~#{row_count} rows)\nColumns: #{cols.join(', ')}\nIndexes: #{indexes.any? ? indexes.join(', ') : 'NONE'}"
+        desc = "Table: #{t} (~#{row_count} rows)\n"
+        desc += "Primary Key: #{pk || 'NONE'}\n"
+        desc += "Columns: #{cols.join(', ')}\n"
+        desc += "Indexes: #{indexes.any? ? indexes.join(', ') : 'NONE'}"
+        desc
       end.compact.join("\n\n")
 
       messages = [
         { role: "system", content: <<~PROMPT },
-          You are a MySQL schema reviewer. Analyze the following schema and identify anti-patterns and improvement opportunities. Look for:
+          You are a MySQL schema reviewer for a Ruby on Rails application. Analyze the following schema and identify anti-patterns and improvement opportunities. Look for:
           - Inappropriate column types (VARCHAR(255) for short values, TEXT where VARCHAR suffices, INT for booleans)
           - Missing indexes on foreign key columns or frequently filtered columns
           - Missing NOT NULL constraints where NULLs are unlikely
@@ -344,8 +349,11 @@ module MysqlGenius
     end
 
     def ai_domain_context
+      parts = []
+      parts << "This is a Ruby on Rails application. Do NOT recommend adding foreign key constraints (FOREIGN KEY / REFERENCES); Rails handles referential integrity at the application layer. DO recommend indexes on foreign key columns for join performance."
       ctx = mysql_genius_config.ai_system_context
-      ctx.present? ? "\nDomain context:\n#{ctx}" : ""
+      parts << "Domain context:\n#{ctx}" if ctx.present?
+      "\n" + parts.join("\n")
     end
 
     def build_schema_for_query(sql)
