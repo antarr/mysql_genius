@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 MysqlGenius::Engine.routes.draw do
   root to: "queries#index"
 

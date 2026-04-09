@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module MysqlGenius
   module QueryExecution
     extend ActiveSupport::Concern
@@ -5,15 +7,15 @@ module MysqlGenius
     def execute
       sql = params[:sql].to_s.strip
       row_limit = if params[:row_limit].present?
-                    [[params[:row_limit].to_i, 1].max, mysql_genius_config.max_row_limit].min
-                  else
-                    mysql_genius_config.default_row_limit
-                  end
+        params[:row_limit].to_i.clamp(1, mysql_genius_config.max_row_limit)
+      else
+        mysql_genius_config.default_row_limit
+      end
 
       error = validate_sql(sql)
       if error
         audit(:rejection, sql: sql, reason: error)
-        return render json: { error: error }, status: :unprocessable_entity
+        return render(json: { error: error }, status: :unprocessable_entity)
       end
 
       limited_sql = apply_row_limit(sql, row_limit)
@@ -35,20 +37,20 @@ module MysqlGenius
 
         audit(:query, sql: sql, execution_time_ms: execution_time_ms, row_count: rows.length)
 
-        render json: {
+        render(json: {
           columns: columns,
           rows: rows,
           row_count: rows.length,
           execution_time_ms: execution_time_ms,
-          truncated: truncated
-        }
+          truncated: truncated,
+        })
       rescue ActiveRecord::StatementInvalid => e
         if timeout_error?(e)
           audit(:error, sql: sql, error: "Query timeout")
-          render json: { error: "Query exceeded the #{mysql_genius_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity
+          render(json: { error: "Query exceeded the #{mysql_genius_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity)
         else
           audit(:error, sql: sql, error: e.message)
-          render json: { error: "Query error: #{e.message.split(':').last.strip}" }, status: :unprocessable_entity
+          render(json: { error: "Query error: #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
         end
       end
     end
@@ -59,20 +61,20 @@ module MysqlGenius
 
       unless skip_validation
         error = validate_sql(sql)
-        return render json: { error: error }, status: :unprocessable_entity if error
+        return render(json: { error: error }, status: :unprocessable_entity) if error
       end
 
       # Reject truncated SQL (captured slow queries are capped at 2000 chars)
       unless sql.match?(/\)\s*$/) || sql.match?(/\w\s*$/) || sql.match?(/['"`]\s*$/) || sql.match?(/\d\s*$/)
-        return render json: { error: "This query appears to be truncated and cannot be explained." }, status: :unprocessable_entity
+        return render(json: { error: "This query appears to be truncated and cannot be explained." }, status: :unprocessable_entity)
       end
 
-      explain_sql = "EXPLAIN #{sql.gsub(/;\s*\z/, '')}"
+      explain_sql = "EXPLAIN #{sql.gsub(/;\s*\z/, "")}"
       results = ActiveRecord::Base.connection.exec_query(explain_sql)
 
-      render json: { columns: results.columns, rows: results.rows }
+      render(json: { columns: results.columns, rows: results.rows })
     rescue ActiveRecord::StatementInvalid => e
-      render json: { error: "Explain error: #{e.message.split(':').last.strip}" }, status: :unprocessable_entity
+      render(json: { error: "Explain error: #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
     end
 
     private
@@ -108,7 +110,7 @@ module MysqlGenius
     end
 
     def sanitize_ai_sql(sql)
-      sql.gsub(/```(?:sql)?\s*/i, "").gsub(/```/, "").strip
+      sql.gsub(/```(?:sql)?\s*/i, "").gsub("```", "").strip
     end
 
     def audit(type, **attrs)

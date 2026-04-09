@@ -1,0 +1,24 @@
+inherit_gem:
+  rubocop-shopify: rubocop.yml
+
+require:
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 2.6
+  NewCops: enable
+
+Layout/LineLength:
+  Max: 250
+
+RSpec/MessageSpies:
+  Enabled: false
+
+RSpec/VerifiedDoubles:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Max: 25
+
+RSpec/MultipleExpectations:
+  Max: 5

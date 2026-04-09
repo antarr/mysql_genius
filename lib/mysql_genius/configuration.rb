@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module MysqlGenius
   class Configuration
     # Tables to feature in the visual builder dropdown (array of strings).
@@ -66,17 +68,17 @@ module MysqlGenius
 
     def initialize
       @featured_tables = []
-      @blocked_tables = %w[
-        sessions
-        ar_internal_metadata
-        schema_migrations
+      @blocked_tables = [
+        "sessions",
+        "ar_internal_metadata",
+        "schema_migrations",
       ]
-      @masked_column_patterns = %w[password secret digest token]
+      @masked_column_patterns = ["password", "secret", "digest", "token"]
       @default_columns = {}
       @max_row_limit = 1000
       @default_row_limit = 25
       @query_timeout_ms = 30_000
-      @authenticate = ->(controller) { true }
+      @authenticate = ->(_controller) { true }
       @ai_client = nil
       @ai_endpoint = nil
       @ai_api_key = nil
