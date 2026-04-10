@@ -2,14 +2,15 @@
 
 ## Unreleased
 
-- **Optional database prefix in routes** -- all routes are now wrapped in `scope "(:database)"` so `/mysql_genius/` continues to work (backward compatible) and `/mysql_genius/analytics/` routes to a named database
-- **DatabaseConfig class** -- foundational per-database configuration object that holds overridable settings (`blocked_tables`, `masked_column_patterns`, `featured_tables`, `default_columns`, `max_row_limit`, `default_row_limit`, `query_timeout_ms`) and falls back to the global `Configuration` for any unset value
-- **Configuration#database DSL** -- `config.database(:name) { |db| ... }` block lets users configure per-database overrides inside `MysqlGenius.configure`; repeated calls to the same key merge into the same `DatabaseConfig` instance
-- **DatabaseRegistry** -- `MysqlGenius::DatabaseRegistry` module handles YAML config loading (`config/mysql_genius.yml` + environment overrides), auto-detection of MySQL databases from `ActiveRecord::Base.configurations`, and helper methods (`multi_db?`, `default_key`, `deep_merge`); the `build!` method is the single entry point called at engine boot
-- **BaseController database resolution** -- `resolve_database!` before-action resolves the active database from params, redirects to a default in multi-db mode when none is specified, and returns 404 for unknown databases; adds `connection`, `current_database_key`, `current_database_config`, `multi_db?`, and `available_databases` helpers (view-accessible via `helper_method`)
-- **QueriesController multi-db wiring** -- `index` now exposes `@multi_db`, `@current_database_key`, and `@available_databases` to the view; `columns` and `queryable_tables` use the `connection` helper and `current_database_config` instead of `ActiveRecord::Base.connection` and the global config
-- **QueryExecution concern multi-db wiring** -- `execute` and `explain` use the `connection` helper instead of `ActiveRecord::Base.connection`; per-database settings (`query_timeout_ms`, `max_row_limit`, `default_row_limit`, `blocked_tables`, `masked_column_patterns`) are now read from `current_database_config` instead of the global config
-- **Install generator YAML template** -- `rails generate mysql_genius:install` now also copies `config/mysql_genius.yml` with commented examples for global defaults, per-database overrides, and excluded databases; initializer template gains a commented `config.database` multi-database DSL example
+### Added
+- **Multi-database support** -- monitor multiple MySQL/MariaDB databases from a single dashboard
+- **Auto-detection** -- MySQL databases are discovered from Rails `database.yml` at boot (supports Rails 5.2 through 8.1)
+- **YAML configuration** -- per-database settings via `config/mysql_genius.yml` with environment-specific overrides (`config/mysql_genius.production.yml`)
+- **Per-database settings** -- `blocked_tables`, `masked_column_patterns`, `featured_tables`, `default_columns`, `max_row_limit`, `default_row_limit`, `query_timeout_ms` can be configured per database, falling back to global defaults
+- **Database switcher** -- dropdown in the dashboard header to switch between databases (hidden in single-database setups)
+- **URL-scoped routing** -- `/mysql_genius/analytics/`, `/mysql_genius/primary/execute`, etc. Optional prefix -- existing URLs continue to work
+- **`config.database(:name)` DSL** -- per-database overrides in the Ruby initializer
+- **Install generator** -- now also copies `config/mysql_genius.yml` template
 
 ## 0.2.0
 
