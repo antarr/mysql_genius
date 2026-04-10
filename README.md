@@ -1,6 +1,6 @@
 # MySQLGenius
 
-A AI powered MySQL dashboard and build to help you optimize your database for maximum performance, inspired by [PgHero](https://github.com/ankane/pghero). 
+An AI-powered MySQL dashboard for Rails to help you optimize your database for maximum performance, inspired by [PgHero](https://github.com/ankane/pghero).
 
 ## Screenshots
 
@@ -10,13 +10,9 @@ At-a-glance server health, top slow queries, most expensive queries, and index a
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-### Slow Queries
-
-SELECT queries exceeding the configured threshold, captured via ActiveSupport notifications and Redis.
-
 ### Query Stats
 
-Top queries from `performance_schema` sorted by total time, with call counts, avg/max time, and rows examined.
+Top queries from `performance_schema` sorted by total time, with SQL syntax highlighting and color-coded durations.
 
 ![Query Stats](docs/screenshots/query_stats.png)
 
@@ -26,9 +22,9 @@ Server health: version, connections, InnoDB buffer pool, and query activity with
 
 ![Server](docs/screenshots/server.png)
 
-### Table Sizes
+### Tables
 
-View row counts, data size, index size, fragmentation, and a visual size chart for every table.
+Row counts, data size, index size, engine, fragmentation, and optimize suggestions for every table.
 
 ![Table Sizes](docs/screenshots/table_sizes.png)
 
@@ -46,231 +42,68 @@ Build queries visually or write raw SQL. Optional AI assistant generates queries
 
 ### AI Tools
 
-Schema review that finds anti-patterns -- missing primary keys, nullable foreign keys, inappropriate column types, and more.
+Schema review, query optimization, index advisor, anomaly detection, root cause analysis, and migration risk assessment.
 
 ![AI Tools](docs/screenshots/ai_tools.png)
 
 ## Features
 
-- **Visual Query Builder** -- point-and-click query construction with column selection, type-aware filters, and ordering
-- **Safe SQL Execution** -- read-only enforcement, blocked tables, masked sensitive columns, row limits, query timeouts
+- **Dashboard** -- server health, slow queries, expensive queries, index alerts at a glance
+- **Query Explorer** -- visual builder + raw SQL editor with AI assistant
+- **SQL Syntax Highlighting** -- dark-themed code blocks with color-coded keywords, functions, strings
+- **Safe SQL Execution** -- read-only enforcement, blocked tables, masked columns, row limits, timeouts
 - **EXPLAIN Analysis** -- run EXPLAIN on any query and view the execution plan
-- **AI Query Suggestions** -- describe what you want in plain English, get SQL back (optional, any OpenAI-compatible API)
-- **AI Query Optimization** -- get actionable optimization suggestions from EXPLAIN output (optional)
-- **Slow Query Monitoring** -- captures slow SELECT queries via ActiveSupport notifications and Redis
-- **Duplicate Index Detection** -- finds redundant indexes whose columns are a left-prefix of another index
-- **Table Size Dashboard** -- view row counts, data size, index size, and fragmentation for all tables
-- **Audit Logging** -- logs all query executions, rejections, and errors
+- **9 AI Tools** -- suggestions, optimization, schema review, query rewrite, index advisor, anomaly detection, root cause analysis, migration risk ([details](https://github.com/antarr/mysql_genius/wiki/AI-Features))
+- **Slow Query Monitoring** -- captures slow queries via ActiveSupport notifications and Redis ([details](https://github.com/antarr/mysql_genius/wiki/Slow-Query-Monitoring))
+- **Index Analysis** -- duplicate index detection, unused index detection with DROP statements
+- **Dark Theme** -- auto-detects system preference with manual toggle ([details](https://github.com/antarr/mysql_genius/wiki/Dark-Theme))
 - **MariaDB Support** -- automatically detects MariaDB and uses appropriate timeout syntax
-- **Self-contained UI** -- no external CSS/JS dependencies, works with any Rails layout
-- **Zero jQuery** -- pure vanilla JavaScript frontend
+- **Self-contained UI** -- no external CSS/JS dependencies, no jQuery, works with any Rails layout
 
-## Requirements
-
-- Rails 5.2+
-- Ruby 2.6+
-- MySQL or MariaDB
-- Redis (optional, for slow query monitoring)
-
-## Installation
-
-Add to your Gemfile:
+## Quick Start
 
 ```ruby
+# Gemfile
 gem "mysql_genius"
 ```
 
-Or from GitHub:
-
-```ruby
-gem "mysql_genius", github: "antarr/mysql_genius"
-```
-
-Then run:
-
 ```bash
 bundle install
+rails generate mysql_genius:install
 ```
 
-## Setup
+Visit `/mysql_genius` in your browser.
 
-### 1. Mount the engine
+For detailed setup, see the [Installation guide](https://github.com/antarr/mysql_genius/wiki/Installation).
 
-In `config/routes.rb`:
-
-```ruby
-Rails.application.routes.draw do
-  mount MysqlGenius::Engine, at: "/mysql_genius"
-end
-```
-
-To restrict access at the route level:
-
-```ruby
-# Using a session constraint
-constraints ->(req) { req.session[:admin] } do
-  mount MysqlGenius::Engine, at: "/mysql_genius"
-end
-
-# Or using Devise
-authenticate :user, ->(u) { u.admin? } do
-  mount MysqlGenius::Engine, at: "/mysql_genius"
-end
-```
-
-### 2. Configure
-
-Create `config/initializers/mysql_genius.rb`:
+## Configuration
 
 ```ruby
 MysqlGenius.configure do |config|
-  # --- Authentication ---
-  # Lambda that receives the controller instance. Return true to allow access.
-  # Default: allows everyone. Use route constraints for most cases.
-  config.authenticate = ->(controller) { true }
-
-  # To use current_user or other app helpers, inherit from ApplicationController:
-  # config.base_controller = "ApplicationController"
-  # config.authenticate = ->(controller) { controller.current_user&.admin? }
-
-  # --- Tables ---
-  # Tables featured at the top of the visual builder dropdown (optional)
-  config.featured_tables = %w[users posts comments]
-
-  # Tables blocked from querying (defaults: sessions, schema_migrations, ar_internal_metadata)
+  config.base_controller = "ApplicationController"
+  config.authenticate = ->(controller) { controller.current_user&.admin? }
   config.blocked_tables += %w[oauth_tokens api_keys]
-
-  # Column patterns to redact with [REDACTED] in results (case-insensitive substring match)
-  config.masked_column_patterns = %w[password secret digest token ssn]
-
-  # Default columns checked in the visual builder per table (optional).
-  # When empty for a table, all columns are checked by default.
-  config.default_columns = {
-    "users" => %w[id name email created_at],
-    "posts" => %w[id title user_id published_at]
-  }
-
-  # --- Query Safety ---
-  config.max_row_limit = 1000       # Hard cap on rows returned
-  config.default_row_limit = 25     # Default when no limit specified
-  config.query_timeout_ms = 30_000  # 30 second timeout (uses MariaDB or MySQL hints)
-
-  # --- Slow Query Monitoring ---
-  # Requires Redis. Set to nil to disable.
-  config.redis_url = ENV["REDIS_URL"].presence || "redis://127.0.0.1:6379/0"
-  config.slow_query_threshold_ms = 250
-
-  # --- Audit Logging ---
-  # Set to nil to disable. Logs query executions, rejections, and errors.
-  config.audit_logger = Logger.new(Rails.root.join("log", "mysql_genius.log"))
 end
 ```
 
-### 3. AI Features (optional)
+For full configuration options, see the [Configuration guide](https://github.com/antarr/mysql_genius/wiki/Configuration).
 
-MySQLGenius supports AI-powered query suggestions and optimization via any OpenAI-compatible API, including OpenAI, Azure OpenAI, Ollama Cloud, and local Ollama instances.
+## AI Features (optional)
+
+Works with OpenAI, Azure OpenAI, Ollama Cloud, local Ollama, or any OpenAI-compatible API.
 
 ```ruby
 MysqlGenius.configure do |config|
-  # --- Option A: OpenAI ---
   config.ai_endpoint = "https://api.openai.com/v1/chat/completions"
   config.ai_api_key = ENV["OPENAI_API_KEY"]
   config.ai_model = "gpt-4o"
   config.ai_auth_style = :bearer
-
-  # --- Option B: Azure OpenAI ---
-  config.ai_endpoint = ENV["AZURE_OPENAI_ENDPOINT"]  # Your deployment URL
-  config.ai_api_key = ENV["AZURE_OPENAI_API_KEY"]
-  config.ai_auth_style = :api_key                     # Default, uses api-key header
-
-  # --- Option C: Ollama Cloud ---
-  config.ai_endpoint = "https://api.ollama.com/v1/chat/completions"
-  config.ai_api_key = ENV["OLLAMA_API_KEY"]
-  config.ai_model = "gemma3:27b"
-  config.ai_auth_style = :bearer
-
-  # --- Option D: Local Ollama ---
-  config.ai_endpoint = "http://localhost:11434/v1/chat/completions"
-  config.ai_api_key = "ollama"  # Any non-empty string
-  config.ai_model = "llama3"
-  config.ai_auth_style = :bearer
-
-  # --- Option E: Custom client ---
-  # Any callable that accepts messages: and temperature: kwargs
-  # and returns an OpenAI-compatible response hash.
-  config.ai_client = ->(messages:, temperature:) {
-    MyAiService.chat(messages, temperature: temperature)
-  }
-
-  # --- Domain Context ---
-  # Helps the AI understand your schema and generate better queries.
-  config.ai_system_context = <<~CONTEXT
-    This is an e-commerce database.
-    - `users` stores customer accounts. Primary key is `id`.
-    - `orders` tracks purchases. Linked to users via `user_id`.
-    - `products` contains the product catalog.
-    - Soft-deleted records have `deleted_at IS NOT NULL`.
-  CONTEXT
 end
 ```
 
-| Option | `ai_auth_style` | `ai_model` | Notes |
-|--------|-----------------|------------|-------|
-| OpenAI | `:bearer` | Required (e.g. `gpt-4o`) | |
-| Azure OpenAI | `:api_key` (default) | Optional (uses deployment default) | |
-| Ollama Cloud | `:bearer` | Required (e.g. `gemma3:27b`) | Follows redirects automatically |
-| Local Ollama | `:bearer` | Required | No API key validation |
-| Custom client | N/A | N/A | You handle everything |
-
-When AI is not configured, the AI Assistant panel and optimization buttons are hidden automatically.
-
-## Usage
-
-Visit `/mysql_genius` in your browser. The dashboard loads automatically with an overview of your database health.
-
-### Dashboard
-
-The default landing page shows server health cards, top 5 slow queries, top 5 most expensive queries (from performance_schema), and index alert badges for duplicate and unused indexes. Each section links to its detailed tab.
-
-### Query Explorer
-
-Combines the visual query builder and raw SQL editor in one tab. Toggle between Visual mode (point-and-click with column selection, filters, and ordering) and SQL mode (raw SQL with optional AI assistant). Generated SQL syncs between modes.
-
-### Monitoring Tabs
-
-- **Slow Queries** -- slow SELECT queries captured from your application in real time, with Explain and Optimize actions
-- **Query Stats** -- top queries from `performance_schema` sorted by total time, avg time, calls, or rows examined
-- **Server** -- connections, InnoDB buffer pool, query activity, with AI-powered diagnostics
-- **Table Sizes** -- row counts, data size, index size, fragmentation for all tables
-- **Unused Indexes** -- indexes with zero reads since server restart
-- **Duplicate Indexes** -- redundant indexes with ready-to-run DROP statements
-
-## Configuration Reference
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `authenticate` | Proc | `->(_) { true }` | Authorization check |
-| `base_controller` | String | `"ActionController::Base"` | Parent controller class |
-| `featured_tables` | Array | `[]` | Tables shown in Featured group |
-| `blocked_tables` | Array | `[sessions, ...]` | Tables that cannot be queried |
-| `masked_column_patterns` | Array | `[password, secret, ...]` | Column patterns to redact |
-| `default_columns` | Hash | `{}` | Default checked columns per table |
-| `max_row_limit` | Integer | `1000` | Maximum rows returned |
-| `default_row_limit` | Integer | `25` | Default row limit |
-| `query_timeout_ms` | Integer | `30000` | Query timeout in ms |
-| `redis_url` | String | `nil` | Redis URL for slow query monitoring |
-| `slow_query_threshold_ms` | Integer | `250` | Slow query threshold |
-| `audit_logger` | Logger | `nil` | Logger for query audit trail |
-| `ai_endpoint` | String | `nil` | AI API endpoint URL |
-| `ai_api_key` | String | `nil` | AI API key |
-| `ai_model` | String | `nil` | AI model name |
-| `ai_auth_style` | Symbol | `:api_key` | `:bearer` or `:api_key` |
-| `ai_client` | Proc | `nil` | Custom AI client callable |
-| `ai_system_context` | String | `nil` | Domain context for AI prompts |
+For all provider examples, see the [AI Features guide](https://github.com/antarr/mysql_genius/wiki/AI-Features).
 
 ## Compatibility
-
-Tested against:
 
 | Rails | Ruby |
 |-------|------|
@@ -283,6 +116,10 @@ Tested against:
 | 8.0   | 3.2, 3.3, 3.4 |
 | 8.1   | 3.2, 3.3, 3.4 |
 
+## Documentation
+
+Full documentation is available on the [Wiki](https://github.com/antarr/mysql_genius/wiki).
+
 ## Development
 
 ```bash
@@ -290,12 +127,6 @@ git clone https://github.com/antarr/mysql_genius.git
 cd mysql_genius
 bin/setup
 bundle exec rspec
-```
-
-To test against a specific Rails version:
-
-```bash
-RAILS_VERSION=6.1 bundle update && bundle exec rspec
 ```
 
 ## Contributing
