@@ -37,13 +37,9 @@ module MysqlGenius
       @current_database_config = databases[@current_database_key] || mysql_genius_config.database(@current_database_key)
     end
 
-    def current_database_key
-      @current_database_key
-    end
+    attr_reader :current_database_key
 
-    def current_database_config
-      @current_database_config
-    end
+    attr_reader :current_database_config
 
     def connection
       @connection ||= resolve_connection
