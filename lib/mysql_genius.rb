@@ -21,6 +21,10 @@ module MysqlGenius
     def reset_configuration!
       @configuration = Configuration.new
     end
+
+    def databases
+      configuration.databases
+    end
   end
 end
 
