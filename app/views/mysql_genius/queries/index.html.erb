@@ -10,7 +10,7 @@
   <button class="mg-tab" data-tab="slow">Slow Queries</button>
   <button class="mg-tab" data-tab="qstats">Query Stats</button>
   <button class="mg-tab" data-tab="server">Server</button>
-  <button class="mg-tab" data-tab="sizes">Tables</button>
+  <button class="mg-tab" data-tab="tables">Tables</button>
   <button class="mg-tab" data-tab="unused">Unused Indexes</button>
   <button class="mg-tab" data-tab="indexes">Duplicate Indexes</button>
   <button class="mg-tab" data-tab="explorer">Query Explorer</button>
@@ -243,7 +243,7 @@
     if (name === 'dashboard') loadDashboard();
     if (name === 'slow') loadSlowQueries();
     if (name === 'indexes') loadDuplicateIndexes();
-    if (name === 'sizes') loadTableSizes();
+    if (name === 'tables') loadTableSizes();
     if (name === 'qstats') loadQueryStats();
     if (name === 'unused') loadUnusedIndexes();
     if (name === 'server') loadServerOverview();
