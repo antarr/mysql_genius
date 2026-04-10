@@ -12,6 +12,12 @@
 - **`config.database(:name)` DSL** -- per-database overrides in the Ruby initializer
 - **Install generator** -- now also copies `config/mysql_genius.yml` template
 
+### Improved
+- **SQL syntax highlighting** -- SQL code blocks in tables now feature a dark-themed syntax highlighter with distinct colors for keywords, functions, strings, numbers, operators, identifiers, and placeholders (Catppuccin Mocha palette)
+- **Table visual hierarchy** -- redesigned table headers (uppercase, thicker bottom border, rounded top corners), improved row hover states (blue tint), cleaner alternating row colors, removed vertical cell borders
+- **Numeric column formatting** -- right-aligned with monospace tabular-nums font for easy scanning; duration values color-coded green/amber/red by severity
+- **Overall dashboard polish** -- more generous cell padding, improved inline `code` tag styling, added `mg-badge-success` variant
+
 ## 0.2.0
 
 - **Dashboard-first redesign** -- new default landing page with server health, top slow queries, top expensive queries, and index alert badges

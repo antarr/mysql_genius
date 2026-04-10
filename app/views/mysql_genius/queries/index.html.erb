@@ -86,6 +86,84 @@
   function hide(e) { e.classList.add('mg-hidden'); }
   function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+  // --- SQL Syntax Highlighting (single-pass tokenizer) ---
+
+  var SQL_KW_SET = {};
+  'SELECT FROM WHERE JOIN LEFT RIGHT INNER OUTER CROSS FULL ON AND OR NOT IN EXISTS BETWEEN LIKE IS NULL AS DISTINCT ALL UNION INTERSECT EXCEPT INSERT INTO VALUES UPDATE SET DELETE CREATE ALTER DROP TABLE INDEX VIEW TRIGGER PROCEDURE FUNCTION DATABASE SCHEMA IF THEN ELSE END CASE WHEN HAVING LIMIT OFFSET ASC DESC USING FORCE USE IGNORE WITH RECURSIVE OVER EXPLAIN ANALYZE SHOW DESCRIBE'.split(' ').forEach(function(w) { SQL_KW_SET[w] = true; });
+
+  var SQL_FN_SET = {};
+  'COUNT SUM AVG MIN MAX COALESCE IFNULL NULLIF CAST CONVERT CONCAT CONCAT_WS GROUP_CONCAT SUBSTRING SUBSTR REPLACE TRIM LTRIM RTRIM UPPER LOWER UCASE LCASE LENGTH CHAR_LENGTH NOW CURDATE CURTIME DATE_FORMAT DATE_ADD DATE_SUB DATEDIFF TIMESTAMPDIFF UNIX_TIMESTAMP FROM_UNIXTIME IF ELT FIELD FIND_IN_SET FORMAT HEX UNHEX MD5 SHA1 SHA2 AES_ENCRYPT AES_DECRYPT ROUND CEIL CEILING FLOOR ABS MOD POWER SQRT LOG LOG2 LOG10 RAND GREATEST LEAST JSON_EXTRACT JSON_UNQUOTE JSON_SET JSON_OBJECT JSON_ARRAY JSON_CONTAINS JSON_LENGTH ROW_NUMBER RANK DENSE_RANK LAG LEAD FIRST_VALUE LAST_VALUE NTH_VALUE'.split(' ').forEach(function(w) { SQL_FN_SET[w] = true; });
+
+  // Single-pass tokenizer regex: matches tokens in order of priority
+  // 1) single-quoted strings  2) backtick identifiers  3) numbers  4) words  5) operators  6) punctuation  7) ? placeholder  8) * star  9) whitespace  10) anything else
+  var SQL_TOKEN_RE = /'[^']*'|`[^`]*`|\b\d+(?:\.\d+)?\b|[A-Za-z_]\w*|\?\|>=|<=|<>|!=|[><=]|[(),;*]|\s+|./g;
+
+  function highlightSql(sql) {
+    if (!sql) return '';
+    var result = [];
+    var match;
+    SQL_TOKEN_RE.lastIndex = 0;
+    while ((match = SQL_TOKEN_RE.exec(sql)) !== null) {
+      var tok = match[0];
+      var ch = tok.charAt(0);
+
+      if (ch === "'") {
+        // String literal
+        result.push('<span class="mg-sql-str">' + escHtml(tok) + '</span>');
+      } else if (ch === '`') {
+        // Backtick-quoted identifier
+        result.push('<span class="mg-sql-tbl">' + escHtml(tok) + '</span>');
+      } else if (/^\d/.test(tok)) {
+        // Number
+        result.push('<span class="mg-sql-num">' + escHtml(tok) + '</span>');
+      } else if (/^[A-Za-z_]/.test(tok)) {
+        // Word: check if keyword, function, or plain identifier
+        var upper = tok.toUpperCase();
+        // Check for compound keywords (GROUP BY, ORDER BY, PARTITION BY)
+        var rest = sql.substring(SQL_TOKEN_RE.lastIndex);
+        var compoundMatch = rest.match(/^(\s+)(BY)\b/i);
+        if ((upper === 'GROUP' || upper === 'ORDER' || upper === 'PARTITION') && compoundMatch) {
+          result.push('<span class="mg-sql-kw">' + escHtml(tok) + escHtml(compoundMatch[1]) + escHtml(compoundMatch[2].toUpperCase()) + '</span>');
+          SQL_TOKEN_RE.lastIndex += compoundMatch[0].length;
+        } else if (SQL_FN_SET[upper] && rest.match(/^\s*\(/)) {
+          result.push('<span class="mg-sql-fn">' + escHtml(tok.toUpperCase()) + '</span>');
+        } else if (SQL_KW_SET[upper]) {
+          result.push('<span class="mg-sql-kw">' + escHtml(tok.toUpperCase()) + '</span>');
+        } else {
+          result.push(escHtml(tok));
+        }
+      } else if (tok === '?') {
+        result.push('<span class="mg-sql-placeholder">?</span>');
+      } else if (tok === '*') {
+        result.push('<span class="mg-sql-star">*</span>');
+      } else if (/^(>=|<=|<>|!=|[><=])$/.test(tok)) {
+        result.push('<span class="mg-sql-op">' + escHtml(tok) + '</span>');
+      } else if (/^[(),;]$/.test(tok)) {
+        result.push('<span class="mg-sql-punc">' + escHtml(tok) + '</span>');
+      } else {
+        // Whitespace or unknown
+        result.push(escHtml(tok));
+      }
+    }
+    return result.join('');
+  }
+
+  function sqlBlock(sql, maxLen) {
+    var truncated = maxLen && sql.length > maxLen;
+    var displaySql = truncated ? sql.substring(0, maxLen) + '...' : sql;
+    return '<code class="mg-sql-block" title="' + escHtml(sql) + '">' + highlightSql(displaySql) + '</code>';
+  }
+
+  // --- Duration Formatting with Color ---
+
+  function formatDurationStyled(ms) {
+    var text = formatDuration(ms);
+    var cls = 'mg-dur-fast';
+    if (ms >= 1000) cls = 'mg-dur-slow';
+    else if (ms >= 100) cls = 'mg-dur-moderate';
+    return '<span class="' + cls + '">' + text + '</span>';
+  }
+
   function migrationTimestamp() {
     var now = new Date();
     return now.getFullYear().toString() +
@@ -164,20 +242,25 @@
 
   // --- Tabs ---
 
+  function activateTab(name) {
+    qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
+    qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
+    var btn = qs('[data-tab="' + name + '"]');
+    if (!btn) { name = 'dashboard'; btn = qs('[data-tab="dashboard"]'); }
+    btn.classList.add('active');
+    el('tab-' + name).classList.add('active');
+    history.replaceState(null, '', location.pathname + '#' + name);
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'slow') loadSlowQueries();
+    if (name === 'indexes') loadDuplicateIndexes();
+    if (name === 'sizes') loadTableSizes();
+    if (name === 'qstats') loadQueryStats();
+    if (name === 'unused') loadUnusedIndexes();
+    if (name === 'server') loadServerOverview();
+  }
+
   qsa('.mg-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
-      qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
-      tab.classList.add('active');
-      el('tab-' + tab.dataset.tab).classList.add('active');
-      if (tab.dataset.tab === 'dashboard') loadDashboard();
-      if (tab.dataset.tab === 'slow') loadSlowQueries();
-      if (tab.dataset.tab === 'indexes') loadDuplicateIndexes();
-      if (tab.dataset.tab === 'sizes') loadTableSizes();
-      if (tab.dataset.tab === 'qstats') loadQueryStats();
-      if (tab.dataset.tab === 'unused') loadUnusedIndexes();
-      if (tab.dataset.tab === 'server') loadServerOverview();
-    });
+    tab.addEventListener('click', function() { activateTab(tab.dataset.tab); });
   });
 
   // --- Dashboard ---
@@ -248,10 +331,9 @@
         el('dash-slow-tbody').innerHTML = top5.map(function(q) {
           var d = q.duration_ms;
           var cls = d >= 2000 ? 'mg-badge-danger' : d >= 1000 ? 'mg-badge-warning' : 'mg-badge-info';
-          var sqlShort = escHtml(q.sql).length > 120 ? escHtml(q.sql).substring(0, 120) + '...' : escHtml(q.sql);
           return '<tr><td><span class="mg-badge ' + cls + '">' + d + ' ms</span></td>' +
             '<td><small>' + escHtml(q.timestamp) + '</small></td>' +
-            '<td><code>' + sqlShort + '</code></td></tr>';
+            '<td>' + sqlBlock(q.sql, 120) + '</td></tr>';
         }).join('');
         show(el('dash-slow-table'));
       }
@@ -274,12 +356,11 @@
         show(el('dash-qstats-empty'));
       } else {
         el('dash-qstats-tbody').innerHTML = data.map(function(q) {
-          var sqlShort = q.sql.length > 120 ? q.sql.substring(0, 120) + '...' : q.sql;
           return '<tr>' +
-            '<td><code style="font-size:11px;word-break:break-all;">' + escHtml(sqlShort) + '</code></td>' +
-            '<td style="text-align:right">' + Number(q.calls).toLocaleString() + '</td>' +
-            '<td style="text-align:right">' + formatDuration(q.total_time_ms) + '</td>' +
-            '<td style="text-align:right">' + formatDuration(q.avg_time_ms) + '</td></tr>';
+            '<td>' + sqlBlock(q.sql, 120) + '</td>' +
+            '<td class="mg-num">' + Number(q.calls).toLocaleString() + '</td>' +
+            '<td class="mg-num">' + formatDurationStyled(q.total_time_ms) + '</td>' +
+            '<td class="mg-num">' + formatDurationStyled(q.avg_time_ms) + '</td></tr>';
         }).join('');
         show(el('dash-qstats-table'));
       }
@@ -322,22 +403,12 @@
   // Dashboard tab-jump buttons
   document.addEventListener('click', function(e) {
     var jumpBtn = e.target.closest('.dash-jump-tab');
-    if (jumpBtn) {
-      var target = jumpBtn.dataset.target;
-      qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
-      qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
-      qs('[data-tab="' + target + '"]').classList.add('active');
-      el('tab-' + target).classList.add('active');
-      if (target === 'slow') loadSlowQueries();
-      if (target === 'indexes') loadDuplicateIndexes();
-      if (target === 'qstats') loadQueryStats();
-      if (target === 'unused') loadUnusedIndexes();
-      if (target === 'server') loadServerOverview();
-    }
+    if (jumpBtn) { activateTab(jumpBtn.dataset.target); }
   });
 
-  // Load dashboard on page load
-  loadDashboard();
+  // Restore active tab from URL hash, or default to dashboard
+  var initialTab = (location.hash || '').replace('#', '') || 'dashboard';
+  activateTab(initialTab);
 
   // --- Query Explorer Mode Toggle ---
 
@@ -725,13 +796,11 @@
       el('slow-tbody').innerHTML = data.map(function(q) {
         var d = q.duration_ms;
         var cls = d >= 2000 ? 'mg-badge-danger' : d >= 1000 ? 'mg-badge-warning' : 'mg-badge-info';
-        var sqlEsc = escHtml(q.sql);
-        var sqlShort = sqlEsc.length > 200 ? sqlEsc.substring(0, 200) + '...' : sqlEsc;
         return '<tr><td><span class="mg-badge ' + cls + '">' + d + ' ms</span></td>' +
           '<td><small>' + escHtml(q.timestamp) + '</small></td>' +
-          '<td><code title="' + sqlEsc + '">' + sqlShort + '</code></td>' +
-          '<td><button class="mg-btn mg-btn-outline mg-btn-sm slow-explain-btn" data-sql="' + sqlEsc.replace(/"/g, '&quot;') + '">Explain</button> ' +
-          '<button class="mg-btn mg-btn-outline-secondary mg-btn-sm slow-use-btn" data-sql="' + sqlEsc.replace(/"/g, '&quot;') + '">Use</button></td></tr>';
+          '<td>' + sqlBlock(q.sql, 200) + '</td>' +
+          '<td><button class="mg-btn mg-btn-outline mg-btn-sm slow-explain-btn" data-sql="' + escHtml(q.sql).replace(/"/g, '&quot;') + '">Explain</button> ' +
+          '<button class="mg-btn mg-btn-outline-secondary mg-btn-sm slow-use-btn" data-sql="' + escHtml(q.sql).replace(/"/g, '&quot;') + '">Use</button></td></tr>';
       }).join('');
       show(el('slow-table-wrapper'));
     }, function() {
@@ -749,10 +818,7 @@
     var useBtn = e.target.closest('.slow-use-btn');
     if (useBtn) {
       el('sql-input').value = useBtn.dataset.sql;
-      qsa('.mg-tab').forEach(function(t) { t.classList.remove('active'); });
-      qsa('.mg-tab-content').forEach(function(c) { c.classList.remove('active'); });
-      qs('[data-tab="explorer"]').classList.add('active');
-      el('tab-explorer').classList.add('active');
+      activateTab('explorer');
       // Switch to SQL mode within Query Explorer
       qsa('.qe-mode').forEach(function(b) { b.classList.remove('active'); b.classList.add('mg-btn-outline'); });
       qs('.qe-mode[data-mode="sql"]').classList.add('active');
@@ -781,7 +847,7 @@
           '<td>' + d.duplicate_columns.map(function(c) { return '<code>' + escHtml(c) + '</code>'; }).join(', ') + '</td>' +
           '<td><code>' + escHtml(d.covered_by_index) + '</code></td>' +
           '<td>' + d.covered_by_columns.map(function(c) { return '<code>' + escHtml(c) + '</code>'; }).join(', ') + '</td>' +
-          '<td><code style="font-size:11px;user-select:all;cursor:pointer;" title="Click to select">' + escHtml(dropSql) + '</code></td>' +
+          '<td>' + sqlBlock(dropSql, 0) + '</td>' +
           '</tr>';
       }).join('');
       show(el('dup-table-wrapper'));
@@ -818,7 +884,7 @@
 
   function sizeBar(pct, color) {
     return '<div style="background:#e9ecef;border-radius:3px;height:8px;width:100%;">' +
-      '<div style="background:' + color + ';border-radius:3px;height:8px;width:' + Math.max(pct, 1) + '%;"></div></div>';
+      '<div style="background:' + color + ';border-radius:3px;height:8px;width:' + Math.max(pct, 1) + '%;transition:width 0.3s;"></div></div>';
   }
 
   var PIE_COLORS = [
@@ -889,13 +955,14 @@
         var pct = (t.total_mb / maxMb) * 100;
         var color = t.total_mb >= 100 ? '#dc3545' : t.total_mb >= 10 ? '#ffc107' : '#28a745';
         var rows = t.rows != null ? Number(t.rows).toLocaleString() : '?';
+        var fragText = t.fragmented_mb > 0 ? formatMb(t.fragmented_mb) : '<span class="mg-text-muted">-</span>';
         return '<tr>' +
           '<td><strong>' + escHtml(t.table) + '</strong></td>' +
-          '<td style="text-align:right">' + rows + '</td>' +
-          '<td style="text-align:right">' + formatMb(t.data_mb) + '</td>' +
-          '<td style="text-align:right">' + formatMb(t.index_mb) + '</td>' +
-          '<td style="text-align:right"><strong>' + formatMb(t.total_mb) + '</strong></td>' +
-          '<td style="text-align:right">' + (t.fragmented_mb > 0 ? formatMb(t.fragmented_mb) : '-') + '</td>' +
+          '<td class="mg-num">' + rows + '</td>' +
+          '<td class="mg-num">' + formatMb(t.data_mb) + '</td>' +
+          '<td class="mg-num">' + formatMb(t.index_mb) + '</td>' +
+          '<td class="mg-num"><strong>' + formatMb(t.total_mb) + '</strong></td>' +
+          '<td class="mg-num">' + fragText + '</td>' +
           '<td>' + sizeBar(pct, color) + '</td>' +
           '</tr>';
       }).join('');
@@ -926,16 +993,15 @@
       el('qstats-count').textContent = data.length + ' queries';
       el('qstats-tbody').innerHTML = data.map(function(q) {
         var ratioClass = q.rows_ratio > 100 ? 'mg-badge-danger' : q.rows_ratio > 10 ? 'mg-badge-warning' : '';
-        var sqlShort = q.sql.length > 120 ? q.sql.substring(0, 120) + '...' : q.sql;
         return '<tr>' +
-          '<td><code style="font-size:11px;word-break:break-all;" title="' + escHtml(q.sql) + '">' + escHtml(sqlShort) + '</code></td>' +
-          '<td style="text-align:right">' + Number(q.calls).toLocaleString() + '</td>' +
-          '<td style="text-align:right">' + formatDuration(q.total_time_ms) + '</td>' +
-          '<td style="text-align:right">' + formatDuration(q.avg_time_ms) + '</td>' +
-          '<td style="text-align:right">' + formatDuration(q.max_time_ms) + '</td>' +
-          '<td style="text-align:right">' + Number(q.rows_examined).toLocaleString() + '</td>' +
-          '<td style="text-align:right">' + Number(q.rows_sent).toLocaleString() + '</td>' +
-          '<td style="text-align:right">' + (ratioClass ? '<span class="mg-badge ' + ratioClass + '">' + q.rows_ratio + 'x</span>' : q.rows_ratio + 'x') + '</td>' +
+          '<td>' + sqlBlock(q.sql, 120) + '</td>' +
+          '<td class="mg-num">' + Number(q.calls).toLocaleString() + '</td>' +
+          '<td class="mg-num">' + formatDurationStyled(q.total_time_ms) + '</td>' +
+          '<td class="mg-num">' + formatDurationStyled(q.avg_time_ms) + '</td>' +
+          '<td class="mg-num">' + formatDurationStyled(q.max_time_ms) + '</td>' +
+          '<td class="mg-num">' + Number(q.rows_examined).toLocaleString() + '</td>' +
+          '<td class="mg-num">' + Number(q.rows_sent).toLocaleString() + '</td>' +
+          '<td class="mg-num">' + (ratioClass ? '<span class="mg-badge ' + ratioClass + '">' + q.rows_ratio + 'x</span>' : q.rows_ratio + 'x') + '</td>' +
           '</tr>';
       }).join('');
       show(el('qstats-table-wrapper'));
@@ -974,10 +1040,10 @@
         return '<tr>' +
           '<td><strong>' + escHtml(d.table) + '</strong></td>' +
           '<td><code>' + escHtml(d.index_name) + '</code></td>' +
-          '<td style="text-align:right">' + d.reads + '</td>' +
-          '<td style="text-align:right">' + Number(d.writes).toLocaleString() + '</td>' +
-          '<td style="text-align:right">' + Number(d.table_rows).toLocaleString() + '</td>' +
-          '<td><code style="font-size:11px;user-select:all;cursor:pointer;" title="Click to select">' + escHtml(d.drop_sql) + '</code></td>' +
+          '<td class="mg-num">' + d.reads + '</td>' +
+          '<td class="mg-num">' + Number(d.writes).toLocaleString() + '</td>' +
+          '<td class="mg-num">' + Number(d.table_rows).toLocaleString() + '</td>' +
+          '<td>' + sqlBlock(d.drop_sql, 0) + '</td>' +
           '</tr>';
       }).join('');
       show(el('unused-table-wrapper'));

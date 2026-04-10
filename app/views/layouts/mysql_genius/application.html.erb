@@ -53,6 +53,7 @@
     .mg-badge-warning { background: #fff3cd; color: #856404; }
     .mg-badge-danger { background: #f8d7da; color: #721c24; }
     .mg-badge-secondary { background: #e2e3e5; color: #383d41; }
+    .mg-badge-success { background: #d4edda; color: #155724; }
 
     /* Alert */
     .mg-alert { padding: 10px 14px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
@@ -77,12 +78,44 @@
 
     /* Table */
     .mg-table-wrap { overflow-x: auto; }
-    table.mg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .mg-table th, .mg-table td { padding: 4px 8px; border: 1px solid #dee2e6; text-align: left; }
-    .mg-table th { background: #f8f9fa; font-weight: 500; white-space: nowrap; }
-    .mg-table tr:nth-child(even) { background: #f8f9fa; }
+    table.mg-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+    .mg-table th { padding: 10px 12px; text-align: left; white-space: nowrap; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #5a6770; background: #f1f3f5; border-bottom: 2px solid #d0d7de; }
+    .mg-table th:first-child { border-top-left-radius: 6px; }
+    .mg-table th:last-child { border-top-right-radius: 6px; }
+    .mg-table td { padding: 8px 12px; border-bottom: 1px solid #eaecef; vertical-align: top; }
+    .mg-table tbody tr { transition: background-color 0.15s ease; }
+    .mg-table tbody tr:hover { background: #f0f6ff; }
+    .mg-table tbody tr:nth-child(even) { background: #fafbfc; }
+    .mg-table tbody tr:nth-child(even):hover { background: #f0f6ff; }
+    .mg-table tbody tr:last-child td { border-bottom: none; }
     .mg-table em.null { color: #999; font-style: italic; }
     .mg-table .redacted { color: #999; }
+
+    /* Numeric table cells */
+    .mg-table td.mg-num { text-align: right; font-variant-numeric: tabular-nums; font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; font-size: 12px; white-space: nowrap; }
+
+    /* SQL code blocks in tables */
+    .mg-sql-block { display: block; padding: 6px 8px; background: #1e1e2e; color: #cdd6f4; border-radius: 5px; font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; max-height: 120px; overflow-y: auto; border: 1px solid #313244; }
+    .mg-sql-block::-webkit-scrollbar { width: 4px; }
+    .mg-sql-block::-webkit-scrollbar-track { background: transparent; }
+    .mg-sql-block::-webkit-scrollbar-thumb { background: #585b70; border-radius: 2px; }
+
+    /* SQL syntax colors (Catppuccin Mocha inspired) */
+    .mg-sql-kw { color: #cba6f7; font-weight: 600; }
+    .mg-sql-fn { color: #89b4fa; }
+    .mg-sql-str { color: #a6e3a1; }
+    .mg-sql-num { color: #fab387; }
+    .mg-sql-op { color: #89dceb; }
+    .mg-sql-comment { color: #6c7086; font-style: italic; }
+    .mg-sql-tbl { color: #f9e2af; }
+    .mg-sql-star { color: #f38ba8; font-weight: 700; }
+    .mg-sql-punc { color: #9399b2; }
+    .mg-sql-placeholder { color: #74c7ec; font-style: italic; }
+
+    /* Duration color coding */
+    .mg-dur-fast { color: #1a7f37; }
+    .mg-dur-moderate { color: #9a6700; }
+    .mg-dur-slow { color: #cf222e; font-weight: 600; }
 
     /* Checkbox grid */
     .mg-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
@@ -104,7 +137,7 @@
     .mg-mb { margin-bottom: 12px; }
     .mg-text-muted { color: #888; font-size: 13px; }
     .mg-text-center { text-align: center; padding: 24px 0; }
-    code { font-size: 12px; word-break: break-all; background: #f4f4f4; padding: 1px 4px; border-radius: 2px; }
+    code { font-size: 12px; word-break: break-all; background: #f0f1f3; padding: 2px 6px; border-radius: 3px; color: #24292f; }
     pre.mg-pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
 
     /* Database switcher */
