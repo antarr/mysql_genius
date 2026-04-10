@@ -78,10 +78,27 @@
 
   // --- Table Sorting ---
 
+  function parseSortValue(text) {
+    var m = text.match(/([\d.]+)\s*(s|ms|KB|MB|GB)/i);
+    if (m) {
+      var n = parseFloat(m[1]);
+      var unit = m[2].toLowerCase();
+      if (unit === 's') return n * 1000;
+      if (unit === 'gb') return n * 1024;
+      if (unit === 'mb') return n;
+      if (unit === 'kb') return n / 1024;
+      return n;
+    }
+    return parseFloat(text.replace(/[^0-9.\-]/g, '')) || 0;
+  }
+
   function makeSortable(table) {
+    if (table.dataset.sortable) return;
+    table.dataset.sortable = '1';
+
     var headers = Array.from(table.querySelectorAll('th'));
     headers.forEach(function(th, colIdx) {
-      if (th.style.width === '200px' || th.textContent.trim() === '' || th.textContent.trim() === 'Actions') return;
+      if (th.dataset.noSort || th.textContent.trim() === '' || th.textContent.trim() === 'Actions') return;
       th.classList.add('mg-sortable');
       th.addEventListener('click', function() {
         var tbody = table.querySelector('tbody');
@@ -103,9 +120,7 @@
           var valB = cellB.textContent.trim();
 
           if (isNum) {
-            var nA = parseFloat(valA.replace(/[^0-9.\-]/g, '')) || 0;
-            var nB = parseFloat(valB.replace(/[^0-9.\-]/g, '')) || 0;
-            return asc ? nA - nB : nB - nA;
+            return asc ? parseSortValue(valA) - parseSortValue(valB) : parseSortValue(valB) - parseSortValue(valA);
           }
           return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         });

@@ -5,20 +5,26 @@ on:
     tags: ["v*"]
 
 jobs:
-  publish:
+  test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.3
+          bundler-cache: true
+      - run: bundle exec rspec
 
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
       - name: Build gem
         run: gem build mysql_genius.gemspec
-
       - name: Publish to RubyGems
         run: gem push mysql_genius-*.gem
         env:
