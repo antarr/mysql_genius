@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 ### Improved
 - **SQL syntax highlighting** -- SQL code blocks in tables now feature a dark-themed syntax highlighter with distinct colors for keywords, functions, strings, numbers, operators, identifiers, and placeholders (Catppuccin Mocha palette)
@@ -11,6 +11,12 @@
 
 ### Fixed
 - **Unused indexes SQL error on MySQL 8.0+** -- `reads` and `writes` are reserved words and now use backtick quoting
+
+### Added
+- **Dark theme** -- auto-detects system preference, manual toggle via sun/moon button, persisted in localStorage
+- **Tables tab** -- renamed from "Table Sizes", now shows engine, collation, auto-increment, last updated, and accurate row counts via `COUNT(*)`
+- **Optimize suggestions** -- tables with >10% fragmentation are flagged with an optimize badge
+
 ## 0.2.0
 
 - **Dashboard-first redesign** -- new default landing page with server health, top slow queries, top expensive queries, and index alert badges
