@@ -145,8 +145,8 @@ module MysqlGenius
           s.OBJECT_SCHEMA AS table_schema,
           s.OBJECT_NAME AS table_name,
           s.INDEX_NAME AS index_name,
-          s.COUNT_READ AS reads,
-          s.COUNT_WRITE AS writes,
+          s.COUNT_READ AS `reads`,
+          s.COUNT_WRITE AS `writes`,
           t.TABLE_ROWS AS table_rows
         FROM performance_schema.table_io_waits_summary_by_index_usage s
         JOIN information_schema.tables t
