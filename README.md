@@ -61,6 +61,7 @@ Schema review that finds anti-patterns -- missing primary keys, nullable foreign
 - **Duplicate Index Detection** -- finds redundant indexes whose columns are a left-prefix of another index
 - **Table Size Dashboard** -- view row counts, data size, index size, and fragmentation for all tables
 - **Audit Logging** -- logs all query executions, rejections, and errors
+- **Multi-Database Support** -- monitor multiple MySQL/MariaDB databases from one dashboard ([docs](https://github.com/antarr/mysql_genius/wiki/Multi-Database-Support))
 - **MariaDB Support** -- automatically detects MariaDB and uses appropriate timeout syntax
 - **Self-contained UI** -- no external CSS/JS dependencies, works with any Rails layout
 - **Zero jQuery** -- pure vanilla JavaScript frontend

@@ -12,7 +12,7 @@ module MysqlGenius
       prompt = params[:prompt].to_s.strip
       return render(json: { error: "Please describe what you want to query." }, status: :unprocessable_entity) if prompt.blank?
 
-      result = AiSuggestionService.new.call(prompt, queryable_tables)
+      result = AiSuggestionService.new.call(prompt, queryable_tables, connection: connection)
       sql = sanitize_ai_sql(result["sql"].to_s)
       render(json: { sql: sql, explanation: result["explanation"] })
     rescue StandardError => e
@@ -31,7 +31,7 @@ module MysqlGenius
         return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity)
       end
 
-      result = AiOptimizationService.new.call(sql, explain_rows, queryable_tables)
+      result = AiOptimizationService.new.call(sql, explain_rows, queryable_tables, connection: connection)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Optimization failed: #{e.message}" }, status: :unprocessable_entity)
@@ -66,7 +66,6 @@ module MysqlGenius
       return ai_not_configured unless mysql_genius_config.ai_enabled?
 
       table = params[:table].to_s.strip
-      connection = ActiveRecord::Base.connection
 
       tables_to_review = table.present? ? [table] : queryable_tables.first(20)
       schema_desc = tables_to_review.map do |t|
@@ -149,7 +148,6 @@ module MysqlGenius
       explain_rows = Array(params[:explain_rows]).map { |row| row.respond_to?(:values) ? row.values : Array(row) }
       return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity) if sql.blank? || explain_rows.blank?
 
-      connection = ActiveRecord::Base.connection
       tables_in_query = SqlValidator.extract_table_references(sql, connection)
 
       index_detail = tables_in_query.map do |t|
@@ -183,8 +181,6 @@ module MysqlGenius
 
     def anomaly_detection
       return ai_not_configured unless mysql_genius_config.ai_enabled?
-
-      connection = ActiveRecord::Base.connection
 
       # Gather recent slow queries
       slow_data = []
@@ -243,8 +239,6 @@ module MysqlGenius
 
     def root_cause
       return ai_not_configured unless mysql_genius_config.ai_enabled?
-
-      connection = ActiveRecord::Base.connection
 
       # PROCESSLIST
       processlist = connection.exec_query("SHOW FULL PROCESSLIST")
@@ -319,8 +313,6 @@ module MysqlGenius
       migration_sql = params[:migration].to_s.strip
       return render(json: { error: "Migration SQL or Ruby code is required." }, status: :unprocessable_entity) if migration_sql.blank?
 
-      connection = ActiveRecord::Base.connection
-
       # Try to identify tables mentioned in the migration
       table_names = migration_sql.scan(/(?:create_table|add_column|remove_column|add_index|remove_index|rename_column|change_column|alter\s+table)\s+[:\"]?(\w+)/i).flatten.uniq
       table_names += migration_sql.scan(/ALTER\s+TABLE\s+`?(\w+)`?/i).flatten
@@ -387,7 +379,6 @@ module MysqlGenius
     end
 
     def build_schema_for_query(sql)
-      connection = ActiveRecord::Base.connection
       tables = SqlValidator.extract_table_references(sql, connection)
       tables.map do |t|
         cols = connection.columns(t).map { |c| "#{c.name} (#{c.type})" }

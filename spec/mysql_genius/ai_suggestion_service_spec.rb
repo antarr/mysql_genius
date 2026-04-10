@@ -32,7 +32,6 @@ RSpec.describe(MysqlGenius::AiSuggestionService) do
       c.ai_auth_style = :bearer
     end
 
-    allow(ActiveRecord::Base).to(receive(:connection).and_return(connection))
     allow(connection).to(receive(:columns) { |table| columns_map[table] || [] })
   end
 
@@ -46,7 +45,7 @@ RSpec.describe(MysqlGenius::AiSuggestionService) do
     end
 
     it "returns sql and explanation from the AI" do
-      result = service.call("show me all users", ["users", "posts"])
+      result = service.call("show me all users", ["users", "posts"], connection: connection)
       expect(result).to(eq(ai_response))
     end
 
@@ -62,7 +61,7 @@ RSpec.describe(MysqlGenius::AiSuggestionService) do
         ai_response
       end
 
-      service.call("show me all users", ["users", "posts"])
+      service.call("show me all users", ["users", "posts"], connection: connection)
     end
 
     it "includes schema description in the system prompt" do
@@ -77,7 +76,7 @@ RSpec.describe(MysqlGenius::AiSuggestionService) do
         ai_response
       end
 
-      service.call("test", ["users"])
+      service.call("test", ["users"], connection: connection)
     end
 
     it "includes custom domain context when configured" do
@@ -91,7 +90,7 @@ RSpec.describe(MysqlGenius::AiSuggestionService) do
         ai_response
       end
 
-      service.call("test", ["users"])
+      service.call("test", ["users"], connection: connection)
     end
 
     it "only includes tables that exist in the connection" do
@@ -104,7 +103,7 @@ RSpec.describe(MysqlGenius::AiSuggestionService) do
         ai_response
       end
 
-      service.call("test", ["users", "nonexistent_table"])
+      service.call("test", ["users", "nonexistent_table"], connection: connection)
     end
   end
 end

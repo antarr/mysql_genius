@@ -74,4 +74,40 @@ RSpec.describe(MysqlGenius::Configuration) do
       expect(MysqlGenius.configuration.blocked_tables).to(eq(["users"]))
     end
   end
+
+  describe "#database" do
+    it "creates a DatabaseConfig and yields it" do
+      config.database(:analytics) do |db|
+        db.blocked_tables = ["raw_events"]
+      end
+
+      expect(config.databases[:analytics]).to(be_a(MysqlGenius::DatabaseConfig))
+      expect(config.databases[:analytics].blocked_tables).to(eq(["raw_events"]))
+    end
+
+    it "reuses existing DatabaseConfig on repeated calls" do
+      config.database(:analytics) do |db|
+        db.blocked_tables = ["raw_events"]
+      end
+      config.database(:analytics) do |db|
+        db.max_row_limit = 500
+      end
+
+      expect(config.databases[:analytics].blocked_tables).to(eq(["raw_events"]))
+      expect(config.databases[:analytics].max_row_limit).to(eq(500))
+    end
+
+    it "falls back to global config for unset values" do
+      config.max_row_limit = 2000
+      config.database(:analytics) {}
+
+      expect(config.databases[:analytics].max_row_limit).to(eq(2000))
+    end
+  end
+
+  describe "#databases" do
+    it "defaults to an empty hash" do
+      expect(config.databases).to(eq({}))
+    end
+  end
 end

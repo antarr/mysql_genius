@@ -6,10 +6,11 @@ module MysqlGenius
 
     def execute
       sql = params[:sql].to_s.strip
+      db_config = current_database_config
       row_limit = if params[:row_limit].present?
-        params[:row_limit].to_i.clamp(1, mysql_genius_config.max_row_limit)
+        params[:row_limit].to_i.clamp(1, db_config.max_row_limit)
       else
-        mysql_genius_config.default_row_limit
+        db_config.default_row_limit
       end
 
       error = validate_sql(sql)
@@ -23,7 +24,7 @@ module MysqlGenius
 
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       begin
-        results = ActiveRecord::Base.connection.exec_query(timed_sql)
+        results = connection.exec_query(timed_sql)
         execution_time_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round(1)
 
         columns = results.columns
@@ -47,7 +48,7 @@ module MysqlGenius
       rescue ActiveRecord::StatementInvalid => e
         if timeout_error?(e)
           audit(:error, sql: sql, error: "Query timeout")
-          render(json: { error: "Query exceeded the #{mysql_genius_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity)
+          render(json: { error: "Query exceeded the #{db_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity)
         else
           audit(:error, sql: sql, error: e.message)
           render(json: { error: "Query error: #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
@@ -64,13 +65,12 @@ module MysqlGenius
         return render(json: { error: error }, status: :unprocessable_entity) if error
       end
 
-      # Reject truncated SQL (captured slow queries are capped at 2000 chars)
       unless sql.match?(/\)\s*$/) || sql.match?(/\w\s*$/) || sql.match?(/['"`]\s*$/) || sql.match?(/\d\s*$/)
         return render(json: { error: "This query appears to be truncated and cannot be explained." }, status: :unprocessable_entity)
       end
 
       explain_sql = "EXPLAIN #{sql.gsub(/;\s*\z/, "")}"
-      results = ActiveRecord::Base.connection.exec_query(explain_sql)
+      results = connection.exec_query(explain_sql)
 
       render(json: { columns: results.columns, rows: results.rows })
     rescue ActiveRecord::StatementInvalid => e
@@ -80,20 +80,20 @@ module MysqlGenius
     private
 
     def validate_sql(sql)
-      SqlValidator.validate(sql, blocked_tables: mysql_genius_config.blocked_tables, connection: ActiveRecord::Base.connection)
+      SqlValidator.validate(sql, blocked_tables: current_database_config.blocked_tables, connection: connection)
     end
 
     def apply_timeout_hint(sql)
       if mariadb?
-        timeout_seconds = mysql_genius_config.query_timeout_ms / 1000
+        timeout_seconds = current_database_config.query_timeout_ms / 1000
         "SET STATEMENT max_statement_time=#{timeout_seconds} FOR #{sql}"
       else
-        sql.sub(/\bSELECT\b/i, "SELECT /*+ MAX_EXECUTION_TIME(#{mysql_genius_config.query_timeout_ms}) */")
+        sql.sub(/\bSELECT\b/i, "SELECT /*+ MAX_EXECUTION_TIME(#{current_database_config.query_timeout_ms}) */")
       end
     end
 
     def mariadb?
-      @mariadb ||= ActiveRecord::Base.connection.select_value("SELECT VERSION()").to_s.include?("MariaDB")
+      @mariadb ||= connection.select_value("SELECT VERSION()").to_s.include?("MariaDB")
     end
 
     def apply_row_limit(sql, limit)
@@ -106,7 +106,7 @@ module MysqlGenius
     end
 
     def masked_column?(column_name)
-      SqlValidator.masked_column?(column_name, mysql_genius_config.masked_column_patterns)
+      SqlValidator.masked_column?(column_name, current_database_config.masked_column_patterns)
     end
 
     def sanitize_ai_sql(sql)

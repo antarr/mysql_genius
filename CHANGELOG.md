@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Multi-database support** -- monitor multiple MySQL/MariaDB databases from a single dashboard
+- **Auto-detection** -- MySQL databases are discovered from Rails `database.yml` at boot (supports Rails 5.2 through 8.1)
+- **YAML configuration** -- per-database settings via `config/mysql_genius.yml` with environment-specific overrides (`config/mysql_genius.production.yml`)
+- **Per-database settings** -- `blocked_tables`, `masked_column_patterns`, `featured_tables`, `default_columns`, `max_row_limit`, `default_row_limit`, `query_timeout_ms` can be configured per database, falling back to global defaults
+- **Database switcher** -- dropdown in the dashboard header to switch between databases (hidden in single-database setups)
+- **URL-scoped routing** -- `/mysql_genius/analytics/`, `/mysql_genius/primary/execute`, etc. Optional prefix -- existing URLs continue to work
+- **`config.database(:name)` DSL** -- per-database overrides in the Ruby initializer
+- **Install generator** -- now also copies `config/mysql_genius.yml` template
+
+### Improved
+- **SQL syntax highlighting** -- SQL code blocks in tables now feature a dark-themed syntax highlighter with distinct colors for keywords, functions, strings, numbers, operators, identifiers, and placeholders (Catppuccin Mocha palette)
+- **Table visual hierarchy** -- redesigned table headers (uppercase, thicker bottom border, rounded top corners), improved row hover states (blue tint), cleaner alternating row colors, removed vertical cell borders
+- **Numeric column formatting** -- right-aligned with monospace tabular-nums font for easy scanning; duration values color-coded green/amber/red by severity
+- **Overall dashboard polish** -- more generous cell padding, improved inline `code` tag styling, added `mg-badge-success` variant
+
 ## 0.2.0
 
 - **Dashboard-first redesign** -- new default landing page with server health, top slow queries, top expensive queries, and index alert badges

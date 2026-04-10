@@ -2,8 +2,8 @@
 
 module MysqlGenius
   class AiSuggestionService
-    def call(user_prompt, allowed_tables)
-      schema = build_schema_description(allowed_tables)
+    def call(user_prompt, allowed_tables, connection:)
+      schema = build_schema_description(allowed_tables, connection)
       messages = [
         { role: "system", content: system_prompt(schema) },
         { role: "user", content: user_prompt },
@@ -46,8 +46,7 @@ module MysqlGenius
       prompt
     end
 
-    def build_schema_description(allowed_tables)
-      connection = ActiveRecord::Base.connection
+    def build_schema_description(allowed_tables, connection)
       allowed_tables.map do |table|
         next unless connection.tables.include?(table)
 

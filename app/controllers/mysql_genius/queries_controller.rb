@@ -7,27 +7,31 @@ module MysqlGenius
     include AiFeatures
 
     def index
-      @featured_tables = if mysql_genius_config.featured_tables.any?
-        mysql_genius_config.featured_tables.sort
+      db_config = current_database_config
+      @featured_tables = if db_config.featured_tables.any?
+        db_config.featured_tables.sort
       else
         queryable_tables.sort
       end
       @all_tables = queryable_tables.sort
       @ai_enabled = mysql_genius_config.ai_enabled?
+      @multi_db = multi_db?
+      @current_database_key = current_database_key
+      @available_databases = available_databases
     end
 
     def columns
       table = params[:table]
-      if mysql_genius_config.blocked_tables.include?(table)
+      if current_database_config.blocked_tables.include?(table)
         return render(json: { error: "Table '#{table}' is not available for querying." }, status: :forbidden)
       end
 
-      unless ActiveRecord::Base.connection.tables.include?(table)
+      unless connection.tables.include?(table)
         return render(json: { error: "Table '#{table}' does not exist." }, status: :not_found)
       end
 
-      defaults = mysql_genius_config.default_columns[table] || []
-      cols = ActiveRecord::Base.connection.columns(table).reject { |c| masked_column?(c.name) }.map do |c|
+      defaults = current_database_config.default_columns[table] || []
+      cols = connection.columns(table).reject { |c| masked_column?(c.name) }.map do |c|
         { name: c.name, type: c.type.to_s, default: defaults.empty? || defaults.include?(c.name) }
       end
       render(json: cols)
@@ -55,7 +59,7 @@ module MysqlGenius
     private
 
     def queryable_tables
-      ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables
+      connection.tables - current_database_config.blocked_tables
     end
   end
 end
