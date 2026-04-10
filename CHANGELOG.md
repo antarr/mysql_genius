@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+### Added
+- **Sortable columns** -- click any column header to sort ascending/descending on all data tables
+- **Automated RubyGems publishing** -- GitHub Actions workflow publishes gem on tag push
+
+### Fixed
+- **Query stats noise** -- MySQLGenius internal queries (information_schema, performance_schema, SHOW, etc.) are now excluded from the Query Stats tab
+
 ## 0.3.0
 
 ### Improved
