@@ -12,7 +12,7 @@ module MysqlGenius
       prompt = params[:prompt].to_s.strip
       return render(json: { error: "Please describe what you want to query." }, status: :unprocessable_entity) if prompt.blank?
 
-      result = AiSuggestionService.new.call(prompt, queryable_tables)
+      result = AiSuggestionService.new.call(prompt, queryable_tables, connection: connection)
       sql = sanitize_ai_sql(result["sql"].to_s)
       render(json: { sql: sql, explanation: result["explanation"] })
     rescue StandardError => e
@@ -31,7 +31,7 @@ module MysqlGenius
         return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity)
       end
 
-      result = AiOptimizationService.new.call(sql, explain_rows, queryable_tables)
+      result = AiOptimizationService.new.call(sql, explain_rows, queryable_tables, connection: connection)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Optimization failed: #{e.message}" }, status: :unprocessable_entity)

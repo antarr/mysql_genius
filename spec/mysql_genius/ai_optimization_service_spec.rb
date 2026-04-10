@@ -30,7 +30,6 @@ RSpec.describe(MysqlGenius::AiOptimizationService) do
       c.ai_auth_style = :bearer
     end
 
-    allow(ActiveRecord::Base).to(receive(:connection).and_return(connection))
     allow(connection).to(receive(:columns) { |table| columns_map[table] || [] })
     allow(connection).to(receive(:indexes) { |table| indexes_map[table] || [] })
   end
@@ -46,7 +45,7 @@ RSpec.describe(MysqlGenius::AiOptimizationService) do
     end
 
     it "returns suggestions from the AI" do
-      result = service.call("SELECT * FROM users", explain_rows, ["users"])
+      result = service.call("SELECT * FROM users", explain_rows, ["users"], connection: connection)
       expect(result).to(eq(ai_response))
     end
 
@@ -61,7 +60,7 @@ RSpec.describe(MysqlGenius::AiOptimizationService) do
         ai_response
       end
 
-      service.call("SELECT * FROM users", explain_rows, ["users"])
+      service.call("SELECT * FROM users", explain_rows, ["users"], connection: connection)
     end
 
     it "includes the SQL and EXPLAIN output in the user prompt" do
@@ -75,7 +74,7 @@ RSpec.describe(MysqlGenius::AiOptimizationService) do
         ai_response
       end
 
-      service.call("SELECT * FROM users", explain_rows, ["users"])
+      service.call("SELECT * FROM users", explain_rows, ["users"], connection: connection)
     end
 
     it "handles string explain rows" do
@@ -88,7 +87,7 @@ RSpec.describe(MysqlGenius::AiOptimizationService) do
         ai_response
       end
 
-      service.call("SELECT 1", "pre-formatted explain", ["users"])
+      service.call("SELECT 1", "pre-formatted explain", ["users"], connection: connection)
     end
   end
 end
