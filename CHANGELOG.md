@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **DatabaseConfig class** -- foundational per-database configuration object that holds overridable settings (`blocked_tables`, `masked_column_patterns`, `featured_tables`, `default_columns`, `max_row_limit`, `default_row_limit`, `query_timeout_ms`) and falls back to the global `Configuration` for any unset value
+
 ## 0.2.0
 
 - **Dashboard-first redesign** -- new default landing page with server health, top slow queries, top expensive queries, and index alert badges
