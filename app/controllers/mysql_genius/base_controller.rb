@@ -59,12 +59,17 @@ module MysqlGenius
 
     def resolve_connection
       spec = @current_database_config&.connection_spec
-      if spec && defined?(ActiveRecord::Base) && ActiveRecord::Base.respond_to?(:connected_to)
-        pool = ActiveRecord::Base.connection_handler.retrieve_connection_pool(spec)
-        pool ? pool.connection : ActiveRecord::Base.connection
-      else
-        ActiveRecord::Base.connection
+      return ActiveRecord::Base.connection unless spec && defined?(ActiveRecord::Base)
+
+      handler = ActiveRecord::Base.connection_handler
+      pool = if handler.respond_to?(:retrieve_connection_pool)
+        begin
+          handler.retrieve_connection_pool(spec)
+        rescue ArgumentError
+          nil
+        end
       end
+      pool ? pool.connection : ActiveRecord::Base.connection
     end
   end
 end

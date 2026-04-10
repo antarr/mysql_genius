@@ -27,10 +27,10 @@ module MysqlGenius
         base_path = defined?(Rails) ? Rails.root.join("config", "mysql_genius.yml") : nil
         return unless base_path&.exist?
 
-        base = YAML.safe_load(ERB.new(base_path.read).result, permitted_classes: [Symbol]) || {}
+        base = safe_load_yaml(base_path.read) || {}
         env_path = Rails.root.join("config", "mysql_genius.#{Rails.env}.yml")
         if env_path.exist?
-          env = YAML.safe_load(ERB.new(env_path.read).result, permitted_classes: [Symbol]) || {}
+          env = safe_load_yaml(env_path.read) || {}
           base = deep_merge(base, env)
         end
         base
@@ -84,6 +84,15 @@ module MysqlGenius
       end
 
       private
+
+      def safe_load_yaml(content)
+        yaml_str = ERB.new(content).result
+        if YAML.method(:safe_load).parameters.any? { |_type, name| name == :permitted_classes }
+          YAML.safe_load(yaml_str, permitted_classes: [Symbol])
+        else
+          YAML.safe_load(yaml_str, [Symbol])
+        end
+      end
 
       def detect_from_rails(config)
         configs = ActiveRecord::Base.configurations

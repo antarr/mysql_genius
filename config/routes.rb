@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 MysqlGenius::Engine.routes.draw do
-  scope "(:database)" do
+  scope "(:database)", constraints: { database: /[a-z0-9_]+/ } do
     root to: "queries#index"
 
     get  "columns",      to: "queries#columns"
