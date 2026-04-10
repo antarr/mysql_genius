@@ -1,7 +1,7 @@
-<!-- Table Sizes Tab -->
+<!-- Tables Tab -->
 <div class="mg-tab-content" id="tab-sizes">
   <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div class="mg-text-muted">Table sizes from <code>information_schema</code>, sorted by total size. Row counts are estimates. <span id="sizes-total" class="mg-badge mg-badge-secondary"></span></div>
+    <div class="mg-text-muted">Table details from <code>information_schema</code>, sorted by total size. <span id="sizes-total" class="mg-badge mg-badge-secondary"></span></div>
     <button id="sizes-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
   </div>
   <div id="sizes-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
@@ -16,11 +16,13 @@
       <thead>
         <tr>
           <th>Table</th>
-          <th style="text-align:right">Rows (est.)</th>
+          <th style="text-align:right">Rows</th>
+          <th>Engine</th>
           <th style="text-align:right">Data</th>
           <th style="text-align:right">Indexes</th>
           <th style="text-align:right">Total</th>
           <th style="text-align:right">Fragmented</th>
+          <th>Updated</th>
           <th style="width:200px"></th>
         </tr>
       </thead>

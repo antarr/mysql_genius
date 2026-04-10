@@ -10,7 +10,7 @@
   <button class="mg-tab" data-tab="slow">Slow Queries</button>
   <button class="mg-tab" data-tab="qstats">Query Stats</button>
   <button class="mg-tab" data-tab="server">Server</button>
-  <button class="mg-tab" data-tab="sizes">Table Sizes</button>
+  <button class="mg-tab" data-tab="sizes">Tables</button>
   <button class="mg-tab" data-tab="unused">Unused Indexes</button>
   <button class="mg-tab" data-tab="indexes">Duplicate Indexes</button>
   <button class="mg-tab" data-tab="explorer">Query Explorer</button>
@@ -945,14 +945,22 @@
         var pct = (t.total_mb / maxMb) * 100;
         var color = t.total_mb >= 100 ? '#dc3545' : t.total_mb >= 10 ? '#ffc107' : '#28a745';
         var rows = t.rows != null ? Number(t.rows).toLocaleString() : '?';
-        var fragText = t.fragmented_mb > 0 ? formatMb(t.fragmented_mb) : '<span class="mg-text-muted">-</span>';
+        var fragText = t.fragmented_mb > 0 ? formatMb(t.fragmented_mb) : '<span class="mg-text-muted">\u2014</span>';
+        if (t.needs_optimize) fragText += ' <span class="mg-badge mg-badge-warning" title="Fragmentation >10% of total size">optimize</span>';
+        var updated = t.updated_at ? new Date(t.updated_at).toLocaleDateString() : '<span class="mg-text-muted">\u2014</span>';
+        var engineBadge = t.engine ? '<span class="mg-badge mg-badge-secondary">' + escHtml(t.engine) + '</span>' : '';
         return '<tr>' +
-          '<td><strong>' + escHtml(t.table) + '</strong></td>' +
+          '<td><strong>' + escHtml(t.table) + '</strong>' +
+            (t.collation ? ' <span class="mg-text-muted" style="font-size:11px">' + escHtml(t.collation) + '</span>' : '') +
+            (t.auto_increment ? ' <span class="mg-text-muted" style="font-size:11px">AI:' + Number(t.auto_increment).toLocaleString() + '</span>' : '') +
+          '</td>' +
           '<td class="mg-num">' + rows + '</td>' +
+          '<td>' + engineBadge + '</td>' +
           '<td class="mg-num">' + formatMb(t.data_mb) + '</td>' +
           '<td class="mg-num">' + formatMb(t.index_mb) + '</td>' +
           '<td class="mg-num"><strong>' + formatMb(t.total_mb) + '</strong></td>' +
           '<td class="mg-num">' + fragText + '</td>' +
+          '<td>' + updated + '</td>' +
           '<td>' + sizeBar(pct, color) + '</td>' +
           '</tr>';
       }).join('');
