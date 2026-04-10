@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Optional database prefix in routes** -- all routes are now wrapped in `scope "(:database)"` so `/mysql_genius/` continues to work (backward compatible) and `/mysql_genius/analytics/` routes to a named database
 - **DatabaseConfig class** -- foundational per-database configuration object that holds overridable settings (`blocked_tables`, `masked_column_patterns`, `featured_tables`, `default_columns`, `max_row_limit`, `default_row_limit`, `query_timeout_ms`) and falls back to the global `Configuration` for any unset value
 - **Configuration#database DSL** -- `config.database(:name) { |db| ... }` block lets users configure per-database overrides inside `MysqlGenius.configure`; repeated calls to the same key merge into the same `DatabaseConfig` instance
 - **DatabaseRegistry** -- `MysqlGenius::DatabaseRegistry` module handles YAML config loading (`config/mysql_genius.yml` + environment overrides), auto-detection of MySQL databases from `ActiveRecord::Base.configurations`, and helper methods (`multi_db?`, `default_key`, `deep_merge`); the `build!` method is the single entry point called at engine boot
