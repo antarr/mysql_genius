@@ -3,6 +3,7 @@
 require "mysql_genius/version"
 require "mysql_genius/configuration"
 require "mysql_genius/database_config"
+require "mysql_genius/database_registry"
 require "mysql_genius/sql_validator"
 
 module MysqlGenius
