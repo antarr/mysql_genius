@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **DatabaseConfig class** -- foundational per-database configuration object that holds overridable settings (`blocked_tables`, `masked_column_patterns`, `featured_tables`, `default_columns`, `max_row_limit`, `default_row_limit`, `query_timeout_ms`) and falls back to the global `Configuration` for any unset value
+- **Configuration#database DSL** -- `config.database(:name) { |db| ... }` block lets users configure per-database overrides inside `MysqlGenius.configure`; repeated calls to the same key merge into the same `DatabaseConfig` instance
 
 ## 0.2.0
 

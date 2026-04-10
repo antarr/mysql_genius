@@ -66,6 +66,8 @@ module MysqlGenius
     # Defaults to "ActionController::Base".
     attr_accessor :base_controller
 
+    attr_reader :databases
+
     def initialize
       @featured_tables = []
       @blocked_tables = [
@@ -89,6 +91,14 @@ module MysqlGenius
       @redis_url = nil
       @audit_logger = nil
       @base_controller = "ActionController::Base"
+      @databases = {}
+    end
+
+    def database(key)
+      key = key.to_sym
+      @databases[key] ||= DatabaseConfig.new(key, self)
+      yield(@databases[key]) if block_given?
+      @databases[key]
     end
 
     def ai_enabled?
