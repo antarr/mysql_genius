@@ -1,0 +1,30 @@
+# MySQL Genius configuration
+# Per-database settings override global defaults.
+# Environment-specific overrides: config/mysql_genius.<environment>.yml
+
+# defaults:
+#   blocked_tables:
+#     - sessions
+#     - schema_migrations
+#     - ar_internal_metadata
+#   masked_column_patterns:
+#     - password
+#     - secret
+#     - digest
+#     - token
+#   max_row_limit: 1000
+#   default_row_limit: 25
+#   query_timeout_ms: 30000
+
+# databases:
+#   primary:
+#     label: "Main App"
+#   analytics:
+#     label: "Analytics Warehouse"
+#     blocked_tables:
+#       - raw_events
+#       - etl_staging
+#     query_timeout_ms: 60000
+
+# exclude:
+#   - internal_cache_db

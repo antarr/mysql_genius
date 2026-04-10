@@ -53,4 +53,11 @@ MysqlGenius.configure do |config|
   #   - `orders` tracks purchases, linked to users via `user_id`.
   #   - Soft-deleted records have `deleted_at IS NOT NULL`.
   # CONTEXT
+
+  # --- Multi-Database ---
+  # Per-database overrides (YAML config in config/mysql_genius.yml is preferred).
+  # config.database(:analytics) do |db|
+  #   db.blocked_tables = %w[raw_events etl_staging]
+  #   db.query_timeout_ms = 60_000
+  # end
 end

@@ -11,6 +11,10 @@ module MysqlGenius
         template("initializer.rb", "config/initializers/mysql_genius.rb")
       end
 
+      def copy_yaml_config
+        template("mysql_genius.yml", "config/mysql_genius.yml")
+      end
+
       def mount_engine
         route('mount MysqlGenius::Engine, at: "/mysql_genius"')
       end

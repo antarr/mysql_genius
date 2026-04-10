@@ -9,6 +9,7 @@
 - **BaseController database resolution** -- `resolve_database!` before-action resolves the active database from params, redirects to a default in multi-db mode when none is specified, and returns 404 for unknown databases; adds `connection`, `current_database_key`, `current_database_config`, `multi_db?`, and `available_databases` helpers (view-accessible via `helper_method`)
 - **QueriesController multi-db wiring** -- `index` now exposes `@multi_db`, `@current_database_key`, and `@available_databases` to the view; `columns` and `queryable_tables` use the `connection` helper and `current_database_config` instead of `ActiveRecord::Base.connection` and the global config
 - **QueryExecution concern multi-db wiring** -- `execute` and `explain` use the `connection` helper instead of `ActiveRecord::Base.connection`; per-database settings (`query_timeout_ms`, `max_row_limit`, `default_row_limit`, `blocked_tables`, `masked_column_patterns`) are now read from `current_database_config` instead of the global config
+- **Install generator YAML template** -- `rails generate mysql_genius:install` now also copies `config/mysql_genius.yml` with commented examples for global defaults, per-database overrides, and excluded databases; initializer template gains a commented `config.database` multi-database DSL example
 
 ## 0.2.0
 
