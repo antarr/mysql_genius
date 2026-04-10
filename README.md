@@ -1,6 +1,6 @@
 # MySQLGenius
 
-A MySQL performance dashboard and query explorer for Rails, inspired by [PgHero](https://github.com/ankane/pghero). If you've used PgHero for PostgreSQL and wished something similar existed for MySQL -- this is it, with AI-powered query suggestions and optimization on top.
+A AI powered MySQL dashboard and build to help you optimize your database for maximum performance, inspired by [PgHero](https://github.com/ankane/pghero). 
 
 ## Screenshots
 
