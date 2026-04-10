@@ -76,6 +76,60 @@
   function hide(e) { e.classList.add('mg-hidden'); }
   function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+  // --- Table Sorting ---
+
+  function parseSortValue(text) {
+    var m = text.match(/([\d.]+)\s*(s|ms|KB|MB|GB)/i);
+    if (m) {
+      var n = parseFloat(m[1]);
+      var unit = m[2].toLowerCase();
+      if (unit === 's') return n * 1000;
+      if (unit === 'gb') return n * 1024;
+      if (unit === 'mb') return n;
+      if (unit === 'kb') return n / 1024;
+      return n;
+    }
+    return parseFloat(text.replace(/[^0-9.\-]/g, '')) || 0;
+  }
+
+  function makeSortable(table) {
+    if (table.dataset.sortable) return;
+    table.dataset.sortable = '1';
+
+    var headers = Array.from(table.querySelectorAll('th'));
+    headers.forEach(function(th, colIdx) {
+      if (th.dataset.noSort || th.textContent.trim() === '' || th.textContent.trim() === 'Actions') return;
+      th.classList.add('mg-sortable');
+      th.addEventListener('click', function() {
+        var tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        if (rows.length === 0) return;
+
+        var asc = !th.classList.contains('mg-sort-asc');
+        headers.forEach(function(h) { h.classList.remove('mg-sort-asc', 'mg-sort-desc'); });
+        th.classList.add(asc ? 'mg-sort-asc' : 'mg-sort-desc');
+
+        var isNum = th.style.textAlign === 'right' || th.classList.contains('mg-num');
+
+        rows.sort(function(a, b) {
+          var cellA = a.children[colIdx];
+          var cellB = b.children[colIdx];
+          if (!cellA || !cellB) return 0;
+          var valA = cellA.textContent.trim();
+          var valB = cellB.textContent.trim();
+
+          if (isNum) {
+            return asc ? parseSortValue(valA) - parseSortValue(valB) : parseSortValue(valB) - parseSortValue(valA);
+          }
+          return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        });
+
+        rows.forEach(function(row) { tbody.appendChild(row); });
+      });
+    });
+  }
+
   // --- SQL Syntax Highlighting (single-pass tokenizer) ---
 
   var SQL_KW_SET = {};
@@ -793,6 +847,7 @@
           '<button class="mg-btn mg-btn-outline-secondary mg-btn-sm slow-use-btn" data-sql="' + escHtml(q.sql).replace(/"/g, '&quot;') + '">Use</button></td></tr>';
       }).join('');
       show(el('slow-table-wrapper'));
+      makeSortable(qs('#slow-table-wrapper .mg-table'));
     }, function() {
       hide(el('slow-loading'));
       el('slow-empty').textContent = 'Failed to load slow queries.';
@@ -841,6 +896,7 @@
           '</tr>';
       }).join('');
       show(el('dup-table-wrapper'));
+      makeSortable(qs('#dup-table-wrapper .mg-table'));
 
       // Generate migration
       var ts = migrationTimestamp();
@@ -965,6 +1021,7 @@
           '</tr>';
       }).join('');
       show(el('sizes-table-wrapper'));
+      makeSortable(qs('#sizes-table-wrapper .mg-table'));
     }, function() {
       hide(el('sizes-loading'));
       el('sizes-total').textContent = 'Failed to load';
@@ -1003,6 +1060,7 @@
           '</tr>';
       }).join('');
       show(el('qstats-table-wrapper'));
+      makeSortable(qs('#qstats-table-wrapper .mg-table'));
     }, function(json) {
       hide(el('qstats-loading'));
       el('qstats-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((json && json.error) || 'Failed to load query stats.') + '</div>';
@@ -1045,6 +1103,7 @@
           '</tr>';
       }).join('');
       show(el('unused-table-wrapper'));
+      makeSortable(qs('#unused-table-wrapper .mg-table'));
 
       // Generate migration
       var ts = migrationTimestamp();

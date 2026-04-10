@@ -12,3 +12,4 @@
 /vendor
 CLAUDE.md
 Gemfile.lock
+*.gem
