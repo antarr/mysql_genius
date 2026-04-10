@@ -19,6 +19,9 @@ module MysqlGenius
     class << self
       def build!(config)
         yaml = load_yaml_files
+        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+          Rails.logger.info("[MG-build!] yaml_nil=#{yaml.nil?} yaml=#{yaml.inspect[0..200]}")
+        end
         load_yaml(yaml, config) if yaml
         detect_databases(config)
       end
