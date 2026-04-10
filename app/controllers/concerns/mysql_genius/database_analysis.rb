@@ -5,7 +5,6 @@ module MysqlGenius
     extend ActiveSupport::Concern
 
     def duplicate_indexes
-      connection = ActiveRecord::Base.connection
       duplicates = []
 
       queryable_tables.each do |table|
@@ -49,7 +48,6 @@ module MysqlGenius
     end
 
     def table_sizes
-      connection = ActiveRecord::Base.connection
       db_name = connection.current_database
 
       results = connection.exec_query(<<~SQL)
@@ -81,7 +79,6 @@ module MysqlGenius
     end
 
     def query_stats
-      connection = ActiveRecord::Base.connection
       sort = ["total_time", "avg_time", "calls", "rows_examined"].include?(params[:sort]) ? params[:sort] : "total_time"
 
       order_clause = case sort
@@ -141,7 +138,6 @@ module MysqlGenius
     end
 
     def unused_indexes
-      connection = ActiveRecord::Base.connection
       db_name = connection.current_database
 
       results = connection.exec_query(<<~SQL)
@@ -182,8 +178,6 @@ module MysqlGenius
     end
 
     def server_overview
-      connection = ActiveRecord::Base.connection
-
       # Global status variables
       status_rows = connection.exec_query("SHOW GLOBAL STATUS")
       status = {}
