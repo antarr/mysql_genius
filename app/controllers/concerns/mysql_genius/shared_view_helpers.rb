@@ -15,9 +15,9 @@ module MysqlGenius
     end
 
     # Partial renderer for shared templates.
-    #   render_partial(:tab_dashboard) # => render "mysql_genius/core/views/_tab_dashboard"
+    #   render_partial(:tab_dashboard) # => view_context.render partial: "mysql_genius/queries/tab_dashboard"
     def render_partial(name)
-      render("mysql_genius/core/views/_#{name}")
+      view_context.render(partial: "mysql_genius/queries/#{name}")
     end
   end
 end

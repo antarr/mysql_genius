@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **ERB templates extracted from the Rails adapter.** `MysqlGenius::Core.views_path` now points at `lib/mysql_genius/core/views/` which contains `mysql_genius/queries/dashboard.html.erb` and the 10 tab/partial files. Any adapter (Rails, Sinatra, or future desktop) can load these templates by registering this path with its own view loader.
+
 ## 0.4.1
 
 No functional changes in `mysql_genius-core`. Version bumped to maintain lockstep with `mysql_genius 0.4.1`, which hotfixes a regression in the Rails adapter's `GET /columns` endpoint. See the root `CHANGELOG.md` for details.

@@ -19,46 +19,46 @@
   <% end %>
 </div>
 
-<%= render "mysql_genius/queries/tab_dashboard" %>
-<%= render "mysql_genius/queries/tab_slow_queries" %>
-<%= render "mysql_genius/queries/tab_query_stats" %>
-<%= render "mysql_genius/queries/tab_server" %>
-<%= render "mysql_genius/queries/tab_table_sizes" %>
-<%= render "mysql_genius/queries/tab_unused_indexes" %>
-<%= render "mysql_genius/queries/tab_duplicate_indexes" %>
-<%= render "mysql_genius/queries/tab_query_explorer" %>
+<%= render_partial(:tab_dashboard) %>
+<%= render_partial(:tab_slow_queries) %>
+<%= render_partial(:tab_query_stats) %>
+<%= render_partial(:tab_server) %>
+<%= render_partial(:tab_table_sizes) %>
+<%= render_partial(:tab_unused_indexes) %>
+<%= render_partial(:tab_duplicate_indexes) %>
+<%= render_partial(:tab_query_explorer) %>
 <% if @ai_enabled %>
-  <%= render "mysql_genius/queries/tab_ai_tools" %>
+  <%= render_partial(:tab_ai_tools) %>
 <% end %>
 
-<%= render "mysql_genius/queries/shared_results" %>
+<%= render_partial(:shared_results) %>
 
 <script>
 (function() {
   "use strict";
 
   var ROUTES = {
-    columns:      '<%= mysql_genius.columns_path %>',
-    execute:      '<%= mysql_genius.execute_path %>',
-    explain:      '<%= mysql_genius.explain_path %>',
-    suggest:      '<%= mysql_genius.suggest_path %>',
-    optimize:     '<%= mysql_genius.optimize_path %>',
-    slow_queries: '<%= mysql_genius.slow_queries_path %>',
-    duplicate_indexes: '<%= mysql_genius.duplicate_indexes_path %>',
-    table_sizes: '<%= mysql_genius.table_sizes_path %>',
-    query_stats: '<%= mysql_genius.query_stats_path %>',
-    unused_indexes: '<%= mysql_genius.unused_indexes_path %>',
-    server_overview: '<%= mysql_genius.server_overview_path %>',
-    describe_query: '<%= mysql_genius.describe_query_path %>',
-    schema_review: '<%= mysql_genius.schema_review_path %>',
-    rewrite_query: '<%= mysql_genius.rewrite_query_path %>',
-    index_advisor: '<%= mysql_genius.index_advisor_path %>',
-    anomaly_detection: '<%= mysql_genius.anomaly_detection_path %>',
-    root_cause: '<%= mysql_genius.root_cause_path %>',
-    migration_risk: '<%= mysql_genius.migration_risk_path %>'
+    columns:      '<%= path_for(:columns) %>',
+    execute:      '<%= path_for(:execute) %>',
+    explain:      '<%= path_for(:explain) %>',
+    suggest:      '<%= path_for(:suggest) %>',
+    optimize:     '<%= path_for(:optimize) %>',
+    slow_queries: '<%= path_for(:slow_queries) %>',
+    duplicate_indexes: '<%= path_for(:duplicate_indexes) %>',
+    table_sizes: '<%= path_for(:table_sizes) %>',
+    query_stats: '<%= path_for(:query_stats) %>',
+    unused_indexes: '<%= path_for(:unused_indexes) %>',
+    server_overview: '<%= path_for(:server_overview) %>',
+    describe_query: '<%= path_for(:describe_query) %>',
+    schema_review: '<%= path_for(:schema_review) %>',
+    rewrite_query: '<%= path_for(:rewrite_query) %>',
+    index_advisor: '<%= path_for(:index_advisor) %>',
+    anomaly_detection: '<%= path_for(:anomaly_detection) %>',
+    root_cause: '<%= path_for(:root_cause) %>',
+    migration_risk: '<%= path_for(:migration_risk) %>'
   };
 
-  var RAILS_MIGRATION_VERSION = '<%= Rails::VERSION::MAJOR %>.<%= Rails::VERSION::MINOR %>';
+  var RAILS_MIGRATION_VERSION = '<%= @framework_version_major %>.<%= @framework_version_minor %>';
 
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
   var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';

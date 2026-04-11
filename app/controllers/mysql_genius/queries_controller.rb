@@ -15,6 +15,9 @@ module MysqlGenius
       end
       @all_tables = queryable_tables.sort
       @ai_enabled = mysql_genius_config.ai_enabled?
+      @framework_version_major = Rails::VERSION::MAJOR
+      @framework_version_minor = Rails::VERSION::MINOR
+      render("mysql_genius/queries/dashboard")
     end
 
     def columns
