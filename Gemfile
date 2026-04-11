@@ -16,6 +16,8 @@ end
 group :development, :test do
   gem "rake"
   gem "rspec", "~> 3.0"
+  gem "rspec-rails"
+  gem "rack-test"
   gem "rubocop"
   gem "rubocop-shopify"
   gem "rubocop-rspec"
