@@ -19,68 +19,10 @@ module MysqlGenius
     end
 
     def query_stats
-      connection = ActiveRecord::Base.connection
-      sort = ["total_time", "avg_time", "calls", "rows_examined"].include?(params[:sort]) ? params[:sort] : "total_time"
-
-      order_clause = case sort
-      when "total_time"    then "SUM_TIMER_WAIT DESC"
-      when "avg_time"      then "AVG_TIMER_WAIT DESC"
-      when "calls"         then "COUNT_STAR DESC"
-      when "rows_examined" then "SUM_ROWS_EXAMINED DESC"
-      end
-
-      limit = params.fetch(:limit, 50).to_i.clamp(1, 50)
-
-      results = connection.exec_query(<<~SQL)
-        SELECT
-          DIGEST_TEXT,
-          COUNT_STAR AS calls,
-          ROUND(SUM_TIMER_WAIT / 1000000000, 1) AS total_time_ms,
-          ROUND(AVG_TIMER_WAIT / 1000000000, 1) AS avg_time_ms,
-          ROUND(MAX_TIMER_WAIT / 1000000000, 1) AS max_time_ms,
-          SUM_ROWS_EXAMINED AS rows_examined,
-          SUM_ROWS_SENT AS rows_sent,
-          SUM_CREATED_TMP_DISK_TABLES AS tmp_disk_tables,
-          SUM_SORT_ROWS AS sort_rows,
-          FIRST_SEEN,
-          LAST_SEEN
-        FROM performance_schema.events_statements_summary_by_digest
-        WHERE SCHEMA_NAME = #{connection.quote(connection.current_database)}
-          AND DIGEST_TEXT IS NOT NULL
-          AND DIGEST_TEXT NOT LIKE 'EXPLAIN%'
-          AND DIGEST_TEXT NOT LIKE '%`information_schema`%'
-          AND DIGEST_TEXT NOT LIKE '%`performance_schema`%'
-          AND DIGEST_TEXT NOT LIKE '%information_schema.%'
-          AND DIGEST_TEXT NOT LIKE '%performance_schema.%'
-          AND DIGEST_TEXT NOT LIKE 'SHOW %'
-          AND DIGEST_TEXT NOT LIKE 'SET STATEMENT %'
-          AND DIGEST_TEXT NOT LIKE 'SELECT VERSION ( )%'
-          AND DIGEST_TEXT NOT LIKE 'SELECT @@%'
-        ORDER BY #{order_clause}
-        LIMIT #{limit}
-      SQL
-
-      queries = results.map do |row|
-        digest = row["DIGEST_TEXT"] || row["digest_text"] || ""
-        calls = (row["calls"] || row["CALLS"] || 0).to_i
-        rows_examined = (row["rows_examined"] || row["ROWS_EXAMINED"] || 0).to_i
-        rows_sent = (row["rows_sent"] || row["ROWS_SENT"] || 0).to_i
-        {
-          sql: digest.truncate(500),
-          calls: calls,
-          total_time_ms: row["total_time_ms"].to_f,
-          avg_time_ms: row["avg_time_ms"].to_f,
-          max_time_ms: row["max_time_ms"].to_f,
-          rows_examined: rows_examined,
-          rows_sent: rows_sent,
-          rows_ratio: rows_sent > 0 ? (rows_examined.to_f / rows_sent).round(1) : 0,
-          tmp_disk_tables: (row["tmp_disk_tables"] || row["TMP_DISK_TABLES"] || 0).to_i,
-          sort_rows: (row["sort_rows"] || row["SORT_ROWS"] || 0).to_i,
-          first_seen: row["FIRST_SEEN"] || row["first_seen"],
-          last_seen: row["LAST_SEEN"] || row["last_seen"],
-        }
-      end
-
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      sort = params[:sort].to_s
+      limit = params.fetch(:limit, MysqlGenius::Core::Analysis::QueryStats::MAX_LIMIT).to_i
+      queries = MysqlGenius::Core::Analysis::QueryStats.new(connection).call(sort: sort, limit: limit)
       render(json: queries)
     rescue ActiveRecord::StatementInvalid => e
       render(json: { error: "Query statistics require performance_schema to be enabled. #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
