@@ -25,7 +25,7 @@ module MysqlGenius
             return @config.client.call(messages: messages, temperature: temperature)
           end
 
-          raise NotConfigured, "AI is not configured" unless @config.endpoint && @config.api_key
+          raise NotConfigured, "AI is not configured" unless @config.enabled?
 
           body = {
             messages: messages,

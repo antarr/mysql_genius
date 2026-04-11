@@ -25,6 +25,11 @@ module MysqlGenius
         :system_context,
         keyword_init: true,
       ) do
+        def initialize(*)
+          super
+          freeze
+        end
+
         def enabled?
           return true if client
           return false if endpoint.nil? || endpoint.to_s.empty?
