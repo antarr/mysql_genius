@@ -12,7 +12,9 @@ module MysqlGenius
       prompt = params[:prompt].to_s.strip
       return render(json: { error: "Please describe what you want to query." }, status: :unprocessable_entity) if prompt.blank?
 
-      result = AiSuggestionService.new.call(prompt, queryable_tables)
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      service = MysqlGenius::Core::Ai::Suggestion.new(connection, ai_client, ai_config_for_core)
+      result = service.call(prompt, queryable_tables)
       sql = sanitize_ai_sql(result["sql"].to_s)
       render(json: { sql: sql, explanation: result["explanation"] })
     rescue StandardError => e
@@ -31,7 +33,9 @@ module MysqlGenius
         return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity)
       end
 
-      result = AiOptimizationService.new.call(sql, explain_rows, queryable_tables)
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      service = MysqlGenius::Core::Ai::Optimization.new(connection, ai_client, ai_config_for_core)
+      result = service.call(sql, explain_rows, queryable_tables)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Optimization failed: #{e.message}" }, status: :unprocessable_entity)
@@ -56,7 +60,7 @@ module MysqlGenius
         { role: "user", content: sql },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Explanation failed: #{e.message}" }, status: :unprocessable_entity)
@@ -100,7 +104,7 @@ module MysqlGenius
         { role: "user", content: schema_desc },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Schema review failed: #{e.message}" }, status: :unprocessable_entity)
@@ -136,7 +140,7 @@ module MysqlGenius
         { role: "user", content: sql },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Rewrite failed: #{e.message}" }, status: :unprocessable_entity)
@@ -150,7 +154,7 @@ module MysqlGenius
       return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity) if sql.blank? || explain_rows.blank?
 
       connection = ActiveRecord::Base.connection
-      tables_in_query = SqlValidator.extract_table_references(sql, connection)
+      tables_in_query = MysqlGenius::Core::SqlValidator.extract_table_references(sql, connection)
 
       index_detail = tables_in_query.map do |t|
         indexes = connection.indexes(t).map { |idx| "#{"UNIQUE " if idx.unique}INDEX #{idx.name} (#{idx.columns.join(", ")})" }
@@ -175,7 +179,7 @@ module MysqlGenius
         { role: "user", content: "Query:\n#{sql}\n\nEXPLAIN:\n#{explain_rows.map { |r| r.join(" | ") }.join("\n")}\n\nCurrent Indexes:\n#{index_detail}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Index advisor failed: #{e.message}" }, status: :unprocessable_entity)
@@ -235,7 +239,7 @@ module MysqlGenius
         { role: "user", content: "Recent Slow Queries (last #{slow_data.size}):\n#{slow_summary.presence || "None captured"}\n\nTop Queries by Total Time:\n#{stats_summary.presence || "Not available"}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Anomaly detection failed: #{e.message}" }, status: :unprocessable_entity)
@@ -307,7 +311,7 @@ module MysqlGenius
         { role: "user", content: "PROCESSLIST:\n#{process_info}\n\nKey Status:\n#{key_stats}\n\nInnoDB Status (excerpt):\n#{innodb_status.presence || "Not available"}\n\nRecent Slow Queries:\n#{slow_summary.presence || "None captured"}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Root cause analysis failed: #{e.message}" }, status: :unprocessable_entity)
@@ -366,13 +370,29 @@ module MysqlGenius
         { role: "user", content: "Migration:\n#{migration_sql}\n\nAffected Tables:\n#{table_info.presence || "Could not determine"}\n\nActive Queries on These Tables:\n#{active.presence || "None found or performance_schema unavailable"}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Migration risk assessment failed: #{e.message}" }, status: :unprocessable_entity)
     end
 
     private
+
+    def ai_client
+      MysqlGenius::Core::Ai::Client.new(ai_config_for_core)
+    end
+
+    def ai_config_for_core
+      cfg = mysql_genius_config
+      MysqlGenius::Core::Ai::Config.new(
+        client: cfg.ai_client,
+        endpoint: cfg.ai_endpoint,
+        api_key: cfg.ai_api_key,
+        model: cfg.ai_model,
+        auth_style: cfg.ai_auth_style,
+        system_context: cfg.ai_system_context,
+      )
+    end
 
     def ai_not_configured
       render(json: { error: "AI features are not configured." }, status: :not_found)
@@ -388,7 +408,7 @@ module MysqlGenius
 
     def build_schema_for_query(sql)
       connection = ActiveRecord::Base.connection
-      tables = SqlValidator.extract_table_references(sql, connection)
+      tables = MysqlGenius::Core::SqlValidator.extract_table_references(sql, connection)
       tables.map do |t|
         cols = connection.columns(t).map { |c| "#{c.name} (#{c.type})" }
         "#{t}: #{cols.join(", ")}"

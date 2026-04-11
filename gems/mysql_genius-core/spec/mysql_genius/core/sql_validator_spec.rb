@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe(MysqlGenius::SqlValidator) do
+RSpec.describe(MysqlGenius::Core::SqlValidator) do
   let(:blocked_tables) { ["sessions", "authentication_tokens"] }
   let(:all_tables) { ["users", "posts", "sessions", "authentication_tokens"] }
   let(:connection) do

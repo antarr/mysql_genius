@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Internal refactor: extracted Rails-free core library into a new `mysql_genius-core` gem.** The validator, AI services, and value objects now live in `mysql_genius-core`; the `mysql_genius` Rails engine delegates through a new `Core::Connection::ActiveRecordAdapter`. Public API, routes, config DSL, and JSON response shapes are unchanged — host apps see no difference after `bundle update`. See [the design spec](docs/superpowers/specs/2026-04-10-desktop-app-design.md) for the motivation: the new core gem is the foundation for a forthcoming `mysql_genius-desktop` standalone app.
+- `mysql_genius` now declares a runtime dependency on `mysql_genius-core ~> 0.1.0.pre`. This dependency resolves transitively; host apps do not need to add it to their Gemfile when using a published release of `mysql_genius`.
+- `MysqlGenius::SqlValidator` moved to `MysqlGenius::Core::SqlValidator`.
+- `MysqlGenius::AiClient`, `MysqlGenius::AiSuggestionService`, `MysqlGenius::AiOptimizationService` moved to `MysqlGenius::Core::Ai::{Client, Suggestion, Optimization}` and now take an explicit `Core::Ai::Config` instead of reading `MysqlGenius.configuration` at construction time.
+
+### Documentation
+- Added README troubleshooting section covering `SSL_connect ... EC lib` / `unable to decode issuer public key` errors that hit Ruby 2.7 + OpenSSL 1.1.x users talking to Google Trust Services-backed hosts like Ollama Cloud. Recommends local Ollama (`http://localhost:11434`) as the fastest unblock, `SSL_CERT_FILE` pointing at a fresher CA bundle as an intermediate fix, and upgrading to Ruby 3.2+ as the durable fix.
+
+### Developer note
+- **Dev-time install with this branch requires two path deps.** Until `mysql_genius-core 0.1.0` is published to rubygems (planned for Phase 1b), host apps doing local development against this repo's source need both `gem "mysql_genius", path: "..."` AND `gem "mysql_genius-core", path: "gems/mysql_genius-core"` in their Gemfile. This is transient and goes away with the next published release.
+
 ## 0.3.2
 
 ### Fixed

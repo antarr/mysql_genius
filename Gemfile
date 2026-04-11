@@ -4,6 +4,8 @@ source "https://rubygems.org"
 
 gemspec
 
+gem "mysql_genius-core", path: "gems/mysql_genius-core"
+
 if ENV["RAILS_VERSION"]
   rails_version = ENV["RAILS_VERSION"]
   gem "actionpack", "~> #{rails_version}.0"

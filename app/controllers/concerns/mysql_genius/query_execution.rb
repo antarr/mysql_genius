@@ -80,7 +80,7 @@ module MysqlGenius
     private
 
     def validate_sql(sql)
-      SqlValidator.validate(sql, blocked_tables: mysql_genius_config.blocked_tables, connection: ActiveRecord::Base.connection)
+      MysqlGenius::Core::SqlValidator.validate(sql, blocked_tables: mysql_genius_config.blocked_tables, connection: ActiveRecord::Base.connection)
     end
 
     def apply_timeout_hint(sql)
@@ -97,7 +97,7 @@ module MysqlGenius
     end
 
     def apply_row_limit(sql, limit)
-      SqlValidator.apply_row_limit(sql, limit)
+      MysqlGenius::Core::SqlValidator.apply_row_limit(sql, limit)
     end
 
     def timeout_error?(exception)
@@ -106,7 +106,7 @@ module MysqlGenius
     end
 
     def masked_column?(column_name)
-      SqlValidator.masked_column?(column_name, mysql_genius_config.masked_column_patterns)
+      MysqlGenius::Core::SqlValidator.masked_column?(column_name, mysql_genius_config.masked_column_patterns)
     end
 
     def sanitize_ai_sql(sql)

@@ -1,18 +1,19 @@
 # frozen_string_literal: true
 
-require "spec_helper"
-require "mysql_genius/ai_client"
+require "net/http"
 
-RSpec.describe(MysqlGenius::AiClient) do
-  subject(:client) { described_class.new }
+RSpec.describe(MysqlGenius::Core::Ai::Client) do
+  subject(:client) { described_class.new(config) }
 
-  before do
-    MysqlGenius.configure do |c|
-      c.ai_endpoint = "https://api.example.com/v1/chat/completions"
-      c.ai_api_key = "sk-test-key"
-      c.ai_model = "gpt-4o"
-      c.ai_auth_style = :bearer
-    end
+  let(:config) do
+    MysqlGenius::Core::Ai::Config.new(
+      client: nil,
+      endpoint: "https://api.example.com/v1/chat/completions",
+      api_key: "sk-test-key",
+      model: "gpt-4o",
+      auth_style: :bearer,
+      system_context: nil,
+    )
   end
 
   def stub_http(response: nil, &block)
@@ -54,11 +55,16 @@ RSpec.describe(MysqlGenius::AiClient) do
   end
 
   describe "#chat" do
-    context "with a custom ai_client callable" do
-      before do
-        MysqlGenius.configuration.ai_client = lambda { |**_kwargs|
-          { "sql" => "SELECT 1", "explanation" => "test" }
-        }
+    context "with a custom client callable" do
+      let(:config) do
+        MysqlGenius::Core::Ai::Config.new(
+          client: lambda { |**_kwargs| { "sql" => "SELECT 1", "explanation" => "test" } },
+          endpoint: nil,
+          api_key: nil,
+          model: nil,
+          auth_style: :bearer,
+          system_context: nil,
+        )
       end
 
       it "delegates to the custom client" do
@@ -68,27 +74,30 @@ RSpec.describe(MysqlGenius::AiClient) do
 
       it "passes temperature through" do
         called_temp = nil
-        MysqlGenius.configuration.ai_client = lambda { |temperature:, **|
+        callable = lambda { |temperature:, **|
           called_temp = temperature
           {}
         }
+        custom_config = MysqlGenius::Core::Ai::Config.new(
+          client: callable, endpoint: nil, api_key: nil, model: nil, auth_style: :bearer, system_context: nil,
+        )
 
-        client.chat(messages: [], temperature: 0.5)
+        described_class.new(custom_config).chat(messages: [], temperature: 0.5)
         expect(called_temp).to(eq(0.5))
       end
     end
 
-    context "without ai_endpoint or ai_api_key" do
-      before do
-        MysqlGenius.configuration.ai_endpoint = nil
-        MysqlGenius.configuration.ai_api_key = nil
-        MysqlGenius.configuration.ai_client = nil
+    context "when not configured" do
+      let(:config) do
+        MysqlGenius::Core::Ai::Config.new(
+          client: nil, endpoint: nil, api_key: nil, model: nil, auth_style: :bearer, system_context: nil,
+        )
       end
 
       it "raises an error" do
-        expect do
-          client.chat(messages: [])
-        end.to(raise_error(MysqlGenius::Error, /AI is not configured/))
+        expect { client.chat(messages: []) }.to(
+          raise_error(MysqlGenius::Core::Ai::Client::NotConfigured, /AI is not configured/),
+        )
       end
     end
 
@@ -114,7 +123,7 @@ RSpec.describe(MysqlGenius::AiClient) do
         client.chat(messages: [])
       end
 
-      it "uses Bearer auth when ai_auth_style is :bearer" do
+      it "uses Bearer auth when auth_style is :bearer" do
         stub_http_with_block do |http|
           allow(http).to(receive(:request)) do |req|
             expect(req["Authorization"]).to(eq("Bearer sk-test-key"))
@@ -125,8 +134,15 @@ RSpec.describe(MysqlGenius::AiClient) do
         client.chat(messages: [])
       end
 
-      it "uses api-key header when ai_auth_style is :api_key" do
-        MysqlGenius.configuration.ai_auth_style = :api_key
+      it "uses api-key header when auth_style is :api_key" do
+        api_key_config = MysqlGenius::Core::Ai::Config.new(
+          client: nil,
+          endpoint: "https://api.example.com/v1/chat/completions",
+          api_key: "sk-test-key",
+          model: "gpt-4o",
+          auth_style: :api_key,
+          system_context: nil,
+        )
 
         stub_http_with_block do |http|
           allow(http).to(receive(:request)) do |req|
@@ -135,7 +151,7 @@ RSpec.describe(MysqlGenius::AiClient) do
           end
         end
 
-        client.chat(messages: [])
+        described_class.new(api_key_config).chat(messages: [])
       end
     end
 
@@ -149,9 +165,9 @@ RSpec.describe(MysqlGenius::AiClient) do
       end
 
       it "raises an error with the API message" do
-        expect do
-          client.chat(messages: [])
-        end.to(raise_error(MysqlGenius::Error, /Rate limit exceeded/))
+        expect { client.chat(messages: []) }.to(
+          raise_error(MysqlGenius::Core::Ai::Client::ApiError, /Rate limit exceeded/),
+        )
       end
     end
 
@@ -165,14 +181,14 @@ RSpec.describe(MysqlGenius::AiClient) do
       end
 
       it "raises an error" do
-        expect do
-          client.chat(messages: [])
-        end.to(raise_error(MysqlGenius::Error, /No content/))
+        expect { client.chat(messages: []) }.to(
+          raise_error(MysqlGenius::Core::Ai::Client::ApiError, /No content/),
+        )
       end
     end
   end
 
-  describe "#parse_json_content (via chat)" do
+  describe "JSON parsing" do
     let(:current_response) { { value: nil } }
 
     before do
@@ -182,26 +198,22 @@ RSpec.describe(MysqlGenius::AiClient) do
 
     it "parses plain JSON" do
       current_response[:value] = ok_response('{"sql":"SELECT 1"}')
-      result = client.chat(messages: [])
-      expect(result).to(eq({ "sql" => "SELECT 1" }))
+      expect(client.chat(messages: [])).to(eq({ "sql" => "SELECT 1" }))
     end
 
     it "strips markdown code fences" do
       current_response[:value] = ok_response("```json\n{\"sql\":\"SELECT 1\"}\n```")
-      result = client.chat(messages: [])
-      expect(result).to(eq({ "sql" => "SELECT 1" }))
+      expect(client.chat(messages: [])).to(eq({ "sql" => "SELECT 1" }))
     end
 
     it "strips code fences without language tag" do
       current_response[:value] = ok_response("```\n{\"sql\":\"SELECT 1\"}\n```")
-      result = client.chat(messages: [])
-      expect(result).to(eq({ "sql" => "SELECT 1" }))
+      expect(client.chat(messages: [])).to(eq({ "sql" => "SELECT 1" }))
     end
 
     it "returns raw content when JSON is unparseable" do
       current_response[:value] = ok_response("This is not JSON at all")
-      result = client.chat(messages: [])
-      expect(result).to(eq({ "raw" => "This is not JSON at all" }))
+      expect(client.chat(messages: [])).to(eq({ "raw" => "This is not JSON at all" }))
     end
   end
 
@@ -220,8 +232,7 @@ RSpec.describe(MysqlGenius::AiClient) do
         end
       end
 
-      result = client.chat(messages: [])
-      expect(result).to(eq({ "ok" => true }))
+      expect(client.chat(messages: [])).to(eq({ "ok" => true }))
       expect(call_count).to(eq(2))
     end
 
@@ -234,9 +245,9 @@ RSpec.describe(MysqlGenius::AiClient) do
         allow(http).to(receive(:request).and_return(redirect_response))
       end
 
-      expect do
-        client.chat(messages: [])
-      end.to(raise_error(MysqlGenius::Error, /Too many redirects/))
+      expect { client.chat(messages: []) }.to(
+        raise_error(MysqlGenius::Core::Ai::Client::TooManyRedirects),
+      )
     end
   end
 end
