@@ -15,6 +15,11 @@ jobs:
           ruby-version: 3.3
           bundler-cache: true
       - run: bundle exec rspec
+      - name: Test mysql_genius-core gem
+        working-directory: gems/mysql_genius-core
+        run: |
+          bundle install
+          bundle exec rspec
 
   publish:
     needs: test
@@ -24,9 +29,23 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.3
-      - name: Build gem
+
+      # Build and push mysql_genius-core FIRST so that mysql_genius's
+      # runtime dependency on it can resolve at gem install time.
+      - name: Build mysql_genius-core
+        working-directory: gems/mysql_genius-core
+        run: gem build mysql_genius-core.gemspec
+
+      - name: Publish mysql_genius-core
+        working-directory: gems/mysql_genius-core
+        run: gem push mysql_genius-core-*.gem
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+
+      - name: Build mysql_genius
         run: gem build mysql_genius.gemspec
-      - name: Publish to RubyGems
+
+      - name: Publish mysql_genius
         run: gem push mysql_genius-*.gem
         env:
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
