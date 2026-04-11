@@ -4,6 +4,10 @@ module MysqlGenius
   class Engine < ::Rails::Engine
     isolate_namespace MysqlGenius
 
+    initializer "mysql_genius.register_core_views" do |app|
+      app.config.paths["app/views"] << MysqlGenius::Core.views_path
+    end
+
     config.after_initialize do
       if MysqlGenius.configuration.redis_url.present?
         require "mysql_genius/slow_query_monitor"

@@ -5,6 +5,7 @@ module MysqlGenius
     include QueryExecution
     include DatabaseAnalysis
     include AiFeatures
+    include SharedViewHelpers
 
     def index
       @featured_tables = if mysql_genius_config.featured_tables.any?
