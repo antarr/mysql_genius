@@ -56,7 +56,7 @@ module MysqlGenius
         { role: "user", content: sql },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Explanation failed: #{e.message}" }, status: :unprocessable_entity)
@@ -100,7 +100,7 @@ module MysqlGenius
         { role: "user", content: schema_desc },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Schema review failed: #{e.message}" }, status: :unprocessable_entity)
@@ -136,7 +136,7 @@ module MysqlGenius
         { role: "user", content: sql },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Rewrite failed: #{e.message}" }, status: :unprocessable_entity)
@@ -175,7 +175,7 @@ module MysqlGenius
         { role: "user", content: "Query:\n#{sql}\n\nEXPLAIN:\n#{explain_rows.map { |r| r.join(" | ") }.join("\n")}\n\nCurrent Indexes:\n#{index_detail}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Index advisor failed: #{e.message}" }, status: :unprocessable_entity)
@@ -235,7 +235,7 @@ module MysqlGenius
         { role: "user", content: "Recent Slow Queries (last #{slow_data.size}):\n#{slow_summary.presence || "None captured"}\n\nTop Queries by Total Time:\n#{stats_summary.presence || "Not available"}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Anomaly detection failed: #{e.message}" }, status: :unprocessable_entity)
@@ -307,7 +307,7 @@ module MysqlGenius
         { role: "user", content: "PROCESSLIST:\n#{process_info}\n\nKey Status:\n#{key_stats}\n\nInnoDB Status (excerpt):\n#{innodb_status.presence || "Not available"}\n\nRecent Slow Queries:\n#{slow_summary.presence || "None captured"}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Root cause analysis failed: #{e.message}" }, status: :unprocessable_entity)
@@ -366,13 +366,29 @@ module MysqlGenius
         { role: "user", content: "Migration:\n#{migration_sql}\n\nAffected Tables:\n#{table_info.presence || "Could not determine"}\n\nActive Queries on These Tables:\n#{active.presence || "None found or performance_schema unavailable"}" },
       ]
 
-      result = AiClient.new.chat(messages: messages)
+      result = ai_client.chat(messages: messages)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Migration risk assessment failed: #{e.message}" }, status: :unprocessable_entity)
     end
 
     private
+
+    def ai_client
+      MysqlGenius::Core::Ai::Client.new(ai_config_for_core)
+    end
+
+    def ai_config_for_core
+      cfg = mysql_genius_config
+      MysqlGenius::Core::Ai::Config.new(
+        client: cfg.ai_client,
+        endpoint: cfg.ai_endpoint,
+        api_key: cfg.ai_api_key,
+        model: cfg.ai_model,
+        auth_style: cfg.ai_auth_style,
+        system_context: cfg.ai_system_context,
+      )
+    end
 
     def ai_not_configured
       render(json: { error: "AI features are not configured." }, status: :not_found)
