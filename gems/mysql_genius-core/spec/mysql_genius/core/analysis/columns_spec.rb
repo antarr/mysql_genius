@@ -22,6 +22,7 @@ RSpec.describe(MysqlGenius::Core::Analysis::Columns) do
       MysqlGenius::Core::ColumnDefinition.new(name: "password_hash", sql_type: "varchar(255)", type: :string,   null: false, default: nil, primary_key: false),
       MysqlGenius::Core::ColumnDefinition.new(name: "api_token",     sql_type: "varchar(64)",  type: :string,   null: true,  default: nil, primary_key: false),
       MysqlGenius::Core::ColumnDefinition.new(name: "created_at",    sql_type: "datetime",     type: :datetime, null: false, default: nil, primary_key: false),
+      MysqlGenius::Core::ColumnDefinition.new(name: "updated_at",    sql_type: "datetime",     type: :datetime, null: false, default: nil, primary_key: false),
     ]
   end
 
@@ -54,6 +55,15 @@ RSpec.describe(MysqlGenius::Core::Analysis::Columns) do
         expect(by_name["id"][:default]).to(be(true))
         expect(by_name["email"][:default]).to(be(true))
         expect(by_name["created_at"][:default]).to(be(true))
+      end
+
+      it "marks columns outside default_columns with default: false" do
+        # updated_at is visible (not masked) but not in default_columns — it
+        # should come back with default: false. Pins the `defaults.empty? ||
+        # defaults.include?(col.name)` branch where neither side is true.
+        result = service.call(table: "users")
+        by_name = result.columns.to_h { |c| [c[:name], c] }
+        expect(by_name["updated_at"][:default]).to(be(false))
       end
 
       it "when default_columns has no entry for the table, marks ALL as default: true" do
