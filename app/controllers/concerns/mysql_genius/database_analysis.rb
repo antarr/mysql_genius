@@ -5,46 +5,10 @@ module MysqlGenius
     extend ActiveSupport::Concern
 
     def duplicate_indexes
-      connection = ActiveRecord::Base.connection
-      duplicates = []
-
-      queryable_tables.each do |table|
-        indexes = connection.indexes(table)
-        next if indexes.size < 2
-
-        indexes.each do |idx|
-          indexes.each do |other|
-            next if idx.name == other.name
-
-            # idx is duplicate if its columns are a left-prefix of other's columns
-            next unless idx.columns.size <= other.columns.size &&
-              other.columns.first(idx.columns.size) == idx.columns &&
-              !(idx.unique && !other.unique) # don't drop a unique index covered by a non-unique one
-
-            duplicates << {
-              table: table,
-              duplicate_index: idx.name,
-              duplicate_columns: idx.columns,
-              covered_by_index: other.name,
-              covered_by_columns: other.columns,
-              unique: idx.unique,
-            }
-          end
-        end
-      end
-
-      # Deduplicate (A covers B and B covers A when columns are identical -- keep only one)
-      seen = Set.new
-      duplicates = duplicates.reject do |d|
-        key = [d[:table], [d[:duplicate_index], d[:covered_by_index]].sort].flatten.join(":")
-        if seen.include?(key)
-          true
-        else
-          (seen.add(key)
-           false)
-        end
-      end
-
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      duplicates = MysqlGenius::Core::Analysis::DuplicateIndexes
+        .new(connection, blocked_tables: mysql_genius_config.blocked_tables)
+        .call
       render(json: duplicates)
     end
 
