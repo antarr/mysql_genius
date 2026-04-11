@@ -13,4 +13,8 @@ module MysqlGenius
   end
 end
 
+require "mysql_genius/core/result"
+require "mysql_genius/core/server_info"
+require "mysql_genius/core/column_definition"
+require "mysql_genius/core/index_definition"
 require "mysql_genius/core/sql_validator"
