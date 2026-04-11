@@ -19,6 +19,28 @@ RSpec.describe(MysqlGenius::Core::Ai::Config) do
     expect(config.system_context).to(eq("Custom context"))
   end
 
+  describe "#domain_context" do
+    it "defaults to empty string" do
+      config = described_class.new(
+        client: "openai", endpoint: "http://localhost", api_key: "k", model: "gpt-4", auth_style: :bearer, system_context: "",
+      )
+      expect(config.domain_context).to(eq(""))
+    end
+
+    it "can be set explicitly" do
+      config = described_class.new(
+        client: "openai",
+        endpoint: "http://localhost",
+        api_key: "k",
+        model: "gpt-4",
+        auth_style: :bearer,
+        system_context: "",
+        domain_context: "This is a Rails application. Do not recommend FKs.",
+      )
+      expect(config.domain_context).to(include("Rails application"))
+    end
+  end
+
   describe "#enabled?" do
     it "is true when a custom client callable is set" do
       config = described_class.new(
