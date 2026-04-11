@@ -31,5 +31,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency("activerecord", ">= 5.2", "< 9")
+  spec.add_dependency("mysql_genius-core", "~> 0.1.0.pre")
   spec.add_dependency("railties", ">= 5.2", "< 9")
 end
