@@ -47,20 +47,7 @@ module MysqlGenius
       sql = params[:sql].to_s.strip
       return render(json: { error: "SQL is required." }, status: :unprocessable_entity) if sql.blank?
 
-      messages = [
-        { role: "system", content: <<~PROMPT },
-          You are a MySQL query explainer. Given a SQL query, explain in plain English:
-          1. What the query does (tables involved, joins, filters, aggregations)
-          2. How data flows through the query
-          3. Any subtle behaviors (implicit type casts, NULL handling in NOT IN, DISTINCT effects, etc.)
-          4. Potential performance concerns visible from the SQL structure alone
-          #{ai_domain_context}
-          Respond with JSON: {"explanation": "your plain-English explanation using markdown formatting"}
-        PROMPT
-        { role: "user", content: sql },
-      ]
-
-      result = ai_client.chat(messages: messages)
+      result = MysqlGenius::Core::Ai::DescribeQuery.new(ai_client, ai_config_for_core).call(sql)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Explanation failed: #{e.message}" }, status: :unprocessable_entity)
@@ -69,42 +56,7 @@ module MysqlGenius
     def schema_review
       return ai_not_configured unless mysql_genius_config.ai_enabled?
 
-      table = params[:table].to_s.strip
-      connection = ActiveRecord::Base.connection
-
-      tables_to_review = table.present? ? [table] : queryable_tables.first(20)
-      schema_desc = tables_to_review.map do |t|
-        next unless connection.tables.include?(t)
-
-        cols = connection.columns(t).map { |c| "#{c.name} #{c.sql_type}#{" NOT NULL" unless c.null}#{" DEFAULT #{c.default}" if c.default}" }
-        pk = connection.primary_key(t)
-        indexes = connection.indexes(t).map { |idx| "#{"UNIQUE " if idx.unique}INDEX #{idx.name} (#{idx.columns.join(", ")})" }
-        row_count = connection.exec_query("SELECT TABLE_ROWS FROM information_schema.tables WHERE table_schema = #{connection.quote(connection.current_database)} AND table_name = #{connection.quote(t)}").rows.first&.first
-        desc = "Table: #{t} (~#{row_count} rows)\n"
-        desc += "Primary Key: #{pk || "NONE"}\n"
-        desc += "Columns: #{cols.join(", ")}\n"
-        desc += "Indexes: #{indexes.any? ? indexes.join(", ") : "NONE"}"
-        desc
-      end.compact.join("\n\n")
-
-      messages = [
-        { role: "system", content: <<~PROMPT },
-          You are a MySQL schema reviewer for a Ruby on Rails application. Analyze the following schema and identify anti-patterns and improvement opportunities. Look for:
-          - Inappropriate column types (VARCHAR(255) for short values, TEXT where VARCHAR suffices, INT for booleans)
-          - Missing indexes on foreign key columns or frequently filtered columns
-          - Missing NOT NULL constraints where NULLs are unlikely
-          - ENUM columns that should be lookup tables
-          - Missing created_at/updated_at timestamps
-          - Tables without a PRIMARY KEY
-          - Overly wide indexes or redundant indexes
-          - Column naming inconsistencies
-          #{ai_domain_context}
-          Respond with JSON: {"findings": "markdown-formatted findings organized by severity (Critical, Warning, Suggestion). Include specific ALTER TABLE statements where applicable."}
-        PROMPT
-        { role: "user", content: schema_desc },
-      ]
-
-      result = ai_client.chat(messages: messages)
+      result = MysqlGenius::Core::Ai::SchemaReview.new(ai_client, ai_config_for_core, rails_connection).call(params[:table].to_s.strip.presence)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Schema review failed: #{e.message}" }, status: :unprocessable_entity)
@@ -116,31 +68,7 @@ module MysqlGenius
       sql = params[:sql].to_s.strip
       return render(json: { error: "SQL is required." }, status: :unprocessable_entity) if sql.blank?
 
-      schema = build_schema_for_query(sql)
-
-      messages = [
-        { role: "system", content: <<~PROMPT },
-          You are a MySQL query rewrite expert. Analyze the SQL for anti-patterns and suggest a rewritten version. Look for:
-          - SELECT * when specific columns would suffice
-          - Correlated subqueries that could be JOINs
-          - OR conditions preventing index use (suggest UNION ALL)
-          - LIKE '%prefix' patterns (leading wildcard)
-          - Implicit type conversions in WHERE clauses
-          - NOT IN with NULLable columns (suggest NOT EXISTS)
-          - ORDER BY on non-indexed columns with LIMIT
-          - Unnecessary DISTINCT
-          - Functions on indexed columns in WHERE (e.g., DATE(created_at) instead of range)
-
-          Available schema:
-          #{schema}
-          #{ai_domain_context}
-
-          Respond with JSON: {"original": "the original SQL", "rewritten": "the improved SQL", "changes": "markdown list of each change and why it helps"}
-        PROMPT
-        { role: "user", content: sql },
-      ]
-
-      result = ai_client.chat(messages: messages)
+      result = MysqlGenius::Core::Ai::RewriteQuery.new(ai_client, ai_config_for_core, rails_connection).call(sql)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Rewrite failed: #{e.message}" }, status: :unprocessable_entity)
@@ -153,33 +81,7 @@ module MysqlGenius
       explain_rows = Array(params[:explain_rows]).map { |row| row.respond_to?(:values) ? row.values : Array(row) }
       return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity) if sql.blank? || explain_rows.blank?
 
-      connection = ActiveRecord::Base.connection
-      tables_in_query = MysqlGenius::Core::SqlValidator.extract_table_references(sql, connection)
-
-      index_detail = tables_in_query.map do |t|
-        indexes = connection.indexes(t).map { |idx| "#{"UNIQUE " if idx.unique}INDEX #{idx.name} (#{idx.columns.join(", ")})" }
-        stats = connection.exec_query("SELECT INDEX_NAME, COLUMN_NAME, CARDINALITY, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = #{connection.quote(connection.current_database)} AND TABLE_NAME = #{connection.quote(t)} ORDER BY INDEX_NAME, SEQ_IN_INDEX")
-        cardinality = stats.rows.map { |r| "#{r[0]}.#{r[1]}: cardinality=#{r[2]}" }.join(", ")
-        row_count = connection.exec_query("SELECT TABLE_ROWS FROM information_schema.tables WHERE table_schema = #{connection.quote(connection.current_database)} AND table_name = #{connection.quote(t)}").rows.first&.first
-        "Table: #{t} (~#{row_count} rows)\nIndexes: #{indexes.any? ? indexes.join("; ") : "NONE"}\nCardinality: #{cardinality}"
-      end.join("\n\n")
-
-      messages = [
-        { role: "system", content: <<~PROMPT },
-          You are a MySQL index advisor. Given a query, its EXPLAIN output, and current index/cardinality information, suggest optimal indexes. Consider:
-          - Composite index column ordering (most selective first, or matching query order)
-          - Covering indexes to avoid table lookups
-          - Partial indexes for long string columns
-          - Write-side costs (if this is a high-write table, note the INSERT/UPDATE overhead)
-          - Whether existing indexes could be extended rather than creating new ones
-          #{ai_domain_context}
-
-          Respond with JSON: {"indexes": "markdown-formatted recommendations with exact CREATE INDEX statements, rationale for column ordering, and estimated impact. Include any indexes that should be DROPPED as part of the change."}
-        PROMPT
-        { role: "user", content: "Query:\n#{sql}\n\nEXPLAIN:\n#{explain_rows.map { |r| r.join(" | ") }.join("\n")}\n\nCurrent Indexes:\n#{index_detail}" },
-      ]
-
-      result = ai_client.chat(messages: messages)
+      result = MysqlGenius::Core::Ai::IndexAdvisor.new(ai_client, ai_config_for_core, rails_connection).call(sql, explain_rows)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Index advisor failed: #{e.message}" }, status: :unprocessable_entity)
@@ -323,60 +225,17 @@ module MysqlGenius
       migration_sql = params[:migration].to_s.strip
       return render(json: { error: "Migration SQL or Ruby code is required." }, status: :unprocessable_entity) if migration_sql.blank?
 
-      connection = ActiveRecord::Base.connection
-
-      # Try to identify tables mentioned in the migration
-      table_names = migration_sql.scan(/(?:create_table|add_column|remove_column|add_index|remove_index|rename_column|change_column|alter\s+table)\s+[:\"]?(\w+)/i).flatten.uniq
-      table_names += migration_sql.scan(/ALTER\s+TABLE\s+`?(\w+)`?/i).flatten
-
-      table_info = table_names.uniq.map do |t|
-        next unless connection.tables.include?(t)
-
-        row_count = connection.exec_query("SELECT TABLE_ROWS FROM information_schema.tables WHERE table_schema = #{connection.quote(connection.current_database)} AND table_name = #{connection.quote(t)}").rows.first&.first
-        indexes = connection.indexes(t).map { |idx| "#{idx.name} (#{idx.columns.join(", ")})" }
-        "Table: #{t} (~#{row_count} rows, #{indexes.size} indexes)"
-      end.compact.join("\n")
-
-      # Current active queries on those tables
-      active = ""
-      begin
-        results = connection.exec_query(<<~SQL)
-          SELECT DIGEST_TEXT, COUNT_STAR AS calls, ROUND(AVG_TIMER_WAIT / 1000000000, 1) AS avg_ms
-          FROM performance_schema.events_statements_summary_by_digest
-          WHERE SCHEMA_NAME = #{connection.quote(connection.current_database)}
-            AND DIGEST_TEXT IS NOT NULL
-            AND COUNT_STAR > 10
-          ORDER BY COUNT_STAR DESC LIMIT 20
-        SQL
-        matching = results.rows.select { |r| table_names.any? { |t| r[0].to_s.downcase.include?(t.downcase) } }
-        active = matching.map { |r| "calls=#{r[1]} avg=#{r[2]}ms: #{r[0].to_s.truncate(200)}" }.join("\n")
-      rescue ActiveRecord::StatementInvalid
-        # performance_schema may be unavailable
-      end
-
-      messages = [
-        { role: "system", content: <<~PROMPT },
-          You are a MySQL migration risk assessor. Given a Rails migration or DDL, evaluate:
-          1. Will this lock the table? For how long given the row count?
-          2. Is this safe to run during traffic, or does it need a maintenance window?
-          3. Should pt-online-schema-change or gh-ost be used instead?
-          4. Will it break or degrade any of the active queries against this table?
-          5. Are there any data loss risks?
-          6. What is the recommended deployment strategy?
-          #{ai_domain_context}
-
-          Respond with JSON: {"risk_level": "low|medium|high|critical", "assessment": "markdown-formatted risk assessment with specific recommendations and estimated lock duration"}
-        PROMPT
-        { role: "user", content: "Migration:\n#{migration_sql}\n\nAffected Tables:\n#{table_info.presence || "Could not determine"}\n\nActive Queries on These Tables:\n#{active.presence || "None found or performance_schema unavailable"}" },
-      ]
-
-      result = ai_client.chat(messages: messages)
+      result = MysqlGenius::Core::Ai::MigrationRisk.new(ai_client, ai_config_for_core, rails_connection).call(migration_sql)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Migration risk assessment failed: #{e.message}" }, status: :unprocessable_entity)
     end
 
     private
+
+    RAILS_DOMAIN_CONTEXT = <<~CTX
+      This is a Ruby on Rails application. Do NOT recommend adding foreign key constraints (FOREIGN KEY / REFERENCES); Rails handles referential integrity at the application layer. DO recommend indexes on foreign key columns for join performance.
+    CTX
 
     def ai_client
       MysqlGenius::Core::Ai::Client.new(ai_config_for_core)
@@ -391,6 +250,7 @@ module MysqlGenius
         model: cfg.ai_model,
         auth_style: cfg.ai_auth_style,
         system_context: cfg.ai_system_context,
+        domain_context: RAILS_DOMAIN_CONTEXT,
       )
     end
 
@@ -398,21 +258,14 @@ module MysqlGenius
       render(json: { error: "AI features are not configured." }, status: :not_found)
     end
 
-    def ai_domain_context
-      parts = []
-      parts << "This is a Ruby on Rails application. Do NOT recommend adding foreign key constraints (FOREIGN KEY / REFERENCES); Rails handles referential integrity at the application layer. DO recommend indexes on foreign key columns for join performance."
-      ctx = mysql_genius_config.ai_system_context
-      parts << "Domain context:\n#{ctx}" if ctx.present?
-      "\n" + parts.join("\n")
+    def rails_connection
+      MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
     end
 
-    def build_schema_for_query(sql)
-      connection = ActiveRecord::Base.connection
-      tables = MysqlGenius::Core::SqlValidator.extract_table_references(sql, connection)
-      tables.map do |t|
-        cols = connection.columns(t).map { |c| "#{c.name} (#{c.type})" }
-        "#{t}: #{cols.join(", ")}"
-      end.join("\n")
+    def ai_domain_context
+      cfg = mysql_genius_config
+      ctx = cfg.ai_system_context
+      ctx.present? ? "\nDomain context:\n#{ctx}" : ""
     end
   end
 end
