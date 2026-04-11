@@ -25,6 +25,13 @@ jobs:
             rails: "5.2"
           - ruby: "3.4"
             rails: "5.2"
+          # Rails 5.2 + Ruby 3.0: Rails 5.2's ActionDispatch::Static#initialize
+          # signature is incompatible with modern Rack (Rack 3.x changed arity),
+          # and MiddlewareStack#operations was also renamed. Phase 2a's
+          # integration specs boot Rails, which surfaces the bit-rot. Both
+          # Rails 5.2 (EOL 2022-06) and Ruby 3.0 (EOL 2024-03) are past EOL.
+          - ruby: "3.0"
+            rails: "5.2"
           # Rails 6.0 doesn't support Ruby 3.2+
           - ruby: "3.2"
             rails: "6.0"
