@@ -150,7 +150,7 @@ module MysqlGenius
       return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity) if sql.blank? || explain_rows.blank?
 
       connection = ActiveRecord::Base.connection
-      tables_in_query = SqlValidator.extract_table_references(sql, connection)
+      tables_in_query = MysqlGenius::Core::SqlValidator.extract_table_references(sql, connection)
 
       index_detail = tables_in_query.map do |t|
         indexes = connection.indexes(t).map { |idx| "#{"UNIQUE " if idx.unique}INDEX #{idx.name} (#{idx.columns.join(", ")})" }
@@ -388,7 +388,7 @@ module MysqlGenius
 
     def build_schema_for_query(sql)
       connection = ActiveRecord::Base.connection
-      tables = SqlValidator.extract_table_references(sql, connection)
+      tables = MysqlGenius::Core::SqlValidator.extract_table_references(sql, connection)
       tables.map do |t|
         cols = connection.columns(t).map { |c| "#{c.name} (#{c.type})" }
         "#{t}: #{cols.join(", ")}"

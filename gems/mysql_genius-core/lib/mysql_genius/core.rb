@@ -13,5 +13,4 @@ module MysqlGenius
   end
 end
 
-# Value objects and the connection contract. New requires get added in later
-# tasks in this plan.
+require "mysql_genius/core/sql_validator"
