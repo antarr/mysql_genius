@@ -12,7 +12,9 @@ module MysqlGenius
       prompt = params[:prompt].to_s.strip
       return render(json: { error: "Please describe what you want to query." }, status: :unprocessable_entity) if prompt.blank?
 
-      result = AiSuggestionService.new.call(prompt, queryable_tables)
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      service = MysqlGenius::Core::Ai::Suggestion.new(connection, ai_client, ai_config_for_core)
+      result = service.call(prompt, queryable_tables)
       sql = sanitize_ai_sql(result["sql"].to_s)
       render(json: { sql: sql, explanation: result["explanation"] })
     rescue StandardError => e
