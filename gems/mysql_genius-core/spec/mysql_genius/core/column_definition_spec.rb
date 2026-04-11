@@ -16,9 +16,9 @@ RSpec.describe(MysqlGenius::Core::ColumnDefinition) do
     expect(column.name).to(eq("email"))
     expect(column.type).to(eq(:string))
     expect(column.sql_type).to(eq("varchar(255)"))
-    expect(column.null).to(eq(false))
+    expect(column.null).to(be(false))
     expect(column.default).to(be_nil)
-    expect(column.primary_key).to(eq(false))
+    expect(column.primary_key).to(be(false))
   end
 
   it "is frozen after construction" do

@@ -23,7 +23,11 @@ RSpec.describe(MysqlGenius::Core::Ai::Config) do
     it "is true when a custom client callable is set" do
       config = described_class.new(
         client: ->(**) { {} },
-        endpoint: nil, api_key: nil, model: nil, auth_style: :bearer, system_context: nil,
+        endpoint: nil,
+        api_key: nil,
+        model: nil,
+        auth_style: :bearer,
+        system_context: nil,
       )
       expect(config.enabled?).to(be(true))
     end

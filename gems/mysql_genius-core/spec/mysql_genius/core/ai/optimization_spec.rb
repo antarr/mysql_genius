@@ -1,16 +1,20 @@
 # frozen_string_literal: true
 
 RSpec.describe(MysqlGenius::Core::Ai::Optimization) do
+  subject(:service) { described_class.new(connection, client, ai_config) }
+
   let(:connection) { MysqlGenius::Core::Connection::FakeAdapter.new }
   let(:ai_config) do
     MysqlGenius::Core::Ai::Config.new(
       client: lambda { |**_kwargs| { "suggestions" => "Add an index on `users.email`" } },
-      endpoint: nil, api_key: nil, model: nil, auth_style: :bearer, system_context: nil,
+      endpoint: nil,
+      api_key: nil,
+      model: nil,
+      auth_style: :bearer,
+      system_context: nil,
     )
   end
   let(:client) { MysqlGenius::Core::Ai::Client.new(ai_config) }
-
-  subject(:service) { described_class.new(connection, client, ai_config) }
 
   before do
     connection.stub_tables(["users"])

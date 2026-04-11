@@ -12,7 +12,7 @@ RSpec.describe(MysqlGenius::Core::IndexDefinition) do
   it "exposes every attribute" do
     expect(index.name).to(eq("index_users_on_email"))
     expect(index.columns).to(eq(["email"]))
-    expect(index.unique).to(eq(true))
+    expect(index.unique).to(be(true))
   end
 
   it "aliases #unique? as a predicate" do

@@ -63,7 +63,7 @@ module MysqlGenius
 
         def select_value(sql)
           result = exec_query(sql)
-          return nil if result.empty?
+          return if result.empty?
 
           result.rows.first&.first
         end
@@ -72,9 +72,7 @@ module MysqlGenius
           ServerInfo.parse(@server_version)
         end
 
-        def current_database
-          @current_database
-        end
+        attr_reader :current_database
 
         def quote(value)
           case value
@@ -89,9 +87,7 @@ module MysqlGenius
           "`#{name}`"
         end
 
-        def tables
-          @tables
-        end
+        attr_reader :tables
 
         def columns_for(table)
           @columns_for.fetch(table, [])

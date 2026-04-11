@@ -3,6 +3,8 @@
 require "net/http"
 
 RSpec.describe(MysqlGenius::Core::Ai::Client) do
+  subject(:client) { described_class.new(config) }
+
   let(:config) do
     MysqlGenius::Core::Ai::Config.new(
       client: nil,
@@ -13,8 +15,6 @@ RSpec.describe(MysqlGenius::Core::Ai::Client) do
       system_context: nil,
     )
   end
-
-  subject(:client) { described_class.new(config) }
 
   def stub_http(response: nil, &block)
     http = instance_double(Net::HTTP)
@@ -59,7 +59,11 @@ RSpec.describe(MysqlGenius::Core::Ai::Client) do
       let(:config) do
         MysqlGenius::Core::Ai::Config.new(
           client: lambda { |**_kwargs| { "sql" => "SELECT 1", "explanation" => "test" } },
-          endpoint: nil, api_key: nil, model: nil, auth_style: :bearer, system_context: nil,
+          endpoint: nil,
+          api_key: nil,
+          model: nil,
+          auth_style: :bearer,
+          system_context: nil,
         )
       end
 
@@ -70,7 +74,10 @@ RSpec.describe(MysqlGenius::Core::Ai::Client) do
 
       it "passes temperature through" do
         called_temp = nil
-        callable = lambda { |temperature:, **| called_temp = temperature; {} }
+        callable = lambda { |temperature:, **|
+          called_temp = temperature
+          {}
+        }
         custom_config = MysqlGenius::Core::Ai::Config.new(
           client: callable, endpoint: nil, api_key: nil, model: nil, auth_style: :bearer, system_context: nil,
         )
@@ -129,8 +136,12 @@ RSpec.describe(MysqlGenius::Core::Ai::Client) do
 
       it "uses api-key header when auth_style is :api_key" do
         api_key_config = MysqlGenius::Core::Ai::Config.new(
-          client: nil, endpoint: "https://api.example.com/v1/chat/completions",
-          api_key: "sk-test-key", model: "gpt-4o", auth_style: :api_key, system_context: nil,
+          client: nil,
+          endpoint: "https://api.example.com/v1/chat/completions",
+          api_key: "sk-test-key",
+          model: "gpt-4o",
+          auth_style: :api_key,
+          system_context: nil,
         )
 
         stub_http_with_block do |http|
