@@ -103,6 +103,33 @@ end
 
 For all provider examples, see the [AI Features guide](https://github.com/antarr/mysql_genius/wiki/AI-Features).
 
+### Troubleshooting TLS errors with Ollama Cloud
+
+If you see `SSL_connect ... unable to decode issuer public key` or `SSL_connect ... EC lib` when using an AI feature, your Rails host's Ruby is linked against an older OpenSSL that can't verify modern ECDSA certificate chains (Ollama Cloud is served behind Google Trust Services, whose ECDSA roots trip up OpenSSL 1.1.x and earlier). This is not specific to `mysql_genius` — it affects any Ruby HTTPS call to those hosts.
+
+Three ways to fix it, in order of effort:
+
+**Use a local Ollama instead.** Point the endpoint at `http://localhost:11434/v1/chat/completions`. Your Rails app talks plain HTTP to the local `ollama` binary, which handles the upstream TLS itself using its own modern cert handling. For cloud-backed models, run `ollama signin` once and use the `:cloud` model suffix (e.g., `gemma3:27b-cloud`).
+
+```ruby
+MysqlGenius.configure do |config|
+  config.ai_endpoint = "http://localhost:11434/v1/chat/completions"
+  config.ai_api_key  = "unused-but-required"  # any non-empty string
+  config.ai_model    = "gemma3:27b-cloud"     # or any local model
+  config.ai_auth_style = :bearer
+end
+```
+
+**Point Ruby at a fresher CA bundle.** Set `SSL_CERT_FILE` in the environment where Rails boots. On macOS with Homebrew:
+
+```bash
+SSL_CERT_FILE=/opt/homebrew/etc/openssl@3/cert.pem bin/rails s
+```
+
+This helps if the problem is a stale trust store, but does **not** help if the underlying OpenSSL itself is too old to parse the cert's key algorithm.
+
+**Upgrade Ruby** to 3.2 or newer. Ruby 2.7 is end-of-life (March 2023); newer Rubies link against OpenSSL 3.x which handles modern ECDSA chains correctly. This is the durable fix and the one we recommend for any project still on 2.7.
+
 ## Compatibility
 
 | Rails | Ruby |
