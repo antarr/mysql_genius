@@ -9,14 +9,7 @@ RSpec.describe("Analysis routes", type: :request) do
     # is unit-tested in gems/mysql_genius-core/spec/.../analysis/*_spec.rb;
     # these request specs only verify routing/dispatch/JSON serialization.
     stub_connection(tables: ["users"])
-
-    empty_result = instance_double(
-      "ActiveRecord::Result",
-      columns: [],
-      rows: [],
-      to_a: [],
-    )
-    allow(ActiveRecord::Base.connection).to(receive_messages(exec_query: empty_result, select_value: "8.0.35"))
+    allow(ActiveRecord::Base.connection).to(receive_messages(exec_query: fake_result, select_value: "8.0.35"))
   end
 
   it "GET /mysql_genius/duplicate_indexes returns 200 + JSON array" do

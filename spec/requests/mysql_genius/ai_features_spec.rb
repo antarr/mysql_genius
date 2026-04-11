@@ -7,12 +7,9 @@ RSpec.describe("AI feature routes", type: :request) do
 
   before do
     stub_connection(tables: ["users"])
-    empty_result = instance_double(
-      "ActiveRecord::Result",
-      columns: [],
-      rows: [],
-      to_a: [],
-    )
+    empty_result = fake_result
+    # root_cause action iterates exec_query results with .each — stub it here
+    # since fake_result doesn't include .each by default.
     allow(empty_result).to(receive(:each).and_yield({}))
     allow(ActiveRecord::Base.connection).to(receive_messages(exec_query: empty_result, select_value: "8.0.35"))
     allow(ActiveRecord::Base.connection).to(receive(:columns).with(anything).and_return([]))
