@@ -6,11 +6,9 @@ RSpec.describe("Query execution routes", type: :request) do
   before do
     stub_connection(tables: ["users"], select_value: "8.0.30")
     allow(ActiveRecord::Base.connection).to(receive(:exec_query).and_return(
-      instance_double(
-        "ActiveRecord::Result",
+      fake_result(
         columns: ["id", "email"],
         rows: [[1, "alice@example.com"], [2, "bob@example.com"]],
-        to_a: [{ "id" => 1, "email" => "alice@example.com" }, { "id" => 2, "email" => "bob@example.com" }],
       ),
     ))
   end
@@ -53,11 +51,9 @@ RSpec.describe("Query execution routes", type: :request) do
   describe "POST /mysql_genius/explain" do
     before do
       allow(ActiveRecord::Base.connection).to(receive(:exec_query).with(/^EXPLAIN /)) do
-        instance_double(
-          "ActiveRecord::Result",
+        fake_result(
           columns: ["id", "select_type", "table", "type"],
           rows: [[1, "SIMPLE", "users", "ALL"]],
-          to_a: [{ "id" => 1, "select_type" => "SIMPLE", "table" => "users", "type" => "ALL" }],
         )
       end
     end

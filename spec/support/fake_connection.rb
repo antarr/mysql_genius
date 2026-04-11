@@ -43,7 +43,7 @@ module FakeConnectionHelper
     end
 
     matchers = exec_query.to_a
-    empty_result = instance_double("ActiveRecord::Result", columns: [], rows: [], to_a: [])
+    empty_result = fake_result
     allow(connection).to(receive(:exec_query)) do |sql|
       match = matchers.find { |pat, _| pat.is_a?(Regexp) ? sql =~ pat : sql == pat }
       if match
@@ -73,6 +73,20 @@ module FakeConnectionHelper
       type: type,
       null: null,
       default: default,
+    )
+  end
+
+  # Builds an ActiveRecord::Result double with the three methods the engine
+  # actions call on it (`columns`, `rows`, `to_a`). Use for stubbing the
+  # return value of `ActiveRecord::Base.connection.exec_query(...)` either
+  # via `stub_connection(exec_query: { /regex/ => fake_result(rows: [...]) })`
+  # or via a direct `allow(...).to receive(:exec_query).and_return(fake_result)`.
+  def fake_result(columns: [], rows: [], to_a: nil)
+    instance_double(
+      "ActiveRecord::Result",
+      columns: columns,
+      rows: rows,
+      to_a: to_a.nil? ? rows.map { |row| columns.zip(row).to_h } : to_a,
     )
   end
 end
