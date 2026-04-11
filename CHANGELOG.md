@@ -2,6 +2,9 @@
 
 ## 0.4.0
 
+### Fixed
+- **Boot-order bug: `MysqlGenius::Core::Connection::ActiveRecordAdapter` was not required by `lib/mysql_genius.rb`** — shipped in Phase 1a but never wired into the production require chain. Invisible to CI because the adapter's spec file explicitly required it, and invisible in development because pre-Phase-1b concerns didn't reference it. Phase 1b's extracted delegators instantiate it in every action, so the missing require would have surfaced as `uninitialized constant` on every tab (tables, query stats, unused indexes, duplicate indexes, server overview, execute, explain, AI suggest, AI optimize) in any host app that installed 0.4.0 without the fix. `lib/mysql_genius.rb` now explicitly requires the adapter after loading `mysql_genius/core`, and `spec/spec_helper.rb` has a regression guard that aborts the spec suite at boot if the constant is not reachable via a plain `require "mysql_genius"`.
+
 ### Changed
 - **Internal refactor: extracted Rails-free core library into a new `mysql_genius-core` gem.** The validator, AI services, value objects, database analyses, query runner, and query explainer now live in `mysql_genius-core`; the `mysql_genius` Rails engine delegates through a new `Core::Connection::ActiveRecordAdapter`. Public API, routes, config DSL, and JSON response shapes are unchanged — host apps see no difference after `bundle update`. See [the design spec](docs/superpowers/specs/2026-04-10-desktop-app-design.md) for the motivation: the new core gem is the foundation for a forthcoming `mysql_genius-desktop` standalone app.
 - `mysql_genius` now declares a runtime dependency on `mysql_genius-core ~> 0.4.0`. The two gems release in lockstep under matching version numbers (0.4.0 is the first paired release); the dependency resolves transitively, so host apps do not need to add `mysql_genius-core` to their Gemfile.

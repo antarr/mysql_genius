@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "mysql_genius/core/connection/active_record_adapter"
 
 RSpec.describe(MysqlGenius::Core::Connection::ActiveRecordAdapter) do
   subject(:adapter) { described_class.new(ar_connection) }

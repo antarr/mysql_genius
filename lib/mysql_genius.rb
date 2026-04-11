@@ -2,6 +2,7 @@
 
 require "mysql_genius/version"
 require "mysql_genius/core"
+require "mysql_genius/core/connection/active_record_adapter"
 require "mysql_genius/configuration"
 
 module MysqlGenius
