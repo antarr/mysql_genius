@@ -17,6 +17,9 @@ RSpec/MessageSpies:
 RSpec/VerifiedDoubles:
   Enabled: false
 
+RSpec/VerifiedDoubleReference:
+  Enabled: false
+
 RSpec/ExampleLength:
   Max: 25
 
