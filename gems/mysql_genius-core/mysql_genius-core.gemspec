@@ -21,10 +21,10 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"]    = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/gems/mysql_genius-core/CHANGELOG.md"
 
   spec.files = Dir.chdir(__dir__) do
-    Dir.glob("lib/**/*.rb") + ["mysql_genius-core.gemspec", "README.md"].select { |f| File.exist?(File.join(__dir__, f)) }
+    Dir.glob("lib/**/*.rb") + ["mysql_genius-core.gemspec", "CHANGELOG.md", "README.md"].select { |f| File.exist?(File.join(__dir__, f)) }
   end
   spec.require_paths = ["lib"]
 
