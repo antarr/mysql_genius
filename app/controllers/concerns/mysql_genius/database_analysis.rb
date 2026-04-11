@@ -29,41 +29,8 @@ module MysqlGenius
     end
 
     def unused_indexes
-      connection = ActiveRecord::Base.connection
-      db_name = connection.current_database
-
-      results = connection.exec_query(<<~SQL)
-        SELECT
-          s.OBJECT_SCHEMA AS table_schema,
-          s.OBJECT_NAME AS table_name,
-          s.INDEX_NAME AS index_name,
-          s.COUNT_READ AS `reads`,
-          s.COUNT_WRITE AS `writes`,
-          t.TABLE_ROWS AS table_rows
-        FROM performance_schema.table_io_waits_summary_by_index_usage s
-        JOIN information_schema.tables t
-          ON t.TABLE_SCHEMA = s.OBJECT_SCHEMA AND t.TABLE_NAME = s.OBJECT_NAME
-        WHERE s.OBJECT_SCHEMA = #{connection.quote(db_name)}
-          AND s.INDEX_NAME IS NOT NULL
-          AND s.INDEX_NAME != 'PRIMARY'
-          AND s.COUNT_READ = 0
-          AND t.TABLE_ROWS > 0
-        ORDER BY s.COUNT_WRITE DESC
-      SQL
-
-      indexes = results.map do |row|
-        table = row["table_name"] || row["TABLE_NAME"]
-        index_name = row["index_name"] || row["INDEX_NAME"]
-        {
-          table: table,
-          index_name: index_name,
-          reads: (row["reads"] || row["READS"] || 0).to_i,
-          writes: (row["writes"] || row["WRITES"] || 0).to_i,
-          table_rows: (row["table_rows"] || row["TABLE_ROWS"] || 0).to_i,
-          drop_sql: "ALTER TABLE `#{table}` DROP INDEX `#{index_name}`;",
-        }
-      end
-
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      indexes = MysqlGenius::Core::Analysis::UnusedIndexes.new(connection).call
       render(json: indexes)
     rescue ActiveRecord::StatementInvalid => e
       render(json: { error: "Unused index detection requires performance_schema. #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
