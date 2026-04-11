@@ -16,6 +16,8 @@ module MysqlGenius
       #   auth_style     - :bearer or :api_key
       #   system_context - optional domain context string that services
       #                    append to their system prompts
+      #   domain_context - optional host-app context string interpolated into
+      #                    AI system prompts (e.g. "Rails app, no FKs")
       Config = Struct.new(
         :client,
         :endpoint,
@@ -23,10 +25,11 @@ module MysqlGenius
         :model,
         :auth_style,
         :system_context,
+        :domain_context,
         keyword_init: true,
       ) do
-        def initialize(*)
-          super
+        def initialize(**kwargs)
+          super(domain_context: "", **kwargs)
           freeze
         end
 
