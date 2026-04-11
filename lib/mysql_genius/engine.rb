@@ -4,8 +4,8 @@ module MysqlGenius
   class Engine < ::Rails::Engine
     isolate_namespace MysqlGenius
 
-    initializer "mysql_genius.register_core_views" do |app|
-      app.config.paths["app/views"] << MysqlGenius::Core.views_path
+    initializer "mysql_genius.register_core_views", before: :add_view_paths do
+      paths["app/views"] << MysqlGenius::Core.views_path
     end
 
     config.after_initialize do

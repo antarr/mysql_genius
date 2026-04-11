@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **ERB templates moved into `mysql_genius-core`.** All 11 view files (`dashboard.html.erb` and 10 partials) have been extracted from `app/views/mysql_genius/queries/` into `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/`. The index template is renamed to `dashboard.html.erb`. The engine registers `MysqlGenius::Core.views_path` before `:add_view_paths` so Rails finds templates in both view roots.
+- **`QueriesController#index`** now sets `@framework_version_major` and `@framework_version_minor` instance variables (replacing direct `Rails::VERSION` references in the template) and explicitly renders `"mysql_genius/queries/dashboard"`.
+- **`SharedViewHelpers`** `render_partial` updated to delegate to `view_context.render(partial: "mysql_genius/queries/#{name}")`.
+
 ## 0.4.1
 
 ### Fixed
