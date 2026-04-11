@@ -134,7 +134,7 @@ This helps if the problem is a stale trust store, but does **not** help if the u
 
 | Rails | Ruby |
 |-------|------|
-| 5.2   | 2.7, 3.0 |
+| 5.2   | 2.7 |
 | 6.0   | 2.7, 3.0, 3.1 |
 | 6.1   | 2.7, 3.0, 3.1, 3.2, 3.3 |
 | 7.0   | 2.7, 3.0, 3.1, 3.2, 3.3 |
@@ -142,6 +142,8 @@ This helps if the problem is a stale trust store, but does **not** help if the u
 | 7.2   | 3.1, 3.2, 3.3, 3.4 |
 | 8.0   | 3.2, 3.3, 3.4 |
 | 8.1   | 3.2, 3.3, 3.4 |
+
+> **Rails 5.2 note:** `mysql_genius 0.5.0` is the last version to support Rails 5.2. Rails 5.2 has been end-of-life since June 2022, and 0.5.0's integration test suite exposed Rails 5.2's incompatibilities with modern Rack (`ActionDispatch::Static#initialize` arity mismatch, `MiddlewareStack#operations` removal) on every Ruby 3.x combination. Rails 5.2 is tested only against Ruby 2.7 (also EOL) going forward. The next minor version (0.6.0 or later) will raise the floor to Rails 6.0+.
 
 ## Documentation
 
