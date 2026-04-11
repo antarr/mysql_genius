@@ -4,6 +4,16 @@
 # Rack::Test for request dispatch. Unit specs continue to use spec_helper.rb
 # (no Rails boot).
 
+# Load stdlib Logger BEFORE any Rails/ActiveSupport require. ActiveSupport
+# 5.2/6.0/6.1 references `Logger::Severity` inside
+# `lib/active_support/logger_thread_safe_level.rb` without first requiring
+# "logger", which works on Ruby 2.x (Logger was autoloaded more eagerly)
+# but raises `NameError: uninitialized constant ActiveSupport::LoggerThreadSafeLevel::Logger`
+# on Ruby 3.x. Rails 7.0+ fixed this at the AS level; older Rails combined
+# with Ruby 3.x needs this workaround. The matrix cells affected are
+# Ruby 3.0-3.3 × Rails 5.2/6.0/6.1 in .github/workflows/ci.yml.
+require "logger"
+
 # .rspec has `--require spec_helper`, so spec_helper is auto-loaded before
 # rails_helper. spec_helper calls `require "mysql_genius"` when Rails is not
 # yet defined, so lib/mysql_genius.rb skips `require "mysql_genius/engine"`

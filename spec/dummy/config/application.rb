@@ -2,6 +2,13 @@
 
 require_relative "boot"
 
+# Ruby 3.x + ActiveSupport 5.2/6.0/6.1 compat: Logger must be loaded before
+# any active_support require, otherwise logger_thread_safe_level.rb raises
+# `NameError: uninitialized constant ActiveSupport::LoggerThreadSafeLevel::Logger`.
+# Rails 7.0+ includes its own `require "logger"` so this is only needed for
+# the older-Rails matrix cells.
+require "logger"
+
 require "rails"
 require "action_controller/railtie"
 
