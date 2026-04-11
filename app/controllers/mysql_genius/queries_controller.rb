@@ -17,20 +17,18 @@ module MysqlGenius
     end
 
     def columns
-      table = params[:table]
-      if mysql_genius_config.blocked_tables.include?(table)
-        return render(json: { error: "Table '#{table}' is not available for querying." }, status: :forbidden)
-      end
+      result = MysqlGenius::Core::Analysis::Columns.new(
+        rails_connection,
+        blocked_tables: mysql_genius_config.blocked_tables,
+        masked_column_patterns: mysql_genius_config.masked_column_patterns,
+        default_columns: mysql_genius_config.default_columns,
+      ).call(table: params[:table])
 
-      unless ActiveRecord::Base.connection.tables.include?(table)
-        return render(json: { error: "Table '#{table}' does not exist." }, status: :not_found)
+      case result.status
+      when :ok        then render(json: result.columns)
+      when :blocked   then render(json: { error: result.error_message }, status: :forbidden)
+      when :not_found then render(json: { error: result.error_message }, status: :not_found)
       end
-
-      defaults = mysql_genius_config.default_columns[table] || []
-      cols = ActiveRecord::Base.connection.columns(table).reject { |c| masked_column?(c.name) }.map do |c|
-        { name: c.name, type: c.type.to_s, default: defaults.empty? || defaults.include?(c.name) }
-      end
-      render(json: cols)
     end
 
     def slow_queries
@@ -58,14 +56,8 @@ module MysqlGenius
       ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables
     end
 
-    # Delegates to Core::SqlValidator's 2-arg class method. A bare
-    # `masked_column?(name)` call survives on line 30 because this helper
-    # reintroduces the 1-arg instance method the controller's `columns`
-    # action depends on. Without this helper, `columns` raises NoMethodError
-    # at runtime (Phase 1b regression — Core::SqlValidator.masked_column?
-    # became a 2-arg class method but the call site wasn't updated).
-    def masked_column?(name)
-      MysqlGenius::Core::SqlValidator.masked_column?(name, mysql_genius_config.masked_column_patterns)
+    def rails_connection
+      MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
     end
   end
 end
