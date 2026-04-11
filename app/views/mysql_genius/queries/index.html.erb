@@ -1037,8 +1037,7 @@
     hide(el('qstats-empty')); hide(el('qstats-table-wrapper')); hide(el('qstats-error'));
     el('qstats-tbody').innerHTML = '';
 
-    var sort = el('qstats-sort').value;
-    ajaxGet(ROUTES.query_stats, { sort: sort }, function(data) {
+    ajaxGet(ROUTES.query_stats, { sort: 'total_time' }, function(data) {
       hide(el('qstats-loading'));
       if (data.error) {
         el('qstats-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml(data.error) + '</div>';
@@ -1073,9 +1072,6 @@
     if (ms >= 1000) return (ms / 1000).toFixed(1) + ' s';
     return ms.toFixed(1) + ' ms';
   }
-
-  el('qstats-refresh').addEventListener('click', loadQueryStats);
-  el('qstats-sort').addEventListener('change', loadQueryStats);
 
   // --- Unused Indexes ---
 
