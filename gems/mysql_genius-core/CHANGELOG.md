@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+No functional changes in `mysql_genius-core`. Version bumped to maintain lockstep with `mysql_genius 0.4.1`, which hotfixes a regression in the Rails adapter's `GET /columns` endpoint. See the root `CHANGELOG.md` for details.
+
 ## 0.4.0
 
 First published release of `mysql_genius-core`. This gem is the Rails-free foundation library for `mysql_genius` and will be the shared core for the forthcoming `mysql_genius-desktop` standalone app. From 0.4.0 onward, `mysql_genius-core` and `mysql_genius` release in lockstep under matching version numbers.
