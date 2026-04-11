@@ -7,6 +7,7 @@
 - `mysql_genius` now declares a runtime dependency on `mysql_genius-core ~> 0.1.0.pre`. This dependency resolves transitively; host apps do not need to add it to their Gemfile when using a published release of `mysql_genius`.
 - `MysqlGenius::SqlValidator` moved to `MysqlGenius::Core::SqlValidator`.
 - `MysqlGenius::AiClient`, `MysqlGenius::AiSuggestionService`, `MysqlGenius::AiOptimizationService` moved to `MysqlGenius::Core::Ai::{Client, Suggestion, Optimization}` and now take an explicit `Core::Ai::Config` instead of reading `MysqlGenius.configuration` at construction time.
+- All five database-analysis operations (`TableSizes`, `DuplicateIndexes`, `QueryStats`, `UnusedIndexes`, `ServerOverview`) extracted from the `DatabaseAnalysis` concern into `MysqlGenius::Core::Analysis::*` classes. The `DatabaseAnalysis` concern is now fully delegated; its five actions shrunk from ~295 lines of inline SQL and transformations to 47 lines of thin wrappers. JSON response shapes are unchanged.
 
 ### Documentation
 - Added README troubleshooting section covering `SSL_connect ... EC lib` / `unable to decode issuer public key` errors that hit Ruby 2.7 + OpenSSL 1.1.x users talking to Google Trust Services-backed hosts like Ollama Cloud. Recommends local Ollama (`http://localhost:11434`) as the fastest unblock, `SSL_CERT_FILE` pointing at a fresher CA bundle as an intermediate fix, and upgrading to Ruby 3.2+ as the durable fix.
