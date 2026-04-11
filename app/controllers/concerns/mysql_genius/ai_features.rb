@@ -33,7 +33,9 @@ module MysqlGenius
         return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity)
       end
 
-      result = AiOptimizationService.new.call(sql, explain_rows, queryable_tables)
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      service = MysqlGenius::Core::Ai::Optimization.new(connection, ai_client, ai_config_for_core)
+      result = service.call(sql, explain_rows, queryable_tables)
       render(json: result)
     rescue StandardError => e
       render(json: { error: "Optimization failed: #{e.message}" }, status: :unprocessable_entity)
