@@ -57,5 +57,15 @@ module MysqlGenius
     def queryable_tables
       ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables
     end
+
+    # Delegates to Core::SqlValidator's 2-arg class method. A bare
+    # `masked_column?(name)` call survives on line 30 because this helper
+    # reintroduces the 1-arg instance method the controller's `columns`
+    # action depends on. Without this helper, `columns` raises NoMethodError
+    # at runtime (Phase 1b regression — Core::SqlValidator.masked_column?
+    # became a 2-arg class method but the call site wasn't updated).
+    def masked_column?(name)
+      MysqlGenius::Core::SqlValidator.masked_column?(name, mysql_genius_config.masked_column_patterns)
+    end
   end
 end

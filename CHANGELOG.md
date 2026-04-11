@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+### Fixed
+- **`GET /columns` endpoint raised `NoMethodError: undefined method 'masked_column?'` at runtime** — a second Phase 1b regression (0.4.0 also shipped the `ActiveRecordAdapter` boot-order bug). When `SqlValidator::masked_column?` was promoted to a 2-arg class method during Phase 1b, the one remaining caller in `QueriesController#columns` was not updated. Clicking a table in the Query Explorer dropdown on 0.4.0 hits this route and triggers a 500. Fixed by reintroducing a private `masked_column?(name)` helper on `QueriesController` that delegates to `MysqlGenius::Core::SqlValidator.masked_column?(name, mysql_genius_config.masked_column_patterns)`. The call site on line 30 is untouched. Regression guard is deferred to Phase 2a's planned `spec/dummy/` Rails dummy app — the project's "no Rails boot in tests" policy blocks writing a controller-level unit spec for this without novel scaffolding. Empirically verified in-process: `masked_column?("password_hash") == true`, `masked_column?("email") == false`, `masked_column?("api_token") == true`.
+
 ## 0.4.0
 
 ### Fixed
