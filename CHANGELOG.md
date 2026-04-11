@@ -1,11 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 ### Changed
-- **ERB templates moved into `mysql_genius-core`.** All 11 view files (`dashboard.html.erb` and 10 partials) have been extracted from `app/views/mysql_genius/queries/` into `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/`. The index template is renamed to `dashboard.html.erb`. The engine registers `MysqlGenius::Core.views_path` before `:add_view_paths` so Rails finds templates in both view roots.
+- **ERB templates moved into `mysql_genius-core`.** All 11 view files (`dashboard.html.erb` and 10 partials) have been extracted from `app/views/mysql_genius/queries/` into `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/`. The index template is renamed to `dashboard.html.erb`. The engine registers `MysqlGenius::Core.views_path` before `:add_view_paths` so Rails finds templates in both view roots. Non-Rails adapters (Phase 2b `mysql_genius-desktop` sidecar) can register this same path with their own view loader and implement `path_for`/`render_partial` to reuse the templates.
 - **`QueriesController#index`** now sets `@framework_version_major` and `@framework_version_minor` instance variables (replacing direct `Rails::VERSION` references in the template) and explicitly renders `"mysql_genius/queries/dashboard"`.
-- **`SharedViewHelpers`** `render_partial` updated to delegate to `view_context.render(partial: "mysql_genius/queries/#{name}")`.
+- **`SharedViewHelpers`** — new concern providing `path_for(name)` and `render_partial(name)` as the 2-method contract the shared templates depend on. `render_partial` delegates to `view_context.render(partial: "mysql_genius/queries/#{name}")`.
+- Extracted 5 AI prompt builders from the `AiFeatures` concern into `MysqlGenius::Core::Ai::{DescribeQuery, SchemaReview, RewriteQuery, IndexAdvisor, MigrationRisk}` plus a shared `Core::Ai::SchemaContextBuilder` helper. `anomaly_detection` and `root_cause` remain in the Rails concern because they depend on the Redis-backed `SlowQueryMonitor`.
+- Extracted `QueriesController#columns` logic into `MysqlGenius::Core::Analysis::Columns` with a tagged-result struct. Retires the `masked_column?` helper added in the 0.4.1 hotfix.
+- `MysqlGenius::Core::Ai::Config` gains a `domain_context:` field. The Rails adapter defaults it to a Rails-specific string; `mysql_genius-desktop` will default to empty.
+- `mysql_genius` now declares runtime dependency on `mysql_genius-core ~> 0.5.0` (was `~> 0.4.0`).
+
+### Added
+- Integration test suite at `spec/dummy/` + `spec/rails_helper.rb` + `spec/requests/`. Boots a minimal Rails engine dummy app and dispatches real HTTP requests against the mounted engine via `Rack::Test`. Dedicated regression specs at `spec/regressions/` pin the two Phase 1b latent bugs (`Core::Connection::ActiveRecordAdapter` boot-order and `QueriesController#masked_column?` helper deletion) so they can never silently return.
+- `CLAUDE.md` updated: the "no Rails boot in tests" rule is relaxed to a two-tier model (unit specs stub AR, integration specs boot Rails via `spec/dummy/`).
+
+### Internal
+- `MysqlGenius::Core.views_path` — new public module method returning the absolute path to the shared ERB template directory.
 
 ## 0.4.1
 

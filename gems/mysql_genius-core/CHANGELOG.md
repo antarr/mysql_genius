@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 ### Added
-- **ERB templates extracted from the Rails adapter.** `MysqlGenius::Core.views_path` now points at `lib/mysql_genius/core/views/` which contains `mysql_genius/queries/dashboard.html.erb` and the 10 tab/partial files. Any adapter (Rails, Sinatra, or future desktop) can load these templates by registering this path with its own view loader.
+- `MysqlGenius::Core::Analysis::Columns` — service class for `GET /columns` logic with a tagged-result struct (`:ok`, `:blocked`, `:not_found`). Takes a `Core::Connection`, uses `Core::SqlValidator.masked_column?` for the masked-column rule.
+- `MysqlGenius::Core::Ai::{DescribeQuery, SchemaReview, RewriteQuery, IndexAdvisor, MigrationRisk}` — 5 AI prompt builder classes extracted from the `mysql_genius` Rails adapter's `AiFeatures` concern. Each takes `(client, config)` or `(client, config, connection)` and exposes a single `#call` method.
+- `MysqlGenius::Core::Ai::SchemaContextBuilder` — shared helper for building "Table: X (~N rows), Columns: …, Indexes: …" schema descriptions. Supports `detail: :basic` and `detail: :with_cardinality`.
+- `MysqlGenius::Core::Ai::Config#domain_context` — new optional keyword field (empty string default) interpolated into every extracted prompt builder's system prompt.
+- `MysqlGenius::Core.views_path` — public module method returning the absolute path to the shared ERB template directory. Adapters register this path with their own view loader.
+- **ERB templates extracted from the Rails adapter.** `MysqlGenius::Core.views_path` now points at `lib/mysql_genius/core/views/` which contains `mysql_genius/queries/dashboard.html.erb` and the 10 tab/partial files. Any adapter (Rails, Sinatra, or future desktop) can load these templates by registering this path with its own view loader. Templates depend on a minimal 2-method contract: `path_for(name)` and `render_partial(name)`.
 
 ## 0.4.1
 
