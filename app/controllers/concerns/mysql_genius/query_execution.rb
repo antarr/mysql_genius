@@ -12,47 +12,36 @@ module MysqlGenius
         mysql_genius_config.default_row_limit
       end
 
-      error = validate_sql(sql)
-      if error
-        audit(:rejection, sql: sql, reason: error)
-        return render(json: { error: error }, status: :unprocessable_entity)
-      end
+      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
+      runner_config = MysqlGenius::Core::QueryRunner::Config.new(
+        blocked_tables: mysql_genius_config.blocked_tables,
+        masked_column_patterns: mysql_genius_config.masked_column_patterns,
+        query_timeout_ms: mysql_genius_config.query_timeout_ms,
+      )
+      runner = MysqlGenius::Core::QueryRunner.new(connection, runner_config)
 
-      limited_sql = apply_row_limit(sql, row_limit)
-      timed_sql = apply_timeout_hint(limited_sql)
-
-      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       begin
-        results = ActiveRecord::Base.connection.exec_query(timed_sql)
-        execution_time_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round(1)
-
-        columns = results.columns
-        rows = results.rows.map do |row|
-          row.each_with_index.map do |value, i|
-            masked_column?(columns[i]) ? "[REDACTED]" : value
-          end
-        end
-
-        truncated = rows.length >= row_limit
-
-        audit(:query, sql: sql, execution_time_ms: execution_time_ms, row_count: rows.length)
-
-        render(json: {
-          columns: columns,
-          rows: rows,
-          row_count: rows.length,
-          execution_time_ms: execution_time_ms,
-          truncated: truncated,
-        })
+        result = runner.run(sql, row_limit: row_limit)
+      rescue MysqlGenius::Core::QueryRunner::Rejected => e
+        audit(:rejection, sql: sql, reason: e.message)
+        return render(json: { error: e.message }, status: :unprocessable_entity)
+      rescue MysqlGenius::Core::QueryRunner::Timeout
+        audit(:error, sql: sql, error: "Query timeout")
+        return render(json: { error: "Query exceeded the #{mysql_genius_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity)
       rescue ActiveRecord::StatementInvalid => e
-        if timeout_error?(e)
-          audit(:error, sql: sql, error: "Query timeout")
-          render(json: { error: "Query exceeded the #{mysql_genius_config.query_timeout_ms / 1000} second timeout limit.", timeout: true }, status: :unprocessable_entity)
-        else
-          audit(:error, sql: sql, error: e.message)
-          render(json: { error: "Query error: #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
-        end
+        audit(:error, sql: sql, error: e.message)
+        return render(json: { error: "Query error: #{e.message.split(":").last.strip}" }, status: :unprocessable_entity)
       end
+
+      audit(:query, sql: sql, execution_time_ms: result.execution_time_ms, row_count: result.row_count)
+
+      render(json: {
+        columns: result.columns,
+        rows: result.rows,
+        row_count: result.row_count,
+        execution_time_ms: result.execution_time_ms,
+        truncated: result.truncated,
+      })
     end
 
     def explain
