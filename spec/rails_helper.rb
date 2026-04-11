@@ -4,6 +4,17 @@
 # Rack::Test for request dispatch. Unit specs continue to use spec_helper.rb
 # (no Rails boot).
 
+# .rspec has `--require spec_helper`, so spec_helper is auto-loaded before
+# rails_helper. spec_helper calls `require "mysql_genius"` when Rails is not
+# yet defined, so lib/mysql_genius.rb skips `require "mysql_genius/engine"`
+# (which is guarded by `if defined?(Rails)`). By the time the dummy app boots
+# and application.rb calls `require "mysql_genius"`, the gem is already loaded
+# and the require is a no-op — Engine is never defined.
+#
+# Fix: require Rails and the engine explicitly before booting the dummy app.
+require "rails"
+require "mysql_genius/engine"
+
 # Stub ActiveRecord::Base before the dummy app boots, because Rails will
 # try to reference it if any railtie reaches for it. We don't load the
 # ActiveRecord railtie in the dummy app, so AR::Base is only referenced
