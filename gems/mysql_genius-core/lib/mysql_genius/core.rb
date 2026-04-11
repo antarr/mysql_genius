@@ -10,6 +10,17 @@ module MysqlGenius
   # overall design.
   module Core
     class Error < StandardError; end
+
+    class << self
+      # Absolute path to the shared ERB template directory. Adapters
+      # register this path with their view loader:
+      #
+      #   Rails:   engine.config.paths["app/views"] << MysqlGenius::Core.views_path
+      #   Sinatra: set :views, MysqlGenius::Core.views_path
+      def views_path
+        File.expand_path("core/views", __dir__)
+      end
+    end
   end
 end
 
