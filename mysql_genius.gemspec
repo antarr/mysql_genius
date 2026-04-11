@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
-    %x(git ls-files -z).split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
+    %x(git ls-files -z).split("\x0").reject { |f| f.match(%r{^(test|spec|features|gems)/}) }
   end
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
