@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+### Fixed
+- **Query Stats tab stuck on loading spinner** -- commented-out HTML controls in `_tab_query_stats.html.erb` left corresponding JavaScript (`el('qstats-sort').value` and two `addEventListener` calls) throwing `TypeError` on null elements, killing `loadQueryStats` before it could issue its fetch. The commented-out markup and the dead JavaScript have both been removed; client-side sortable column headers continue to provide sort UX.
+
 ## 0.3.1
 
 ### Added
