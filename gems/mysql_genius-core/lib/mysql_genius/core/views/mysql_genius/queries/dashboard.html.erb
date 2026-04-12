@@ -59,7 +59,8 @@
     index_advisor: '<%= path_for(:index_advisor) %>',
     anomaly_detection: '<%= path_for(:anomaly_detection) %>',
     root_cause: '<%= path_for(:root_cause) %>',
-    migration_risk: '<%= path_for(:migration_risk) %>'
+    migration_risk: '<%= path_for(:migration_risk) %>',
+    query_detail: '/queries/'
   };
 
   var RAILS_MIGRATION_VERSION = '<%= @framework_version_major %>.<%= @framework_version_minor %>';
@@ -408,8 +409,11 @@
         show(el('dash-qstats-empty'));
       } else {
         el('dash-qstats-tbody').innerHTML = data.map(function(q) {
+          var sqlCell = q.digest
+            ? '<a href="' + ROUTES.query_detail + encodeURIComponent(q.digest) + '" class="mg-link">' + sqlBlock(q.sql, 120) + '</a>'
+            : sqlBlock(q.sql, 120);
           return '<tr>' +
-            '<td>' + sqlBlock(q.sql, 120) + '</td>' +
+            '<td>' + sqlCell + '</td>' +
             '<td class="mg-num">' + Number(q.calls).toLocaleString() + '</td>' +
             '<td class="mg-num">' + formatDurationStyled(q.total_time_ms) + '</td>' +
             '<td class="mg-num">' + formatDurationStyled(q.avg_time_ms) + '</td></tr>';
@@ -1057,8 +1061,11 @@
       el('qstats-count').textContent = data.length + ' queries';
       el('qstats-tbody').innerHTML = data.map(function(q) {
         var ratioClass = q.rows_ratio > 100 ? 'mg-badge-danger' : q.rows_ratio > 10 ? 'mg-badge-warning' : '';
+        var sqlCell = q.digest
+          ? '<a href="' + ROUTES.query_detail + encodeURIComponent(q.digest) + '" class="mg-link">' + sqlBlock(q.sql, 120) + '</a>'
+          : sqlBlock(q.sql, 120);
         return '<tr>' +
-          '<td>' + sqlBlock(q.sql, 120) + '</td>' +
+          '<td>' + sqlCell + '</td>' +
           '<td class="mg-num">' + Number(q.calls).toLocaleString() + '</td>' +
           '<td class="mg-num">' + formatDurationStyled(q.total_time_ms) + '</td>' +
           '<td class="mg-num">' + formatDurationStyled(q.avg_time_ms) + '</td>' +
