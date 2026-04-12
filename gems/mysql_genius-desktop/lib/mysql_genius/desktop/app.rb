@@ -15,8 +15,30 @@ module MysqlGenius
       set :mysql_genius_config, nil
       set :active_session, nil
       set :host_authorization, permitted_hosts: []
+      set :boot_token, nil
+      set :current_profile_name, nil
 
       CAPABILITIES = [:ai].freeze
+
+      before do
+        pass if request.get? && ["/", "/connections"].include?(request.path_info)
+        unless request.cookies["mg_session"] == settings.boot_token
+          content_type(:json)
+          halt(403, { error: "Forbidden" }.to_json)
+        end
+      end
+
+      after do
+        if request.get? && ["/", "/connections"].include?(request.path_info)
+          response.set_cookie(
+            "mg_session",
+            value:     settings.boot_token,
+            httponly:  true,
+            same_site: :strict,
+            path:      "/",
+          )
+        end
+      end
 
       helpers do
         def path_for(name)

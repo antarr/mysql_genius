@@ -49,11 +49,16 @@ RSpec.configure do |config|
     @test_config = DesktopSpecSupport.build_config
     MysqlGenius::Desktop::App.set(:mysql_genius_config, @test_config)
     MysqlGenius::Desktop::App.set(:active_session, DesktopSpecSupport::FakeSession.new(@fake_adapter))
+    MysqlGenius::Desktop::App.set(:boot_token, "test-token")
+    MysqlGenius::Desktop::App.set(:current_profile_name, "default")
+    set_cookie("mg_session=test-token")
   end
 
   config.after(:each, type: :request) do
     MysqlGenius::Desktop::App.set(:mysql_genius_config, nil)
     MysqlGenius::Desktop::App.set(:active_session, nil)
+    MysqlGenius::Desktop::App.set(:boot_token, nil)
+    MysqlGenius::Desktop::App.set(:current_profile_name, nil)
   end
 end
 
