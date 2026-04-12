@@ -12,6 +12,7 @@ require "mysql_genius/desktop/config"
 require "mysql_genius/desktop/active_session"
 require "mysql_genius/desktop/paths"
 require "mysql_genius/desktop/app"
+require "mysql_genius/desktop/launcher"
 
 module MysqlGenius
   # Sinatra + Trilogy sidecar for serving the MysqlGenius dashboard against
@@ -31,6 +32,3 @@ module MysqlGenius
     end
   end
 end
-
-# Remaining require added by Task 15:
-#   - require "mysql_genius/desktop/launcher"
