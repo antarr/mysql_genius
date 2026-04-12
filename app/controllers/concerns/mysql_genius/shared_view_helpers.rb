@@ -10,8 +10,16 @@ module MysqlGenius
 
     # URL path helper for shared templates.
     #   path_for(:execute) # => "/mysql_genius/execute" (from engine route helpers)
+    #
+    # When @digest is set (query detail page), routes that require a digest
+    # param (query_detail, query_history) are generated with it automatically.
     def path_for(name)
-      mysql_genius.public_send("#{name}_path")
+      digest_routes = [:query_detail, :query_history]
+      if digest_routes.include?(name) && @digest
+        mysql_genius.public_send("#{name}_path", digest: @digest)
+      else
+        mysql_genius.public_send("#{name}_path")
+      end
     end
 
     # Partial renderer for shared templates.

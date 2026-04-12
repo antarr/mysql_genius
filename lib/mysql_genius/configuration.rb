@@ -66,6 +66,12 @@ module MysqlGenius
     # Defaults to "ActionController::Base".
     attr_accessor :base_controller
 
+    # Whether to start the background stats collector on boot.
+    # When enabled, performance_schema is sampled periodically and stored
+    # in an in-memory ring buffer accessible via MysqlGenius.stats_history.
+    # Defaults to true.
+    attr_accessor :stats_collection
+
     def initialize
       @featured_tables = []
       @blocked_tables = [
@@ -89,6 +95,7 @@ module MysqlGenius
       @redis_url = nil
       @audit_logger = nil
       @base_controller = "ActionController::Base"
+      @stats_collection = true
     end
 
     def ai_enabled?
