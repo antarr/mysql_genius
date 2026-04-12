@@ -25,10 +25,15 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
   let(:old_session) { instance_double(MysqlGenius::Desktop::ActiveSession, close: nil) }
   let(:new_session) { instance_double(MysqlGenius::Desktop::ActiveSession) }
 
+  let(:new_collector) { instance_double(MysqlGenius::Core::Analysis::StatsCollector, start: nil) }
+
   let(:app_class) do
     Class.new do
       class << self
-        attr_accessor :active_session_value, :current_profile_name_value
+        attr_accessor :active_session_value,
+          :current_profile_name_value,
+          :stats_history_value,
+          :stats_collector_value
 
         def settings
           self
@@ -38,10 +43,20 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
           active_session_value
         end
 
+        def stats_history
+          stats_history_value
+        end
+
+        def stats_collector
+          stats_collector_value
+        end
+
         def set(key, value)
           case key
-          when :active_session then self.active_session_value = value
+          when :active_session       then self.active_session_value = value
           when :current_profile_name then self.current_profile_name_value = value
+          when :stats_history        then self.stats_history_value        = value
+          when :stats_collector      then self.stats_collector_value      = value
           end
         end
       end
@@ -51,7 +66,11 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
   before do
     app_class.set(:active_session, old_session)
     app_class.set(:current_profile_name, "prod")
+    app_class.set(:stats_history, nil)
+    app_class.set(:stats_collector, nil)
     allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(new_session))
+    allow(MysqlGenius::Core::Analysis::StatsCollector).to(receive(:new).and_return(new_collector))
+    allow(MysqlGenius::Core::Analysis::StatsHistory).to(receive(:new).and_return(instance_double(MysqlGenius::Core::Analysis::StatsHistory, clear: nil)))
   end
 
   describe "#switch_to" do

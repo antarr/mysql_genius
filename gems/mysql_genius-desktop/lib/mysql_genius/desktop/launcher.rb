@@ -34,7 +34,18 @@ module MysqlGenius
         App.set(:boot_token, SecureRandom.hex(32))
         App.set(:current_profile_name, config.default_profile)
         App.set(:environment, :production)
-        register_shutdown(session)
+
+        history   = MysqlGenius::Core::Analysis::StatsHistory.new
+        conn_proc = -> { App.settings.active_session.checkout { |a| a } }
+        collector = MysqlGenius::Core::Analysis::StatsCollector.new(
+          connection_provider: conn_proc,
+          history:             history,
+        )
+        App.set(:stats_history, history)
+        App.set(:stats_collector, collector)
+        collector.start
+
+        register_shutdown(session, collector)
 
         warn("mysql-genius-sidecar starting on http://#{config.server.bind}:#{config.server.port}/")
         start_server(port: config.server.port, bind: config.server.bind)
@@ -88,8 +99,11 @@ module MysqlGenius
       end
 
       # Extracted so specs can stub it without registering a real at_exit handler.
-      def register_shutdown(session)
-        at_exit { session.close }
+      def register_shutdown(session, collector = nil)
+        at_exit do
+          collector&.stop
+          session.close
+        end
       end
     end
   end

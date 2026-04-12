@@ -21,6 +21,9 @@ module MysqlGenius
       anomaly_detection: "/anomaly_detection",
       root_cause: "/root_cause",
       migration_risk: "/migration_risk",
+      root: "/",
+      query_detail: "/queries/",
+      query_history: "/api/query_history/",
     }.freeze
   end
 end
