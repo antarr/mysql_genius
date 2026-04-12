@@ -2,6 +2,7 @@
 
 require "mysql_genius/core"
 require "mysql_genius/desktop/version"
+require "mysql_genius/core/connection/trilogy_adapter"
 
 module MysqlGenius
   # Sinatra + Trilogy sidecar for serving the MysqlGenius dashboard against
@@ -13,7 +14,6 @@ module MysqlGenius
 end
 
 # Concrete classes are required by later files as this plan progresses:
-#   - require "mysql_genius/core/connection/trilogy_adapter"  (Task 3)
 #   - require "mysql_genius/desktop/config/..."                (Tasks 4-5)
 #   - require "mysql_genius/desktop/active_session"            (Task 6)
 #   - require "mysql_genius/desktop/paths"                     (Task 7)
