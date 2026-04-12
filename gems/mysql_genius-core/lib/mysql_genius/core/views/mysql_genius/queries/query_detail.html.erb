@@ -404,13 +404,25 @@
 
   // --- Explain ---
 
+  // performance_schema DIGEST_TEXT uses normalized spacing that isn't valid SQL:
+  //   "SELECT COUNT ( * ) FROM `riders`" → needs to become "SELECT COUNT(*) FROM `riders`"
+  //   "... IN ( ... )" → "... IN (...)"
+  // Also replaces placeholder ? with 1 so EXPLAIN can parse it.
+  function normalizeDigestSql(sql) {
+    return sql
+      .replace(/\(\s+/g, '(')           // "( " → "("
+      .replace(/\s+\)/g, ')')           // " )" → ")"
+      .replace(/\s*,\s*/g, ', ')        // normalize comma spacing
+      .replace(/\?/g, '1');             // replace ? placeholders with literal 1
+  }
+
   el('qd-explain-btn').addEventListener('click', function() {
     show(el('qd-explain-results'));
     show(el('qd-explain-loading'));
     el('qd-explain-thead').innerHTML = '';
     el('qd-explain-tbody').innerHTML = '';
 
-    ajax('POST', EXPLAIN_URL, { sql: rawSql }, function(data) {
+    ajax('POST', EXPLAIN_URL, { sql: normalizeDigestSql(rawSql) }, function(data) {
       hide(el('qd-explain-loading'));
       if (data.error) {
         el('qd-explain-tbody').innerHTML = '<tr><td class="mg-text-muted">' + escHtml(data.error) + '</td></tr>';
