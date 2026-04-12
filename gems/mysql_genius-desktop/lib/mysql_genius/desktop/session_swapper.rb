@@ -26,7 +26,8 @@ module MysqlGenius
 
       def build_switch_config(mysql_config)
         Config.allocate.tap do |c|
-          c.instance_variable_set(:@mysql, mysql_config)
+          c.instance_variable_set(:@profiles, [Config::ProfileConfig.new(name: "_switch", mysql: mysql_config)])
+          c.instance_variable_set(:@default_profile, "_switch")
           c.instance_variable_set(:@query, @config.query)
           c.instance_variable_set(:@security, @config.security)
           c.instance_variable_set(:@ai, @config.ai)

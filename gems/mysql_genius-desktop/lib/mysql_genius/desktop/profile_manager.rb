@@ -81,7 +81,8 @@ module MysqlGenius
 
       def build_minimal_config(mysql_config)
         Config.allocate.tap do |c|
-          c.instance_variable_set(:@mysql, mysql_config)
+          c.instance_variable_set(:@profiles, [Config::ProfileConfig.new(name: "_test", mysql: mysql_config)])
+          c.instance_variable_set(:@default_profile, "_test")
           c.instance_variable_set(:@query, Config::QueryConfig.from_hash({}))
         end
       end
