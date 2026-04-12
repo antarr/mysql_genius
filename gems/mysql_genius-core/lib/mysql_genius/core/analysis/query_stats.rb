@@ -42,6 +42,7 @@ module MysqlGenius
         def build_sql(order_clause, limit)
           <<~SQL
             SELECT
+              DIGEST,
               DIGEST_TEXT,
               COUNT_STAR AS calls,
               ROUND(SUM_TIMER_WAIT / 1000000000, 1) AS total_time_ms,
@@ -77,6 +78,7 @@ module MysqlGenius
           rows_sent = (row["rows_sent"] || row["ROWS_SENT"] || 0).to_i
 
           {
+            digest: (row["DIGEST"] || row["digest"] || "").to_s,
             sql: truncate(digest, 500),
             calls: calls,
             total_time_ms: (row["total_time_ms"] || 0).to_f,
