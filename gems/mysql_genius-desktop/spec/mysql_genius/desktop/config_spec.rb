@@ -138,9 +138,9 @@ RSpec.describe(MysqlGenius::Desktop::Config) do
         .to(raise_error(MysqlGenius::Desktop::Config::InvalidConfigError, /missing top-level version:/))
     end
 
-    it "raises when version: is not 1" do
+    it "raises when version: is not supported" do
       path = write_config(<<~YAML)
-        version: 2
+        version: 99
         mysql:
           host: h
           username: u
@@ -148,7 +148,7 @@ RSpec.describe(MysqlGenius::Desktop::Config) do
       YAML
 
       expect { described_class.load(path: path) }
-        .to(raise_error(MysqlGenius::Desktop::Config::InvalidConfigError, /unsupported version 2 \(expected 1\)/))
+        .to(raise_error(MysqlGenius::Desktop::Config::InvalidConfigError, /unsupported version 99 \(expected 1 or 2\)/))
     end
 
     it "raises when the mysql: section is missing entirely" do
@@ -202,6 +202,112 @@ RSpec.describe(MysqlGenius::Desktop::Config) do
       expect(config.source_path).to(eq(path))
     ensure
       ENV.delete("MYSQL_GENIUS_CONFIG")
+    end
+
+    context "with version 2 config" do
+      it "parses a multi-profile config" do
+        path = write_config(<<~YAML)
+          version: 2
+          default_profile: staging
+          profiles:
+            - name: production
+              mysql:
+                host: db.prod.com
+                username: readonly
+                database: app_production
+            - name: staging
+              mysql:
+                host: db.staging.com
+                username: readonly
+                database: app_staging
+        YAML
+
+        config = described_class.load(path: path)
+        expect(config.profiles.length).to(eq(2))
+        expect(config.profiles.map(&:name)).to(eq(["production", "staging"]))
+        expect(config.default_profile).to(eq("staging"))
+        expect(config.mysql.host).to(eq("db.staging.com"))
+        expect(config.active_mysql_config.host).to(eq("db.staging.com"))
+      end
+
+      it "defaults to the first profile when default_profile is absent" do
+        path = write_config(<<~YAML)
+          version: 2
+          profiles:
+            - name: production
+              mysql:
+                host: db.prod.com
+                username: readonly
+                database: app_production
+        YAML
+
+        config = described_class.load(path: path)
+        expect(config.default_profile).to(eq("production"))
+      end
+
+      it "raises when profiles section is missing" do
+        path = write_config(<<~YAML)
+          version: 2
+        YAML
+
+        expect { described_class.load(path: path) }
+          .to(raise_error(MysqlGenius::Desktop::Config::InvalidConfigError, /profiles: section is required for version 2/))
+      end
+
+      it "raises when default_profile does not match any profile name" do
+        path = write_config(<<~YAML)
+          version: 2
+          default_profile: nonexistent
+          profiles:
+            - name: production
+              mysql:
+                host: h
+                username: u
+                database: d
+        YAML
+
+        expect { described_class.load(path: path) }
+          .to(raise_error(MysqlGenius::Desktop::Config::InvalidConfigError, /default_profile 'nonexistent' does not match any profile name/))
+      end
+
+      it "returns the named profile via profile_by_name" do
+        path = write_config(<<~YAML)
+          version: 2
+          profiles:
+            - name: prod
+              mysql:
+                host: db.prod.com
+                username: readonly
+                database: app_production
+            - name: staging
+              mysql:
+                host: db.staging.com
+                username: readonly
+                database: app_staging
+        YAML
+
+        config = described_class.load(path: path)
+        expect(config.profile_by_name("staging").mysql.host).to(eq("db.staging.com"))
+        expect(config.profile_by_name("unknown")).to(be_nil)
+      end
+    end
+
+    context "with version 1 backward compatibility" do
+      it "auto-wraps the mysql section into a profiles array named 'default'" do
+        path = write_config(<<~YAML)
+          version: 1
+          mysql:
+            host: localhost
+            username: readonly
+            database: app_development
+        YAML
+
+        config = described_class.load(path: path)
+        expect(config.profiles.length).to(eq(1))
+        expect(config.profiles.first.name).to(eq("default"))
+        expect(config.default_profile).to(eq("default"))
+        expect(config.mysql.host).to(eq("localhost"))
+      end
     end
   end
 end

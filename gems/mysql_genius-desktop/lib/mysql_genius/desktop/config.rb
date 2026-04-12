@@ -6,6 +6,7 @@ require "mysql_genius/desktop/config/server_config"
 require "mysql_genius/desktop/config/security_config"
 require "mysql_genius/desktop/config/query_config"
 require "mysql_genius/desktop/config/ai_config"
+require "mysql_genius/desktop/config/profile_config"
 
 module MysqlGenius
   module Desktop
@@ -24,9 +25,9 @@ module MysqlGenius
         File.join(Dir.home, ".mysql_genius.yml"),
       ].freeze
 
-      SUPPORTED_VERSION = 1
+      SUPPORTED_VERSIONS = [1, 2].freeze
 
-      attr_reader :mysql, :server, :security, :query, :ai, :source_path
+      attr_reader :profiles, :default_profile, :server, :security, :query, :ai, :source_path
 
       class << self
         def load(path: nil, override_port: nil, override_bind: nil)
@@ -67,25 +68,61 @@ module MysqlGenius
         @source_path = source_path
         validate_version!(data)
 
-        mysql_section = data["mysql"]
-        raise InvalidConfigError, "config #{source_path}: mysql: section is required" if mysql_section.nil?
+        version = data["version"]
+        if version == 1
+          build_from_v1(data)
+        else
+          build_from_v2(data)
+        end
 
-        @mysql    = MysqlConfig.from_hash(mysql_section)
         @server   = ServerConfig.from_hash(data["server"] || {}, override_port: override_port, override_bind: override_bind)
         @security = SecurityConfig.from_hash(data["security"] || {})
         @query    = QueryConfig.from_hash(data["query"] || {})
         @ai       = AiConfig.from_hash(data["ai"] || {})
       end
 
+      def profile_by_name(name)
+        @profiles.find { |p| p.name == name }
+      end
+
+      def active_mysql_config
+        profile_by_name(@default_profile)&.mysql
+      end
+
+      # Backward-compat alias — existing code calls config.mysql.host etc.
+      def mysql
+        active_mysql_config
+      end
+
       private
 
+      def build_from_v1(data)
+        mysql_section = data["mysql"]
+        raise InvalidConfigError, "config #{@source_path}: mysql: section is required" if mysql_section.nil?
+
+        @profiles = [ProfileConfig.new(name: "default", mysql: MysqlConfig.from_hash(mysql_section))]
+        @default_profile = "default"
+      end
+
+      def build_from_v2(data)
+        profiles_data = data["profiles"]
+        raise InvalidConfigError, "config #{@source_path}: profiles: section is required for version 2" if profiles_data.nil? || !profiles_data.is_a?(Array) || profiles_data.empty?
+
+        @profiles = profiles_data.map { |p| ProfileConfig.from_hash(p) }
+        @default_profile = data["default_profile"] || @profiles.first.name
+
+        unless profile_by_name(@default_profile)
+          raise InvalidConfigError, "config #{@source_path}: default_profile '#{@default_profile}' does not match any profile name"
+        end
+      end
+
       def validate_version!(data)
-        raise InvalidConfigError, "config #{@source_path}: missing top-level version: key (expected version: #{SUPPORTED_VERSION})" unless data.key?("version")
+        raise InvalidConfigError, "config #{@source_path}: missing top-level version: key" unless data.key?("version")
 
         version = data["version"]
-        return if version == SUPPORTED_VERSION
+        return if SUPPORTED_VERSIONS.include?(version)
 
-        raise InvalidConfigError, "config #{@source_path}: unsupported version #{version} (expected #{SUPPORTED_VERSION})"
+        raise InvalidConfigError, "config #{@source_path}: unsupported version #{version} (expected #{SUPPORTED_VERSIONS.join(" or ")})"
       end
     end
   end

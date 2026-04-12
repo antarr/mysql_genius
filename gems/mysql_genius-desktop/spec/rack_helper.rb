@@ -21,8 +21,11 @@ module DesktopSpecSupport
 
   class << self
     def build_config(overrides = {})
+      mysql = MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => "localhost", "username" => "root", "database" => "test" })
       MysqlGenius::Desktop::Config.allocate.tap do |c|
-        c.instance_variable_set(:@mysql, MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => "localhost", "username" => "root", "database" => "test" }))
+        c.instance_variable_set(:@mysql, nil) # populated via active_mysql_config
+        c.instance_variable_set(:@profiles, [MysqlGenius::Desktop::Config::ProfileConfig.new(name: "default", mysql: mysql)])
+        c.instance_variable_set(:@default_profile, "default")
         c.instance_variable_set(:@server, MysqlGenius::Desktop::Config::ServerConfig.from_hash({}))
         c.instance_variable_set(:@security, MysqlGenius::Desktop::Config::SecurityConfig.from_hash(overrides.fetch(:security, {})))
         c.instance_variable_set(:@query, MysqlGenius::Desktop::Config::QueryConfig.from_hash(overrides.fetch(:query, {})))
@@ -46,11 +49,16 @@ RSpec.configure do |config|
     @test_config = DesktopSpecSupport.build_config
     MysqlGenius::Desktop::App.set(:mysql_genius_config, @test_config)
     MysqlGenius::Desktop::App.set(:active_session, DesktopSpecSupport::FakeSession.new(@fake_adapter))
+    MysqlGenius::Desktop::App.set(:boot_token, "test-token")
+    MysqlGenius::Desktop::App.set(:current_profile_name, "default")
+    set_cookie("mg_session=test-token")
   end
 
   config.after(:each, type: :request) do
     MysqlGenius::Desktop::App.set(:mysql_genius_config, nil)
     MysqlGenius::Desktop::App.set(:active_session, nil)
+    MysqlGenius::Desktop::App.set(:boot_token, nil)
+    MysqlGenius::Desktop::App.set(:current_profile_name, nil)
   end
 end
 

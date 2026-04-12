@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "securerandom"
 require "optparse"
 require "mysql_genius/desktop/version"
 require "mysql_genius/desktop/config"
@@ -30,6 +31,8 @@ module MysqlGenius
 
         App.set(:mysql_genius_config, config)
         App.set(:active_session,      session)
+        App.set(:boot_token, SecureRandom.hex(32))
+        App.set(:current_profile_name, config.default_profile)
         App.set(:environment, :production)
         register_shutdown(session)
 
