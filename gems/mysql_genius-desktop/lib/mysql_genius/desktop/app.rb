@@ -82,6 +82,29 @@ module MysqlGenius
         )
       end
 
+      post "/explain" do
+        sql = params[:sql].to_s.strip
+        skip_validation = params[:from_slow_query].to_s == "true"
+
+        runner_config = MysqlGenius::Core::QueryRunner::Config.new(
+          blocked_tables:         settings.mysql_genius_config.security.blocked_tables,
+          masked_column_patterns: settings.mysql_genius_config.security.masked_column_patterns,
+          query_timeout_ms:       settings.mysql_genius_config.query.query_timeout_ms,
+        )
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            MysqlGenius::Core::QueryExplainer.new(adapter, runner_config).explain(sql, skip_validation: skip_validation)
+          end
+        rescue MysqlGenius::Core::QueryRunner::Rejected, MysqlGenius::Core::QueryExplainer::Truncated => e
+          halt(422, json_response(error: e.message))
+        rescue StandardError => e
+          halt(422, json_response(error: "Explain error: #{e.message}"))
+        end
+
+        json_response(columns: result.columns, rows: result.rows)
+      end
+
       get "/columns" do
         result = settings.active_session.checkout do |adapter|
           MysqlGenius::Core::Analysis::Columns.new(
