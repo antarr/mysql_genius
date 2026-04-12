@@ -5,6 +5,8 @@ require "tilt"
 require "json"
 require "mysql_genius/core"
 require "mysql_genius/desktop/paths"
+require "mysql_genius/desktop/profile_manager"
+require "mysql_genius/desktop/session_swapper"
 
 module MysqlGenius
   module Desktop
@@ -328,9 +330,72 @@ module MysqlGenius
         json_response(result)
       end
 
+      # --- Profile API ---
+
+      get "/api/profiles" do
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        json_response(profiles: manager.list, current: settings.current_profile_name)
+      end
+
+      post "/api/profiles" do
+        data = JSON.parse(request.body.read)
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        manager.add(name: data["name"], mysql: data["mysql"])
+        json_response(profiles: manager.list)
+      rescue ProfileManager::DuplicateProfileError => e
+        halt(409, json_response(error: e.message))
+      end
+
+      put "/api/profiles/:name" do
+        data = JSON.parse(request.body.read)
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        manager.update(name: params[:name], mysql: data["mysql"])
+        json_response(profiles: manager.list)
+      rescue ProfileManager::ProfileNotFoundError => e
+        halt(404, json_response(error: e.message))
+      end
+
+      delete "/api/profiles/:name" do
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        manager.delete(name: params[:name], current_profile: settings.current_profile_name)
+        json_response(profiles: manager.list)
+      rescue ProfileManager::ProfileNotFoundError => e
+        halt(404, json_response(error: e.message))
+      rescue ProfileManager::ActiveProfileError => e
+        halt(422, json_response(error: e.message))
+      end
+
+      post "/api/profiles/:name/test" do
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        profiles = manager.list
+        profile = profiles.find { |p| p[:name] == params[:name] }
+        halt(404, json_response(error: "Profile '#{params[:name]}' not found")) unless profile
+
+        result = manager.test_connection(mysql: profile[:mysql])
+        json_response(result)
+      end
+
+      post "/api/profiles/:name/connect" do
+        swapper = SessionSwapper.new(self.class, settings.mysql_genius_config)
+        swapper.switch_to(params[:name])
+        json_response(success: true, profile: params[:name])
+      rescue ActiveSession::ConnectError => e
+        halt(422, json_response(error: e.message))
+      end
+
+      get "/connections" do
+        render_connections
+      end
+
       private
 
       LAYOUT_PATH = File.expand_path("layout.html.erb", __dir__).freeze
+
+      def render_connections
+        connections_path = File.expand_path("connections.html.erb", __dir__)
+        content = Tilt.new(connections_path).render(self)
+        Tilt.new(LAYOUT_PATH).render(self) { content }
+      end
 
       def render_dashboard
         dashboard_path = File.join(MysqlGenius::Core.views_path, "mysql_genius/queries/dashboard.html.erb")
