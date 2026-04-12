@@ -28,7 +28,7 @@ module MysqlGenius
         @app_class.set(:current_profile_name, profile_name)
 
         new_history   = MysqlGenius::Core::Analysis::StatsHistory.new
-        conn_proc     = -> { @app_class.settings.active_session.checkout { |a| a } }
+        conn_proc     = -> { ActiveSession.open_adapter_for(session_config) }
         new_collector = MysqlGenius::Core::Analysis::StatsCollector.new(
           connection_provider: conn_proc,
           history:             new_history,

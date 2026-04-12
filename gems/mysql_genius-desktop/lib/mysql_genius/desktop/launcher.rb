@@ -36,7 +36,9 @@ module MysqlGenius
         App.set(:environment, :production)
 
         history   = MysqlGenius::Core::Analysis::StatsHistory.new
-        conn_proc = -> { App.settings.active_session.checkout { |a| a } }
+        # The collector gets its own dedicated connection (not shared with
+        # web requests) to avoid mutex contention and TRILOGY_INVALID_SEQUENCE_ID.
+        conn_proc = -> { ActiveSession.open_adapter_for(config) }
         collector = MysqlGenius::Core::Analysis::StatsCollector.new(
           connection_provider: conn_proc,
           history:             history,
