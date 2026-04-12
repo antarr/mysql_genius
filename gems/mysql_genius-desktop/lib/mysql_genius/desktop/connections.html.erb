@@ -85,19 +85,29 @@
   <div class="mg-card-body">
     <div class="mg-text-muted mg-mb" style="font-size:12px;">Connect to an OpenAI-compatible API for query suggestions, optimization, schema review, and more.</div>
     <div class="mg-row">
+      <div class="mg-col-3 mg-field">
+        <label for="mg-ai-provider">Provider</label>
+        <select id="mg-ai-provider">
+          <option value="custom">Custom</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="ollama">Ollama (local)</option>
+          <option value="azure">Azure OpenAI</option>
+        </select>
+      </div>
       <div class="mg-col-grow mg-field">
         <label for="mg-ai-endpoint">API Endpoint</label>
         <input type="text" id="mg-ai-endpoint" placeholder="https://api.openai.com/v1/chat/completions">
       </div>
+    </div>
+    <div class="mg-row">
       <div class="mg-col-3 mg-field">
         <label for="mg-ai-key">API Key</label>
         <input type="password" id="mg-ai-key" placeholder="sk-...">
       </div>
-    </div>
-    <div class="mg-row">
       <div class="mg-col-3 mg-field">
         <label for="mg-ai-model">Model</label>
-        <input type="text" id="mg-ai-model" placeholder="gpt-4o-mini (optional)">
+        <input type="text" id="mg-ai-model" placeholder="gpt-4o-mini">
       </div>
       <div class="mg-col-2 mg-field">
         <label for="mg-ai-auth">Auth Style</label>
@@ -109,13 +119,13 @@
     </div>
     <div class="mg-row">
       <div class="mg-col-grow mg-field">
-        <label for="mg-ai-context">System Context <span class="mg-text-muted">(optional)</span></label>
-        <input type="text" id="mg-ai-context" placeholder="e.g. This is an e-commerce analytics database">
+        <label for="mg-ai-context">System Prompt <span class="mg-text-muted">(optional)</span></label>
+        <input type="text" id="mg-ai-context" placeholder="e.g. This is an e-commerce analytics database with 50M orders">
       </div>
     </div>
     <div class="mg-row">
       <div class="mg-col-grow mg-field">
-        <label for="mg-ai-domain">Domain Context <span class="mg-text-muted">(optional)</span></label>
+        <label for="mg-ai-domain">Domain Prompt <span class="mg-text-muted">(optional)</span></label>
         <input type="text" id="mg-ai-domain" placeholder="e.g. Prefer window functions over correlated subqueries">
       </div>
     </div>
@@ -281,6 +291,35 @@
 
   // --- AI Configuration ---
 
+  var AI_PROVIDERS = {
+    openai:    { endpoint: 'https://api.openai.com/v1/chat/completions',              model: 'gpt-4o-mini',       auth: 'bearer',  keyPlaceholder: 'sk-...' },
+    anthropic: { endpoint: 'https://api.anthropic.com/v1/messages',                   model: 'claude-sonnet-4-20250514',  auth: 'api_key', keyPlaceholder: 'sk-ant-...' },
+    ollama:    { endpoint: 'http://localhost:11434/v1/chat/completions',               model: 'llama3.2',          auth: 'bearer',  keyPlaceholder: '(not required)' },
+    azure:     { endpoint: 'https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=2024-02-01', model: '', auth: 'api_key', keyPlaceholder: 'your-azure-key' },
+    custom:    { endpoint: '',                                                         model: '',                  auth: 'bearer',  keyPlaceholder: 'your-api-key' }
+  };
+
+  el('mg-ai-provider').addEventListener('change', function() {
+    var preset = AI_PROVIDERS[this.value];
+    if (!preset) return;
+    el('mg-ai-endpoint').value = preset.endpoint;
+    el('mg-ai-model').value = preset.model;
+    el('mg-ai-auth').value = preset.auth;
+    el('mg-ai-key').placeholder = preset.keyPlaceholder;
+    if (this.value === 'ollama') {
+      el('mg-ai-key').value = 'ollama';
+    }
+  });
+
+  function detectProvider(endpoint) {
+    if (!endpoint) return 'custom';
+    if (endpoint.includes('openai.com')) return 'openai';
+    if (endpoint.includes('anthropic.com')) return 'anthropic';
+    if (endpoint.includes('localhost:11434') || endpoint.includes('127.0.0.1:11434')) return 'ollama';
+    if (endpoint.includes('openai.azure.com')) return 'azure';
+    return 'custom';
+  }
+
   function loadAiConfig() {
     fetch('/api/ai_config').then(function(r) { return r.json(); }).then(function(data) {
       el('mg-ai-endpoint').value = data.endpoint || '';
@@ -289,6 +328,7 @@
       el('mg-ai-auth').value = data.auth_style || 'bearer';
       el('mg-ai-context').value = data.system_context || '';
       el('mg-ai-domain').value = data.domain_context || '';
+      el('mg-ai-provider').value = detectProvider(data.endpoint);
       var enabled = (data.endpoint && data.api_key);
       el('mg-ai-status').textContent = enabled ? 'Configured' : 'Not configured';
       el('mg-ai-status').style.color = enabled ? '#1a7f37' : '#888';
