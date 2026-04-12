@@ -122,6 +122,62 @@ module MysqlGenius
         end
       end
 
+      get "/duplicate_indexes" do
+        duplicates = settings.active_session.checkout do |adapter|
+          MysqlGenius::Core::Analysis::DuplicateIndexes.new(
+            adapter,
+            blocked_tables: settings.mysql_genius_config.security.blocked_tables,
+          ).call
+        end
+        json_response(duplicates)
+      end
+
+      get "/table_sizes" do
+        tables = settings.active_session.checkout do |adapter|
+          MysqlGenius::Core::Analysis::TableSizes.new(adapter).call
+        end
+        json_response(tables)
+      end
+
+      get "/query_stats" do
+        sort  = params[:sort].to_s
+        limit = params.fetch(:limit) { MysqlGenius::Core::Analysis::QueryStats::MAX_LIMIT }.to_i
+
+        begin
+          queries = settings.active_session.checkout do |adapter|
+            MysqlGenius::Core::Analysis::QueryStats.new(adapter).call(sort: sort, limit: limit)
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Query statistics require performance_schema to be enabled. #{e.message}"))
+        end
+
+        json_response(queries)
+      end
+
+      get "/unused_indexes" do
+        begin
+          indexes = settings.active_session.checkout do |adapter|
+            MysqlGenius::Core::Analysis::UnusedIndexes.new(adapter).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Unused index detection requires performance_schema. #{e.message}"))
+        end
+
+        json_response(indexes)
+      end
+
+      get "/server_overview" do
+        begin
+          overview = settings.active_session.checkout do |adapter|
+            MysqlGenius::Core::Analysis::ServerOverview.new(adapter).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Failed to load server overview: #{e.message}"))
+        end
+
+        json_response(overview)
+      end
+
       private
 
       def render_dashboard
