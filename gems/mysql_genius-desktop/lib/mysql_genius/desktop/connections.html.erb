@@ -88,7 +88,6 @@
       <div class="mg-col-3 mg-field">
         <label for="mg-ai-provider">Provider</label>
         <select id="mg-ai-provider">
-          <option value="custom">Custom</option>
           <option value="anthropic">Anthropic</option>
           <option value="azure">Azure OpenAI</option>
           <option value="deepseek">DeepSeek</option>
@@ -100,8 +99,10 @@
           <option value="ollama">Ollama (local)</option>
           <option value="openai">OpenAI</option>
           <option value="openrouter">OpenRouter</option>
+          <option value="perplexity">Perplexity</option>
           <option value="together">Together</option>
           <option value="xai">xAI (Grok)</option>
+          <option value="custom">Custom</option>
         </select>
       </div>
       <div class="mg-col-grow mg-field">
@@ -313,6 +314,7 @@
     together:  { endpoint: 'https://api.together.xyz/v1/chat/completions',     model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo', auth: 'bearer', keyPlaceholder: 'your-together-key' },
     fireworks: { endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions', model: 'accounts/fireworks/models/llama-v3p3-70b-instruct', auth: 'bearer', keyPlaceholder: 'fw_...' },
     ollama:    { endpoint: 'http://localhost:11434/v1/chat/completions',        model: 'llama3.2',                     auth: 'bearer',  keyPlaceholder: '(not required)' },
+    perplexity:{ endpoint: 'https://api.perplexity.ai/chat/completions',      model: 'sonar',                        auth: 'bearer',  keyPlaceholder: 'pplx-...' },
     lmstudio:  { endpoint: 'http://localhost:1234/v1/chat/completions',         model: '',                             auth: 'bearer',  keyPlaceholder: '(not required)' },
     custom:    { endpoint: '',                                                  model: '',                             auth: 'bearer',  keyPlaceholder: 'your-api-key' }
   };
@@ -342,6 +344,7 @@
     if (endpoint.includes('api.x.ai')) return 'xai';
     if (endpoint.includes('api.together.xyz')) return 'together';
     if (endpoint.includes('api.fireworks.ai')) return 'fireworks';
+    if (endpoint.includes('api.perplexity.ai')) return 'perplexity';
     if (endpoint.includes('localhost:11434') || endpoint.includes('127.0.0.1:11434')) return 'ollama';
     if (endpoint.includes('localhost:1234') || endpoint.includes('127.0.0.1:1234')) return 'lmstudio';
     return 'custom';
