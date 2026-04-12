@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0
+
+### Changed
+- **Dropped Rails 5.2 support.** The gemspec floor is now Rails 6.0 (`activerecord`/`railties` constraint is `">= 6.0", "< 9"`). Rails 5.2 has been end-of-life since June 2022 and its incompatibilities with modern Rack (`ActionDispatch::Static#initialize` arity mismatch, `MiddlewareStack#operations` removal) started surfacing as CI failures once Phase 2a's integration specs booted Rails in test. Pin `mysql_genius 0.5.0` (`gem "mysql_genius", "~> 0.5.0"`) if you can't upgrade Rails yet.
+- `mysql_genius` now declares runtime dependency on `mysql_genius-core ~> 0.6.0` (was `~> 0.5.0`).
+
+### Fixed
+- **CI matrix: Ruby 3.x + Rails 5.2/6.0/6.1 compatibility.** `spec/rails_helper.rb` and `spec/dummy/config/application.rb` now explicitly `require "logger"` before loading Rails. Works around a `Logger::Severity` reference inside `ActiveSupport::LoggerThreadSafeLevel` that fails on Ruby 3.x + older Rails because Logger is no longer autoloaded in modern Ruby. Only affects the test suite; no runtime impact on host apps.
+
+### Internal
+- **`rails_connection` consolidated into `BaseController`.** Nine inline `MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)` call sites in the three controller concerns, plus two separate private helper definitions in `QueriesController` and `AiFeatures`, collapse to one private method on `BaseController`. Shared across all concerns via Ruby's standard method lookup.
+- **`ai_domain_context` helper inlined and deleted.** Its two remaining callers (`anomaly_detection` and `root_cause`) now compute a local `domain_ctx` string before building their message array.
+- **`fake_result(columns:, rows:, to_a:)` test helper extracted** into `spec/support/fake_connection.rb` alongside `fake_column`. Four duplicated `instance_double("ActiveRecord::Result", columns:, rows:, to_a:)` call sites in request specs refactored.
+- **`Core::Analysis::Columns` spec** covers the `default: false` branch (6th column outside `default_columns`).
+- **`actions/checkout@v4` bumped to `@v5`** in both `.github/workflows/ci.yml` and `.github/workflows/publish.yml`. Prepares for GitHub's June 2026 Node 20 deprecation.
+- **Gemspec `source_code_uri` duplicate dropped** from both gemspecs (was equal to `homepage_uri` and triggered a RubyGems build warning on every release).
+
+### Documentation
+- README Compatibility table no longer lists Rails 5.2. The note explaining the drop and pinning instructions stays in place.
+
 ## 0.5.0
 
 ### Changed
