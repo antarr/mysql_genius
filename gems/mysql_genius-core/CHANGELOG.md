@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+No functional changes in `mysql_genius-core`. Version bumped to maintain lockstep with `mysql_genius 0.6.0`, which drops Rails 5.2 support from the Rails adapter. See the root `CHANGELOG.md` for the full change list.
+
 ## 0.5.0
 
 ### Added
