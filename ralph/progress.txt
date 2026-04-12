@@ -1,0 +1,141 @@
+# Ralph Progress Log
+Started: Sun Apr 12 13:52:29 CDT 2026
+---
+
+## Codebase Patterns
+- Core gem specs use `require "spec_helper"` (no Rails boot), FakeAdapter for connection stubs
+- Analysis classes follow `initialize(connection)` + `#call` pattern
+- Core gem has zero runtime dependencies — no Rails-specific code
+- Spec files mirror the lib directory structure: `lib/mysql_genius/core/analysis/foo.rb` → `spec/mysql_genius/core/analysis/foo_spec.rb`
+- RuboCop uses rubocop-shopify + rubocop-rspec; target Ruby 2.6
+- `Time#iso8601` requires `require 'time'` — use `strftime("%Y-%m-%dT%H:%M:%SZ")` in core gem instead
+- FakeAdapter stubs are searched with `find` (first match wins) — clear `@stubs` via `instance_variable_set(:@stubs, [])` before re-stubbing
+- Use `ConditionVariable` + `Mutex` for interruptible sleep in background threads (cleaner than polling loops)
+- Standalone templates (not partials) must duplicate JS helpers from dashboard since they run in a separate page scope
+- Shared templates use `path_for(:name)` for URLs and `@digest` instance var — adapters must set these before rendering
+- Desktop gem has NO ActiveSupport — never use `.squish` or other AS extensions; use plain string concatenation for SQL
+- Desktop `Core::Result#to_a` returns raw row arrays; use `to_hashes` to get `{column => value}` hashes
+- Desktop `rack_helper.rb` sets `@fake_adapter` via before block — specs using it must disable `RSpec/InstanceVariable`
+- Rails `ActiveRecord::Result` `to_a` returns hashes directly; for specs use `instance_double` with `to_a:` returning hash arrays
+- When adding new App settings to desktop, also reset them in `rack_helper.rb` after block and set in before block
+- `StatsCollector.new` spawns real threads — mock it in request specs via `allow(StatsCollector).to receive(:new)` in rack_helper
+- `path_for(:query_detail)` and `path_for(:query_history)` both need `@digest` to build a complete URL; both adapters handle this in their `path_for` implementation
+- Routes that need a dynamic segment (digest) use base-path + value pattern in desktop PATHS hash; Rails uses named route helpers with keyword arg
+
+---
+
+## 2026-04-12 - US-001
+- Implemented `StatsHistory` ring buffer in `gems/mysql_genius-core/lib/mysql_genius/core/analysis/stats_history.rb`
+- Thread-safe via Mutex, supports record/series_for/digests/clear, drops oldest on cap
+- Added require to `gems/mysql_genius-core/lib/mysql_genius/core.rb`
+- Created spec at `gems/mysql_genius-core/spec/mysql_genius/core/analysis/stats_history_spec.rb` (9 examples)
+- Files changed: stats_history.rb (new), core.rb (require added), stats_history_spec.rb (new)
+- Core gem suite: 203 examples, 0 failures
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - The core gem spec suite runs fast (~0.06s) — safe to run full suite on each story
+  - FakeAdapter is only needed for connection-dependent classes; StatsHistory is pure Ruby
+  - Thread safety tests work well with 4 threads × 500 iterations pattern
+---
+
+## 2026-04-12 - US-002
+- Implemented `StatsCollector` background sampler in `gems/mysql_genius-core/lib/mysql_genius/core/analysis/stats_collector.rb`
+- Background thread queries performance_schema for top 50 digests by SUM_TIMER_WAIT
+- Computes per-interval deltas, clamps negatives to 0 (server restart handling)
+- Uses ConditionVariable for interruptible sleep (clean stop within 5s timeout)
+- connection_provider callable pattern: adapters supply their own connection strategy
+- Added require to `gems/mysql_genius-core/lib/mysql_genius/core.rb`
+- Created spec at `gems/mysql_genius-core/spec/mysql_genius/core/analysis/stats_collector_spec.rb` (12 examples)
+- Files changed: stats_collector.rb (new), core.rb (require added), stats_collector_spec.rb (new)
+- Core gem suite: 215 examples, 0 failures
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - `Time#iso8601` is not available without `require 'time'` — use `strftime` in zero-dep core gem
+  - FakeAdapter stubs match first-registered-first-matched; clear `@stubs` array before re-stubbing between ticks
+  - Testing background threads: set `@running = true` in `start` (before thread spawn) to eliminate race; use `send(:tick)` to test delta logic directly without timing sensitivity
+  - SQL shape mirrors QueryStats#build_sql but selects only DIGEST_TEXT, COUNT_STAR, total_time_ms
+---
+
+## 2026-04-12 - US-003
+- Added `DIGEST` column to `build_sql` SELECT and `digest:` key to `transform` return hash in QueryStats
+- Updated spec columns/rows fixtures to include DIGEST as first column, verified new field in assertions
+- Files changed: `gems/mysql_genius-core/lib/mysql_genius/core/analysis/query_stats.rb`, `gems/mysql_genius-core/spec/mysql_genius/core/analysis/query_stats_spec.rb`
+- Core gem suite: 215 examples, 0 failures
+- Rails adapter suite: 78 examples, 0 failures
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - QueryStats spec uses positional arrays for row data — when adding a new column to the SELECT, prepend/insert it in ALL test row arrays (easy to miss the truncation test at the bottom)
+  - The `transform` method uses case-insensitive column access (`row["DIGEST"] || row["digest"]`) for MariaDB compatibility — follow this pattern for any new columns
+---
+
+## 2026-04-12 - US-004
+- Created standalone `query_detail.html.erb` shared template in core gem views
+- Template includes: full SQL display with syntax highlighting, Copy and EXPLAIN buttons
+- Stats summary cards: Calls, Total Time, Avg Time, Max Time, Rows Examined, Rows Sent, First Seen, Last Seen
+- Three SVG time-series charts: Total Time (ms), Average Time (ms), Calls
+- SVG charts use polyline with translucent fill, auto-scaled Y axis with nice tick values, responsive via viewBox
+- Light mode line color #89CFF0, dark mode #58a6ff (detected via data-theme attribute)
+- Data loaded via fetch to GET /api/query_history/:digest, EXPLAIN via POST /explain
+- All JS is inline (no external dependencies), replicates helper functions from dashboard (highlightSql, formatDuration, ajax, etc.)
+- Files changed: `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/query_detail.html.erb` (new)
+- Core gem suite: 215 examples, 0 failures
+- Rails adapter suite: 78 examples, 0 failures
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - Standalone templates (not tab partials) need their own copies of JS helper functions since they don't share the dashboard's IIFE scope
+  - The template uses `path_for(:root)` for the back link, `path_for(:explain)` for EXPLAIN, `path_for(:query_history)` for data — these routes must exist in both Rails adapter and sidecar
+  - SVG chart viewBox approach (800x200 with preserveAspectRatio="none") makes charts responsive without JS resize handlers
+  - Y-axis nice step calculation: ceil(rawStep/magnitude)*magnitude ensures clean round-number ticks
+  - The `@digest` instance variable must be set by the controller action before rendering this template
+---
+
+## 2026-04-11 - US-005
+- Updated `dashboard.html.erb` to linkify SQL cells in both loadQueryStats and Top 5 Expensive Queries
+- Added `query_detail: '/queries/'` to ROUTES JS object (base path, digest appended via JS)
+- SQL cells now render `<a href="/queries/:digest" class="mg-link">` when digest is present; fallback to plain text if no digest
+- Files changed: `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/dashboard.html.erb`
+- Rails adapter suite: 78 examples, 0 failures
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - The ROUTES JS object uses hardcoded base paths (not server-rendered route helpers) for dynamic routes — append the value in JS
+  - `mg-link` class is defined in layout.html.erb (both adapters share the layout's CSS)
+---
+
+## 2026-04-11 - US-006
+- Added `stats_collection` config option (default: true) to `lib/mysql_genius/configuration.rb`
+- Added `MysqlGenius.stats_history` and `MysqlGenius.stats_collector` module-level accessors to `lib/mysql_genius.rb`
+- Added `config.after_initialize` block in engine.rb that starts StatsCollector when `stats_collection` is enabled
+- Added routes: `get "queries/:digest"` and `get "api/query_history/:digest"` to `config/routes.rb`
+- Added `query_detail` and `query_history` actions to `QueriesController`
+- Updated `SharedViewHelpers#path_for` to auto-inject `@digest` for `:query_detail` and `:query_history` routes
+- Added private helpers `fetch_query_history_current`, `fetch_query_history_series`, `lookup_digest_text`
+- Added request specs in `spec/requests/mysql_genius/query_detail_spec.rb` (4 examples)
+- Files changed: configuration.rb, lib/mysql_genius.rb, engine.rb, config/routes.rb, queries_controller.rb, shared_view_helpers.rb, query_detail_spec.rb (new)
+- Rails adapter suite: 82 examples, 0 failures
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - `ActiveRecord::Result` `instance_double` — use `to_a:` returning hash arrays; use `result.to_a.first` not `result.first` (which needs Enumerable)
+  - Engine's `config.after_initialize` creates the collector in test env too, causing a benign "StatsCollector stopped" warning in tests — this is expected
+  - `path_for` needs to know about digest routes: use an allowlist `%i[query_detail query_history]` and conditionally pass `digest:` param
+---
+
+## 2026-04-11 - US-007
+- Updated `Launcher#call` to create StatsHistory + StatsCollector, set on App, register collector in at_exit
+- Added `set :stats_history, nil` and `set :stats_collector, nil` to App settings
+- Updated App `path_for` helper to append `@digest` for `:query_detail` and `:query_history` routes
+- Added `GET /queries/:digest` and `GET /api/query_history/:digest` routes to App (under session-token auth)
+- Added `render_query_detail`, `fetch_query_history_current`, `fetch_query_history_series` private methods
+- Updated SessionSwapper to stop old collector, clear history, create new collector after session swap
+- Added `:root`, `:query_detail`, `:query_history` to desktop PATHS hash
+- Updated `rack_helper.rb` to reset stats settings and stub `StatsCollector.new` globally to prevent background threads in specs
+- Updated `session_swapper_spec.rb` to mock StatsCollector/StatsHistory and handle new `set` keys
+- Added `spec/requests/query_detail_spec.rb` for desktop (4 examples)
+- Files changed: app.rb, paths.rb, launcher.rb, session_swapper.rb, rack_helper.rb, session_swapper_spec.rb, query_detail_spec.rb (new)
+- Desktop suite: 158 examples, 0 failures (was 154)
+- RuboCop: clean
+- **Learnings for future iterations:**
+  - Desktop gem has NO ActiveSupport — never use `.squish`; use explicit string concatenation
+  - `Core::Result#to_a` returns raw row arrays (not hashes) — use `to_hashes` for hash access
+  - When new `SessionSwapper#switch_to` logic creates real background objects, existing integration tests can fail — mock the constructor in rack_helper to prevent threads
+  - Add `# rubocop:disable RSpec/InstanceVariable` at file top + `enable` at bottom when using `@fake_adapter` directly in specs
+---

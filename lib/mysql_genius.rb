@@ -20,6 +20,9 @@ module MysqlGenius
     def reset_configuration!
       @configuration = Configuration.new
     end
+
+    attr_accessor :stats_history
+    attr_accessor :stats_collector
   end
 end
 

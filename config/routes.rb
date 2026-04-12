@@ -6,6 +6,8 @@ MysqlGenius::Engine.routes.draw do
   get  "columns",      to: "queries#columns"
   post "execute",      to: "queries#execute"
   post "explain",      to: "queries#explain"
+  get  "queries/:digest", to: "queries#query_detail", as: "query_detail"
+  get  "api/query_history/:digest", to: "queries#query_history", as: "query_history"
   post "suggest",      to: "queries#suggest"
   post "optimize",     to: "queries#optimize"
   get  "slow_queries",      to: "queries#slow_queries"

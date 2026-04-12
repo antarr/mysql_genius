@@ -19,6 +19,8 @@ module MysqlGenius
       set :host_authorization, permitted_hosts: []
       set :boot_token, nil
       set :current_profile_name, nil
+      set :stats_history, nil
+      set :stats_collector, nil
 
       CAPABILITIES = [:ai].freeze
 
@@ -44,7 +46,13 @@ module MysqlGenius
 
       helpers do
         def path_for(name)
-          MysqlGenius::Desktop::PATHS.fetch(name)
+          base = MysqlGenius::Desktop::PATHS.fetch(name)
+          digest_routes = [:query_detail, :query_history]
+          if digest_routes.include?(name) && @digest
+            base + @digest.to_s
+          else
+            base
+          end
         end
 
         def render_partial(name)
@@ -383,6 +391,20 @@ module MysqlGenius
         halt(422, json_response(error: e.message))
       end
 
+      get "/queries/:digest" do
+        @digest = params[:digest].to_s
+        render_query_detail
+      end
+
+      get "/api/query_history/:digest" do
+        digest = params[:digest].to_s
+        current_query = fetch_query_history_current(digest)
+        history = fetch_query_history_series(digest)
+        json_response(query: current_query, history: history)
+      rescue StandardError => e
+        halt(422, json_response(error: e.message))
+      end
+
       get "/connections" do
         render_connections
       end
@@ -401,6 +423,56 @@ module MysqlGenius
         dashboard_path = File.join(MysqlGenius::Core.views_path, "mysql_genius/queries/dashboard.html.erb")
         content = Tilt.new(dashboard_path).render(self)
         Tilt.new(LAYOUT_PATH).render(self) { content }
+      end
+
+      def render_query_detail
+        detail_path = File.join(MysqlGenius::Core.views_path, "mysql_genius/queries/query_detail.html.erb")
+        content = Tilt.new(detail_path).render(self)
+        Tilt.new(LAYOUT_PATH).render(self) { content }
+      end
+
+      def fetch_query_history_current(digest)
+        settings.active_session.checkout do |adapter|
+          sql = "SELECT DIGEST_TEXT, COUNT_STAR AS calls, " \
+            "ROUND(SUM_TIMER_WAIT / 1000000000.0, 2) AS total_time_ms, " \
+            "ROUND(AVG_TIMER_WAIT / 1000000000.0, 2) AS avg_time_ms, " \
+            "ROUND(MAX_TIMER_WAIT / 1000000000.0, 2) AS max_time_ms, " \
+            "SUM_ROWS_EXAMINED AS rows_examined, " \
+            "SUM_ROWS_SENT AS rows_sent, " \
+            "FIRST_SEEN, LAST_SEEN " \
+            "FROM performance_schema.events_statements_summary_by_digest " \
+            "WHERE DIGEST = '#{digest.gsub("'", "''")}' LIMIT 1"
+          result = adapter.exec_query(sql)
+          return nil if result.rows.empty?
+
+          row = result.to_hashes.first
+          {
+            sql: row["DIGEST_TEXT"],
+            calls: row["calls"],
+            total_time_ms: row["total_time_ms"].to_f,
+            avg_time_ms: row["avg_time_ms"].to_f,
+            max_time_ms: row["max_time_ms"].to_f,
+            rows_examined: row["rows_examined"],
+            rows_sent: row["rows_sent"],
+            first_seen: row["FIRST_SEEN"].to_s,
+            last_seen: row["LAST_SEEN"].to_s,
+          }
+        end
+      end
+
+      def fetch_query_history_series(digest)
+        return [] unless settings.stats_history
+
+        digest_text = settings.active_session.checkout do |adapter|
+          sql = "SELECT DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest " \
+            "WHERE DIGEST = '#{digest.gsub("'", "''")}' LIMIT 1"
+          result = adapter.exec_query(sql)
+          result.rows.empty? ? nil : result.to_hashes.first["DIGEST_TEXT"]
+        end
+
+        return [] unless digest_text
+
+        settings.stats_history.series_for(digest_text)
       end
 
       def json_response(obj)

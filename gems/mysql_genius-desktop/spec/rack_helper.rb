@@ -51,7 +51,13 @@ RSpec.configure do |config|
     MysqlGenius::Desktop::App.set(:active_session, DesktopSpecSupport::FakeSession.new(@fake_adapter))
     MysqlGenius::Desktop::App.set(:boot_token, "test-token")
     MysqlGenius::Desktop::App.set(:current_profile_name, "default")
+    MysqlGenius::Desktop::App.set(:stats_history, nil)
+    MysqlGenius::Desktop::App.set(:stats_collector, nil)
     set_cookie("mg_session=test-token")
+
+    # Prevent real background threads from spawning in request specs.
+    fake_collector = instance_double(MysqlGenius::Core::Analysis::StatsCollector, start: nil, stop: nil)
+    allow(MysqlGenius::Core::Analysis::StatsCollector).to(receive(:new).and_return(fake_collector))
   end
 
   config.after(:each, type: :request) do
@@ -59,6 +65,8 @@ RSpec.configure do |config|
     MysqlGenius::Desktop::App.set(:active_session, nil)
     MysqlGenius::Desktop::App.set(:boot_token, nil)
     MysqlGenius::Desktop::App.set(:current_profile_name, nil)
+    MysqlGenius::Desktop::App.set(:stats_history, nil)
+    MysqlGenius::Desktop::App.set(:stats_collector, nil)
   end
 end
 

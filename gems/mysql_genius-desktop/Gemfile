@@ -18,3 +18,6 @@ group :development, :test do
   gem "rubocop-rspec"
   gem "rubocop-shopify"
 end
+
+gem "rackup", "~> 2.3"
+gem "puma", "~> 6.6"

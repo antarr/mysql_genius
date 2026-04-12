@@ -12,6 +12,7 @@ RSpec.describe(MysqlGenius::Core::Analysis::QueryStats) do
   describe "#call" do
     let(:columns) do
       [
+        "DIGEST",
         "DIGEST_TEXT",
         "calls",
         "total_time_ms",
@@ -37,7 +38,7 @@ RSpec.describe(MysqlGenius::Core::Analysis::QueryStats) do
         /performance_schema\.events_statements_summary_by_digest/,
         columns: columns,
         rows: [
-          ["SELECT * FROM users WHERE id = ?", 100, 500.5, 5.005, 42.1, 1000, 100, 0, 0, "2026-04-01T00:00:00Z", "2026-04-10T00:00:00Z"],
+          ["abc123def456", "SELECT * FROM users WHERE id = ?", 100, 500.5, 5.005, 42.1, 1000, 100, 0, 0, "2026-04-01T00:00:00Z", "2026-04-10T00:00:00Z"],
         ],
       )
 
@@ -45,6 +46,7 @@ RSpec.describe(MysqlGenius::Core::Analysis::QueryStats) do
 
       expect(result.length).to(eq(1))
       expect(result.first).to(include(
+        digest: "abc123def456",
         sql: "SELECT * FROM users WHERE id = ?",
         calls: 100,
         total_time_ms: 500.5,
@@ -60,7 +62,7 @@ RSpec.describe(MysqlGenius::Core::Analysis::QueryStats) do
       connection.stub_query(
         /performance_schema\.events_statements_summary_by_digest/,
         columns: columns,
-        rows: [["SET NAMES ?", 50, 10.0, 0.2, 1.0, 0, 0, 0, 0, nil, nil]],
+        rows: [["deadbeef", "SET NAMES ?", 50, 10.0, 0.2, 1.0, 0, 0, 0, 0, nil, nil]],
       )
 
       expect(analysis.call.first[:rows_ratio]).to(eq(0))
@@ -155,7 +157,7 @@ RSpec.describe(MysqlGenius::Core::Analysis::QueryStats) do
       connection.stub_query(
         /performance_schema/,
         columns: columns,
-        rows: [[long_digest, 1, 1.0, 1.0, 1.0, 1, 1, 0, 0, nil, nil]],
+        rows: [["abc999", long_digest, 1, 1.0, 1.0, 1.0, 1, 1, 0, 0, nil, nil]],
       )
 
       result = analysis.call

@@ -16,8 +16,21 @@ module MysqlGenius
         new_session = ActiveSession.new(switch_config)
         old_session = @app_class.settings.active_session
 
+        @app_class.settings.stats_collector&.stop
+        @app_class.settings.stats_history&.clear
+
         @app_class.set(:active_session, new_session)
         @app_class.set(:current_profile_name, profile_name)
+
+        new_history   = MysqlGenius::Core::Analysis::StatsHistory.new
+        conn_proc     = -> { @app_class.settings.active_session.checkout { |a| a } }
+        new_collector = MysqlGenius::Core::Analysis::StatsCollector.new(
+          connection_provider: conn_proc,
+          history:             new_history,
+        )
+        @app_class.set(:stats_history, new_history)
+        @app_class.set(:stats_collector, new_collector)
+        new_collector.start
 
         old_session&.close
       end
