@@ -9,6 +9,7 @@ require "mysql_genius/desktop/config/security_config"
 require "mysql_genius/desktop/config/query_config"
 require "mysql_genius/desktop/config/ai_config"
 require "mysql_genius/desktop/config"
+require "mysql_genius/desktop/active_session"
 
 module MysqlGenius
   # Sinatra + Trilogy sidecar for serving the MysqlGenius dashboard against
