@@ -1,0 +1,447 @@
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="<%= path_for(:root) %>" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&larr; Dashboard</a>
+    <h4 style="margin:0;">Query Detail</h4>
+  </div>
+  <button class="mg-theme-toggle" id="mg-theme-btn" title="Toggle dark/light theme" onclick="(function(){var d=document.documentElement,t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);localStorage.setItem('mg-theme',t);document.getElementById('mg-theme-btn').textContent=t==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';})()">
+    <script>document.write(document.documentElement.getAttribute('data-theme')==='dark'?'\u2600\uFE0F':'\uD83C\uDF19')</script>
+  </button>
+</div>
+
+<div id="qd-loading" class="mg-text-center"><span class="mg-spinner"></span> Loading query details...</div>
+<div id="qd-error" class="mg-hidden"></div>
+
+<div id="qd-content" class="mg-hidden">
+  <!-- SQL Block -->
+  <div class="mg-card mg-mb">
+    <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <strong>SQL</strong>
+      <div style="display:flex;gap:8px;">
+        <button id="qd-explain-btn" class="mg-btn mg-btn-outline mg-btn-sm">EXPLAIN</button>
+        <button id="qd-copy-btn" class="mg-btn mg-btn-outline-secondary mg-btn-sm">Copy</button>
+      </div>
+    </div>
+    <div class="mg-card-body">
+      <code class="mg-sql-block" id="qd-sql" style="max-height:none;"></code>
+    </div>
+  </div>
+
+  <!-- Explain Results -->
+  <div id="qd-explain-results" class="mg-card mg-mb mg-hidden">
+    <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <strong>EXPLAIN Output</strong>
+      <button id="qd-explain-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">Close</button>
+    </div>
+    <div class="mg-card-body">
+      <div id="qd-explain-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Running EXPLAIN...</div>
+      <div class="mg-table-wrap">
+        <table class="mg-table" id="qd-explain-table" class="mg-hidden">
+          <thead id="qd-explain-thead"></thead>
+          <tbody id="qd-explain-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Summary Cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-calls" style="font-size:20px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Calls</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-total-time" style="font-size:20px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Total Time</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-avg-time" style="font-size:20px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Avg Time</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-max-time" style="font-size:20px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Max Time</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-rows-examined" style="font-size:20px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Rows Examined</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-rows-sent" style="font-size:20px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Rows Sent</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-first-seen" style="font-size:14px;font-weight:700;">--</div>
+        <div class="mg-text-muted">First Seen</div>
+      </div>
+    </div>
+    <div class="mg-card">
+      <div class="mg-card-body mg-text-center">
+        <div id="qd-stat-last-seen" style="font-size:14px;font-weight:700;">--</div>
+        <div class="mg-text-muted">Last Seen</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div id="qd-charts-section">
+    <div id="qd-no-history" class="mg-text-center mg-text-muted mg-hidden" style="padding:24px 0;">
+      No history data available yet. The stats collector samples every 60 seconds.
+    </div>
+    <div id="qd-chart-total-time" class="mg-card mg-mb mg-hidden">
+      <div class="mg-card-header"><strong>Total Time (ms)</strong></div>
+      <div class="mg-card-body" id="qd-chart-total-time-container" style="height:200px;"></div>
+    </div>
+    <div id="qd-chart-avg-time" class="mg-card mg-mb mg-hidden">
+      <div class="mg-card-header"><strong>Average Time (ms)</strong></div>
+      <div class="mg-card-body" id="qd-chart-avg-time-container" style="height:200px;"></div>
+    </div>
+    <div id="qd-chart-calls" class="mg-card mg-mb mg-hidden">
+      <div class="mg-card-header"><strong>Calls</strong></div>
+      <div class="mg-card-body" id="qd-chart-calls-container" style="height:200px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  "use strict";
+
+  var DIGEST = '<%= @digest %>';
+  var EXPLAIN_URL = '<%= path_for(:explain) %>';
+  var HISTORY_URL = '<%= path_for(:query_history) %>';
+
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+  var rawSql = '';
+
+  function el(id) { return document.getElementById(id); }
+  function show(e) { if (e) e.classList.remove('mg-hidden'); }
+  function hide(e) { if (e) e.classList.add('mg-hidden'); }
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function formatDuration(ms) {
+    if (ms >= 60000) return (ms / 60000).toFixed(1) + ' min';
+    if (ms >= 1000) return (ms / 1000).toFixed(1) + ' s';
+    return ms.toFixed(1) + ' ms';
+  }
+
+  function formatDurationStyled(ms) {
+    var text = formatDuration(ms);
+    var cls = 'mg-dur-fast';
+    if (ms >= 1000) cls = 'mg-dur-slow';
+    else if (ms >= 100) cls = 'mg-dur-moderate';
+    return '<span class="' + cls + '">' + text + '</span>';
+  }
+
+  // --- SQL Syntax Highlighting ---
+
+  var SQL_KW_SET = {};
+  'SELECT FROM WHERE JOIN LEFT RIGHT INNER OUTER CROSS FULL ON AND OR NOT IN EXISTS BETWEEN LIKE IS NULL AS DISTINCT ALL UNION INTERSECT EXCEPT INSERT INTO VALUES UPDATE SET DELETE CREATE ALTER DROP TABLE INDEX VIEW TRIGGER PROCEDURE FUNCTION DATABASE SCHEMA IF THEN ELSE END CASE WHEN HAVING LIMIT OFFSET ASC DESC USING FORCE USE IGNORE WITH RECURSIVE OVER EXPLAIN ANALYZE SHOW DESCRIBE'.split(' ').forEach(function(w) { SQL_KW_SET[w] = true; });
+
+  var SQL_FN_SET = {};
+  'COUNT SUM AVG MIN MAX COALESCE IFNULL NULLIF CAST CONVERT CONCAT CONCAT_WS GROUP_CONCAT SUBSTRING SUBSTR REPLACE TRIM LTRIM RTRIM UPPER LOWER UCASE LCASE LENGTH CHAR_LENGTH NOW CURDATE CURTIME DATE_FORMAT DATE_ADD DATE_SUB DATEDIFF TIMESTAMPDIFF UNIX_TIMESTAMP FROM_UNIXTIME IF ELT FIELD FIND_IN_SET FORMAT HEX UNHEX MD5 SHA1 SHA2 AES_ENCRYPT AES_DECRYPT ROUND CEIL CEILING FLOOR ABS MOD POWER SQRT LOG LOG2 LOG10 RAND GREATEST LEAST JSON_EXTRACT JSON_UNQUOTE JSON_SET JSON_OBJECT JSON_ARRAY JSON_CONTAINS JSON_LENGTH ROW_NUMBER RANK DENSE_RANK LAG LEAD FIRST_VALUE LAST_VALUE NTH_VALUE'.split(' ').forEach(function(w) { SQL_FN_SET[w] = true; });
+
+  var SQL_TOKEN_RE = /'[^']*'|`[^`]*`|\b\d+(?:\.\d+)?\b|[A-Za-z_]\w*|\?\|>=|<=|<>|!=|[><=]|[(),;*]|\s+|./g;
+
+  function highlightSql(sql) {
+    if (!sql) return '';
+    var result = [];
+    var match;
+    SQL_TOKEN_RE.lastIndex = 0;
+    while ((match = SQL_TOKEN_RE.exec(sql)) !== null) {
+      var tok = match[0];
+      var ch = tok.charAt(0);
+      if (ch === "'") {
+        result.push('<span class="mg-sql-str">' + escHtml(tok) + '</span>');
+      } else if (ch === '`') {
+        result.push('<span class="mg-sql-tbl">' + escHtml(tok) + '</span>');
+      } else if (/^\d/.test(tok)) {
+        result.push('<span class="mg-sql-num">' + escHtml(tok) + '</span>');
+      } else if (/^[A-Za-z_]/.test(tok)) {
+        var upper = tok.toUpperCase();
+        var rest = sql.substring(SQL_TOKEN_RE.lastIndex);
+        var compoundMatch = rest.match(/^(\s+)(BY)\b/i);
+        if ((upper === 'GROUP' || upper === 'ORDER' || upper === 'PARTITION') && compoundMatch) {
+          result.push('<span class="mg-sql-kw">' + escHtml(tok) + escHtml(compoundMatch[1]) + escHtml(compoundMatch[2].toUpperCase()) + '</span>');
+          SQL_TOKEN_RE.lastIndex += compoundMatch[0].length;
+        } else if (SQL_FN_SET[upper] && rest.match(/^\s*\(/)) {
+          result.push('<span class="mg-sql-fn">' + escHtml(tok.toUpperCase()) + '</span>');
+        } else if (SQL_KW_SET[upper]) {
+          result.push('<span class="mg-sql-kw">' + escHtml(tok.toUpperCase()) + '</span>');
+        } else {
+          result.push(escHtml(tok));
+        }
+      } else if (tok === '?') {
+        result.push('<span class="mg-sql-placeholder">?</span>');
+      } else if (tok === '*') {
+        result.push('<span class="mg-sql-star">*</span>');
+      } else if (/^(>=|<=|<>|!=|[><=])$/.test(tok)) {
+        result.push('<span class="mg-sql-op">' + escHtml(tok) + '</span>');
+      } else if (/^[(),;]$/.test(tok)) {
+        result.push('<span class="mg-sql-punc">' + escHtml(tok) + '</span>');
+      } else {
+        result.push(escHtml(tok));
+      }
+    }
+    return result.join('');
+  }
+
+  // --- AJAX ---
+
+  function ajax(method, url, data, onSuccess, onError) {
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.onload = function() {
+      var json;
+      try { json = JSON.parse(xhr.responseText); } catch(e) { json = null; }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onSuccess(json);
+      } else {
+        (onError || function(){})(json, xhr.status);
+      }
+    };
+    xhr.onerror = function() { (onError || function(){})(null, 0); };
+    if (data && method !== 'GET') {
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      var parts = [];
+      for (var k in data) {
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(data[k]));
+      }
+      xhr.send(parts.join('&'));
+    } else {
+      xhr.send();
+    }
+  }
+
+  // --- SVG Chart Drawing ---
+
+  function drawChart(containerId, data, label, color) {
+    var container = el(containerId);
+    if (!container || !data || !data.length) return;
+
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var lineColor = isDark ? '#58a6ff' : '#89CFF0';
+    if (color) lineColor = isDark ? color.dark : color.light;
+    var textColor = isDark ? '#8b949e' : '#666';
+    var gridColor = isDark ? '#21262d' : '#eaecef';
+
+    var padding = { top: 10, right: 16, bottom: 30, left: 60 };
+    var width = 800;
+    var height = 200;
+    var chartW = width - padding.left - padding.right;
+    var chartH = height - padding.top - padding.bottom;
+
+    var values = data.map(function(d) { return d.value; });
+    var maxVal = Math.max.apply(null, values);
+    if (maxVal === 0) maxVal = 1;
+
+    // Y axis ticks (4-5 ticks)
+    var tickCount = 5;
+    var rawStep = maxVal / (tickCount - 1);
+    var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
+    var niceStep = Math.ceil(rawStep / magnitude) * magnitude;
+    if (niceStep === 0) niceStep = 1;
+    var yMax = niceStep * (tickCount - 1);
+    if (yMax < maxVal) yMax = niceStep * tickCount;
+
+    var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" style="width:100%;height:100%;">';
+
+    // Grid lines and Y labels
+    for (var i = 0; i < tickCount; i++) {
+      var tickVal = niceStep * i;
+      var y = padding.top + chartH - (tickVal / yMax) * chartH;
+      svg += '<line x1="' + padding.left + '" y1="' + y + '" x2="' + (width - padding.right) + '" y2="' + y + '" stroke="' + gridColor + '" stroke-width="1"/>';
+      var tickLabel = tickVal >= 1000 ? (tickVal / 1000).toFixed(1) + 'k' : tickVal.toString();
+      svg += '<text x="' + (padding.left - 8) + '" y="' + (y + 4) + '" text-anchor="end" fill="' + textColor + '" font-size="10" font-family="-apple-system,BlinkMacSystemFont,sans-serif">' + tickLabel + '</text>';
+    }
+
+    // Data points as polyline
+    var points = [];
+    for (var j = 0; j < data.length; j++) {
+      var x = padding.left + (j / Math.max(data.length - 1, 1)) * chartW;
+      var yVal = padding.top + chartH - (data[j].value / yMax) * chartH;
+      points.push(x.toFixed(1) + ',' + yVal.toFixed(1));
+    }
+
+    // Fill area below line
+    var fillPoints = points.slice();
+    fillPoints.push((padding.left + chartW).toFixed(1) + ',' + (padding.top + chartH).toFixed(1));
+    fillPoints.push(padding.left.toFixed(1) + ',' + (padding.top + chartH).toFixed(1));
+    svg += '<polygon points="' + fillPoints.join(' ') + '" fill="' + lineColor + '" fill-opacity="0.15"/>';
+
+    // Line
+    svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="' + lineColor + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+
+    // X axis time labels (every ~4 hours worth of samples)
+    if (data.length > 1) {
+      var totalSpan = data.length - 1;
+      // Show ~6 labels max
+      var labelInterval = Math.max(1, Math.floor(totalSpan / 6));
+      for (var k = 0; k <= totalSpan; k += labelInterval) {
+        var xPos = padding.left + (k / totalSpan) * chartW;
+        var ts = data[k].timestamp;
+        var timeLabel = formatTimeLabel(ts);
+        svg += '<text x="' + xPos.toFixed(1) + '" y="' + (height - 6) + '" text-anchor="middle" fill="' + textColor + '" font-size="10" font-family="-apple-system,BlinkMacSystemFont,sans-serif">' + escHtml(timeLabel) + '</text>';
+      }
+      // Always show last label
+      if (totalSpan % labelInterval !== 0) {
+        var lastX = padding.left + chartW;
+        var lastTs = data[data.length - 1].timestamp;
+        svg += '<text x="' + lastX.toFixed(1) + '" y="' + (height - 6) + '" text-anchor="end" fill="' + textColor + '" font-size="10" font-family="-apple-system,BlinkMacSystemFont,sans-serif">' + escHtml(formatTimeLabel(lastTs)) + '</text>';
+      }
+    }
+
+    svg += '</svg>';
+    container.innerHTML = svg;
+  }
+
+  function formatTimeLabel(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
+    var h = d.getHours();
+    var m = d.getMinutes();
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  // --- Copy to Clipboard ---
+
+  function copyToClipboard(text, btn) {
+    var done = function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    }
+  }
+
+  // --- Load Data ---
+
+  function loadQueryDetail() {
+    show(el('qd-loading'));
+    hide(el('qd-content'));
+    hide(el('qd-error'));
+
+    ajax('GET', HISTORY_URL, null, function(data) {
+      hide(el('qd-loading'));
+
+      if (!data || data.error) {
+        el('qd-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((data && data.error) || 'Query not found.') + '</div>';
+        show(el('qd-error'));
+        return;
+      }
+
+      show(el('qd-content'));
+
+      var q = data.query || {};
+      rawSql = q.sql || '';
+
+      // SQL block
+      el('qd-sql').innerHTML = highlightSql(rawSql);
+
+      // Stats cards
+      el('qd-stat-calls').textContent = Number(q.calls || 0).toLocaleString();
+      el('qd-stat-total-time').innerHTML = formatDurationStyled(q.total_time_ms || 0);
+      el('qd-stat-avg-time').innerHTML = formatDurationStyled(q.avg_time_ms || 0);
+      el('qd-stat-max-time').innerHTML = formatDurationStyled(q.max_time_ms || 0);
+      el('qd-stat-rows-examined').textContent = Number(q.rows_examined || 0).toLocaleString();
+      el('qd-stat-rows-sent').textContent = Number(q.rows_sent || 0).toLocaleString();
+      el('qd-stat-first-seen').textContent = q.first_seen || '--';
+      el('qd-stat-last-seen').textContent = q.last_seen || '--';
+
+      // Charts
+      var history = data.history || [];
+      if (history.length === 0) {
+        show(el('qd-no-history'));
+      } else {
+        hide(el('qd-no-history'));
+
+        var totalTimeData = history.map(function(h) { return { timestamp: h.timestamp, value: h.total_time_ms || 0 }; });
+        var avgTimeData = history.map(function(h) { return { timestamp: h.timestamp, value: h.avg_time_ms || 0 }; });
+        var callsData = history.map(function(h) { return { timestamp: h.timestamp, value: h.calls || 0 }; });
+
+        show(el('qd-chart-total-time'));
+        drawChart('qd-chart-total-time-container', totalTimeData, 'Total Time (ms)', { light: '#89CFF0', dark: '#58a6ff' });
+
+        show(el('qd-chart-avg-time'));
+        drawChart('qd-chart-avg-time-container', avgTimeData, 'Average Time (ms)', { light: '#89CFF0', dark: '#58a6ff' });
+
+        show(el('qd-chart-calls'));
+        drawChart('qd-chart-calls-container', callsData, 'Calls', { light: '#89CFF0', dark: '#58a6ff' });
+      }
+    }, function(json) {
+      hide(el('qd-loading'));
+      el('qd-error').innerHTML = '<div class="mg-alert mg-alert-warning">' + escHtml((json && json.error) || 'Failed to load query details.') + '</div>';
+      show(el('qd-error'));
+    });
+  }
+
+  // --- Explain ---
+
+  el('qd-explain-btn').addEventListener('click', function() {
+    show(el('qd-explain-results'));
+    show(el('qd-explain-loading'));
+    el('qd-explain-thead').innerHTML = '';
+    el('qd-explain-tbody').innerHTML = '';
+
+    ajax('POST', EXPLAIN_URL, { sql: rawSql }, function(data) {
+      hide(el('qd-explain-loading'));
+      if (data.error) {
+        el('qd-explain-tbody').innerHTML = '<tr><td class="mg-text-muted">' + escHtml(data.error) + '</td></tr>';
+        return;
+      }
+      if (data.columns && data.rows) {
+        el('qd-explain-thead').innerHTML = '<tr>' + data.columns.map(function(c) { return '<th>' + escHtml(c) + '</th>'; }).join('') + '</tr>';
+        el('qd-explain-tbody').innerHTML = data.rows.map(function(row) {
+          return '<tr>' + row.map(function(cell) {
+            return '<td>' + (cell === null ? '<em class="null">NULL</em>' : escHtml(String(cell))) + '</td>';
+          }).join('') + '</tr>';
+        }).join('');
+      }
+    }, function(json) {
+      hide(el('qd-explain-loading'));
+      el('qd-explain-tbody').innerHTML = '<tr><td class="mg-text-muted">' + escHtml((json && json.error) || 'EXPLAIN failed.') + '</td></tr>';
+    });
+  });
+
+  el('qd-explain-close').addEventListener('click', function() {
+    hide(el('qd-explain-results'));
+  });
+
+  // --- Copy ---
+
+  el('qd-copy-btn').addEventListener('click', function() {
+    copyToClipboard(rawSql, el('qd-copy-btn'));
+  });
+
+  // --- Init ---
+
+  loadQueryDetail();
+})();
+</script>
