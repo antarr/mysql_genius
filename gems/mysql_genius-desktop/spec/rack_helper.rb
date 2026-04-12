@@ -21,8 +21,11 @@ module DesktopSpecSupport
 
   class << self
     def build_config(overrides = {})
+      mysql = MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => "localhost", "username" => "root", "database" => "test" })
       MysqlGenius::Desktop::Config.allocate.tap do |c|
-        c.instance_variable_set(:@mysql, MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => "localhost", "username" => "root", "database" => "test" }))
+        c.instance_variable_set(:@mysql, nil) # populated via active_mysql_config
+        c.instance_variable_set(:@profiles, [MysqlGenius::Desktop::Config::ProfileConfig.new(name: "default", mysql: mysql)])
+        c.instance_variable_set(:@default_profile, "default")
         c.instance_variable_set(:@server, MysqlGenius::Desktop::Config::ServerConfig.from_hash({}))
         c.instance_variable_set(:@security, MysqlGenius::Desktop::Config::SecurityConfig.from_hash(overrides.fetch(:security, {})))
         c.instance_variable_set(:@query, MysqlGenius::Desktop::Config::QueryConfig.from_hash(overrides.fetch(:query, {})))
