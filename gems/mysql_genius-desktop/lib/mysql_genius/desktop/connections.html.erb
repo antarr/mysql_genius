@@ -89,10 +89,19 @@
         <label for="mg-ai-provider">Provider</label>
         <select id="mg-ai-provider">
           <option value="custom">Custom</option>
-          <option value="openai">OpenAI</option>
           <option value="anthropic">Anthropic</option>
-          <option value="ollama">Ollama (local)</option>
           <option value="azure">Azure OpenAI</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="fireworks">Fireworks AI</option>
+          <option value="google">Google Gemini</option>
+          <option value="groq">Groq</option>
+          <option value="lmstudio">LM Studio (local)</option>
+          <option value="mistral">Mistral</option>
+          <option value="ollama">Ollama (local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="together">Together</option>
+          <option value="xai">xAI (Grok)</option>
         </select>
       </div>
       <div class="mg-col-grow mg-field">
@@ -292,11 +301,20 @@
   // --- AI Configuration ---
 
   var AI_PROVIDERS = {
-    openai:    { endpoint: 'https://api.openai.com/v1/chat/completions',              model: 'gpt-4o-mini',       auth: 'bearer',  keyPlaceholder: 'sk-...' },
-    anthropic: { endpoint: 'https://api.anthropic.com/v1/messages',                   model: 'claude-sonnet-4-20250514',  auth: 'api_key', keyPlaceholder: 'sk-ant-...' },
-    ollama:    { endpoint: 'http://localhost:11434/v1/chat/completions',               model: 'llama3.2',          auth: 'bearer',  keyPlaceholder: '(not required)' },
+    openai:    { endpoint: 'https://api.openai.com/v1/chat/completions',       model: 'gpt-4o-mini',                  auth: 'bearer',  keyPlaceholder: 'sk-...' },
+    anthropic: { endpoint: 'https://api.anthropic.com/v1/messages',            model: 'claude-sonnet-4-20250514',     auth: 'api_key', keyPlaceholder: 'sk-ant-...' },
+    google:    { endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-2.0-flash', auth: 'bearer', keyPlaceholder: 'AIza...' },
     azure:     { endpoint: 'https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=2024-02-01', model: '', auth: 'api_key', keyPlaceholder: 'your-azure-key' },
-    custom:    { endpoint: '',                                                         model: '',                  auth: 'bearer',  keyPlaceholder: 'your-api-key' }
+    deepseek:  { endpoint: 'https://api.deepseek.com/chat/completions',        model: 'deepseek-chat',                auth: 'bearer',  keyPlaceholder: 'sk-...' },
+    openrouter:{ endpoint: 'https://openrouter.ai/api/v1/chat/completions',    model: 'openai/gpt-4o-mini',           auth: 'bearer',  keyPlaceholder: 'sk-or-...' },
+    groq:      { endpoint: 'https://api.groq.com/openai/v1/chat/completions',  model: 'llama-3.3-70b-versatile',      auth: 'bearer',  keyPlaceholder: 'gsk_...' },
+    mistral:   { endpoint: 'https://api.mistral.ai/v1/chat/completions',       model: 'mistral-small-latest',         auth: 'bearer',  keyPlaceholder: 'your-mistral-key' },
+    xai:       { endpoint: 'https://api.x.ai/v1/chat/completions',             model: 'grok-2',                       auth: 'bearer',  keyPlaceholder: 'xai-...' },
+    together:  { endpoint: 'https://api.together.xyz/v1/chat/completions',     model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo', auth: 'bearer', keyPlaceholder: 'your-together-key' },
+    fireworks: { endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions', model: 'accounts/fireworks/models/llama-v3p3-70b-instruct', auth: 'bearer', keyPlaceholder: 'fw_...' },
+    ollama:    { endpoint: 'http://localhost:11434/v1/chat/completions',        model: 'llama3.2',                     auth: 'bearer',  keyPlaceholder: '(not required)' },
+    lmstudio:  { endpoint: 'http://localhost:1234/v1/chat/completions',         model: '',                             auth: 'bearer',  keyPlaceholder: '(not required)' },
+    custom:    { endpoint: '',                                                  model: '',                             auth: 'bearer',  keyPlaceholder: 'your-api-key' }
   };
 
   el('mg-ai-provider').addEventListener('change', function() {
@@ -313,10 +331,19 @@
 
   function detectProvider(endpoint) {
     if (!endpoint) return 'custom';
-    if (endpoint.includes('openai.com')) return 'openai';
-    if (endpoint.includes('anthropic.com')) return 'anthropic';
-    if (endpoint.includes('localhost:11434') || endpoint.includes('127.0.0.1:11434')) return 'ollama';
     if (endpoint.includes('openai.azure.com')) return 'azure';
+    if (endpoint.includes('api.openai.com')) return 'openai';
+    if (endpoint.includes('anthropic.com')) return 'anthropic';
+    if (endpoint.includes('generativelanguage.googleapis.com')) return 'google';
+    if (endpoint.includes('api.deepseek.com')) return 'deepseek';
+    if (endpoint.includes('openrouter.ai')) return 'openrouter';
+    if (endpoint.includes('api.groq.com')) return 'groq';
+    if (endpoint.includes('api.mistral.ai')) return 'mistral';
+    if (endpoint.includes('api.x.ai')) return 'xai';
+    if (endpoint.includes('api.together.xyz')) return 'together';
+    if (endpoint.includes('api.fireworks.ai')) return 'fireworks';
+    if (endpoint.includes('localhost:11434') || endpoint.includes('127.0.0.1:11434')) return 'ollama';
+    if (endpoint.includes('localhost:1234') || endpoint.includes('127.0.0.1:1234')) return 'lmstudio';
     return 'custom';
   }
 
