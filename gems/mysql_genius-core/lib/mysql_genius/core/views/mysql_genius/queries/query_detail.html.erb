@@ -246,9 +246,10 @@
     var chartW = width - padding.left - padding.right;
     var chartH = height - padding.top - padding.bottom;
 
-    var values = data.map(function(d) { return d.value; });
+    var values = data.map(function(d) { return typeof d.value === 'number' ? d.value : parseFloat(d.value) || 0; });
     var maxVal = Math.max.apply(null, values);
-    if (maxVal === 0) maxVal = 1;
+    // If all values are effectively zero, show a clean 0-1 scale
+    if (maxVal < 0.001) maxVal = 1;
 
     // Y axis ticks (4-5 ticks)
     var tickCount = 5;
@@ -266,7 +267,12 @@
       var tickVal = niceStep * i;
       var y = padding.top + chartH - (tickVal / yMax) * chartH;
       svg += '<line x1="' + padding.left + '" y1="' + y + '" x2="' + (width - padding.right) + '" y2="' + y + '" stroke="' + gridColor + '" stroke-width="1"/>';
-      var tickLabel = tickVal >= 1000 ? (tickVal / 1000).toFixed(1) + 'k' : tickVal.toString();
+      var tickLabel;
+      if (tickVal >= 1000000) tickLabel = (tickVal / 1000000).toFixed(1) + 'M';
+      else if (tickVal >= 1000) tickLabel = (tickVal / 1000).toFixed(1) + 'k';
+      else if (tickVal >= 1) tickLabel = Math.round(tickVal).toString();
+      else if (tickVal === 0) tickLabel = '0';
+      else tickLabel = tickVal.toFixed(2);
       svg += '<text x="' + (padding.left - 8) + '" y="' + (y + 4) + '" text-anchor="end" fill="' + textColor + '" font-size="10" font-family="-apple-system,BlinkMacSystemFont,sans-serif">' + tickLabel + '</text>';
     }
 
