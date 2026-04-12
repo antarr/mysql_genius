@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gemspec
+
+gem "mysql_genius-core", path: "../mysql_genius-core"
+
+# trilogy 2.12.x fails to build its native extension on macOS ARM with clang
+# (missing bundled headers in the gem package). Pin to 2.9.0 which builds cleanly.
+gem "trilogy", "2.9.0"
+
+group :development, :test do
+  gem "rack-test"
+  gem "rake"
+  gem "rspec", "~> 3.0"
+  gem "rubocop"
+  gem "rubocop-rspec"
+  gem "rubocop-shopify"
+end
