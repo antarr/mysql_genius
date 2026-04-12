@@ -78,8 +78,12 @@ module MysqlGenius
 
           request = Net::HTTP::Post.new(uri)
           request["Content-Type"] = "application/json"
-          if @config.auth_style == :bearer
+          case @config.auth_style
+          when :bearer
             request["Authorization"] = "Bearer #{@config.api_key}"
+          when :x_api_key
+            request["x-api-key"] = @config.api_key
+            request["anthropic-version"] = "2023-06-01"
           else
             request["api-key"] = @config.api_key
           end

@@ -123,7 +123,8 @@
         <label for="mg-ai-auth">Auth Style</label>
         <select id="mg-ai-auth">
           <option value="bearer">Bearer token</option>
-          <option value="api_key">api-key header</option>
+          <option value="x_api_key">x-api-key (Anthropic)</option>
+          <option value="api_key">api-key (Azure)</option>
         </select>
       </div>
     </div>
@@ -303,7 +304,7 @@
 
   var AI_PROVIDERS = {
     openai:    { endpoint: 'https://api.openai.com/v1/chat/completions',       model: 'gpt-4o-mini',                  auth: 'bearer',  keyPlaceholder: 'sk-...' },
-    anthropic: { endpoint: 'https://api.anthropic.com/v1/messages',            model: 'claude-sonnet-4-20250514',     auth: 'api_key', keyPlaceholder: 'sk-ant-...' },
+    anthropic: { endpoint: 'https://api.anthropic.com/v1/messages',            model: 'claude-sonnet-4-20250514',     auth: 'x_api_key', keyPlaceholder: 'sk-ant-...' },
     google:    { endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-2.0-flash', auth: 'bearer', keyPlaceholder: 'AIza...' },
     azure:     { endpoint: 'https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=2024-02-01', model: '', auth: 'api_key', keyPlaceholder: 'your-azure-key' },
     deepseek:  { endpoint: 'https://api.deepseek.com/chat/completions',        model: 'deepseek-chat',                auth: 'bearer',  keyPlaceholder: 'sk-...' },
