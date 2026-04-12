@@ -1,2 +1,230 @@
 <h4>Connection Manager</h4>
-<p>Coming in Task 7...</p>
+
+<div class="mg-card mg-mb">
+  <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <strong>Profiles</strong>
+    <button id="mg-add-profile-btn" class="mg-btn mg-btn-primary mg-btn-sm">+ Add Profile</button>
+  </div>
+  <div class="mg-card-body">
+    <div class="mg-table-wrap">
+      <table class="mg-table" id="mg-profile-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Host</th>
+            <th>Database</th>
+            <th>Status</th>
+            <th style="width:200px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="mg-profile-tbody">
+          <tr><td colspan="5" class="mg-text-center"><span class="mg-spinner"></span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="mg-profile-form" class="mg-card mg-hidden">
+  <div class="mg-card-header">
+    <strong id="mg-form-title">Add Profile</strong>
+    <button id="mg-form-cancel" class="mg-btn mg-btn-outline-secondary mg-btn-sm">Cancel</button>
+  </div>
+  <div class="mg-card-body">
+    <div class="mg-row">
+      <div class="mg-col-3 mg-field">
+        <label for="mg-f-name">Profile Name</label>
+        <input type="text" id="mg-f-name" placeholder="e.g. production">
+      </div>
+      <div class="mg-col-3 mg-field">
+        <label for="mg-f-host">Host</label>
+        <input type="text" id="mg-f-host" placeholder="127.0.0.1">
+      </div>
+      <div class="mg-col-1 mg-field">
+        <label for="mg-f-port">Port</label>
+        <input type="number" id="mg-f-port" value="3306">
+      </div>
+    </div>
+    <div class="mg-row">
+      <div class="mg-col-3 mg-field">
+        <label for="mg-f-username">Username</label>
+        <input type="text" id="mg-f-username" placeholder="readonly">
+      </div>
+      <div class="mg-col-3 mg-field">
+        <label for="mg-f-password">Password</label>
+        <input type="text" id="mg-f-password" placeholder="(leave blank if none)">
+      </div>
+      <div class="mg-col-3 mg-field">
+        <label for="mg-f-database">Database</label>
+        <input type="text" id="mg-f-database" placeholder="app_production">
+      </div>
+    </div>
+    <div class="mg-row">
+      <div class="mg-col-2 mg-field">
+        <label for="mg-f-tls">TLS Mode</label>
+        <select id="mg-f-tls">
+          <option value="preferred" selected>Preferred</option>
+          <option value="required">Required</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
+      <div class="mg-field" style="display:flex;gap:8px;align-items:flex-end;">
+        <button id="mg-form-test" class="mg-btn mg-btn-outline mg-btn-sm">Test Connection</button>
+        <button id="mg-form-save" class="mg-btn mg-btn-primary mg-btn-sm">Save</button>
+        <span id="mg-form-status" style="font-size:12px;"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var currentProfile = null;
+  var editingName = null;
+
+  function el(id) { return document.getElementById(id); }
+  function show(e) { e.classList.remove('mg-hidden'); }
+  function hide(e) { e.classList.add('mg-hidden'); }
+
+  function loadProfiles() {
+    fetch('/api/profiles').then(function(r) { return r.json(); }).then(function(data) {
+      currentProfile = data.current;
+      var tbody = el('mg-profile-tbody');
+      if (!data.profiles.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="mg-text-muted">No profiles configured. Click "Add Profile" to create one.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.profiles.map(function(p) {
+        var isCurrent = p.name === data.current;
+        var badge = isCurrent ? '<span class="mg-badge mg-badge-success">Active</span>' : '';
+        var connectBtn = isCurrent ? '' : '<button class="mg-btn mg-btn-outline mg-btn-sm mg-connect-btn" data-name="' + p.name + '">Connect</button> ';
+        var deleteBtn = isCurrent ? '' : '<button class="mg-btn mg-btn-outline-danger mg-btn-sm mg-delete-btn" data-name="' + p.name + '">Delete</button>';
+        return '<tr>' +
+          '<td><strong>' + p.name + '</strong></td>' +
+          '<td>' + (p.mysql.host || '') + ':' + (p.mysql.port || 3306) + '</td>' +
+          '<td>' + (p.mysql.database || '') + '</td>' +
+          '<td>' + badge + '</td>' +
+          '<td>' + connectBtn +
+            '<button class="mg-btn mg-btn-outline-secondary mg-btn-sm mg-edit-btn" data-name="' + p.name + '">Edit</button> ' +
+            deleteBtn +
+          '</td></tr>';
+      }).join('');
+    });
+  }
+
+  function getFormData() {
+    return {
+      host: el('mg-f-host').value, port: parseInt(el('mg-f-port').value) || 3306,
+      username: el('mg-f-username').value, password: el('mg-f-password').value,
+      database: el('mg-f-database').value, tls_mode: el('mg-f-tls').value,
+    };
+  }
+
+  function fillForm(profile) {
+    var m = profile.mysql || {};
+    el('mg-f-name').value = profile.name || '';
+    el('mg-f-host').value = m.host || '';
+    el('mg-f-port').value = m.port || 3306;
+    el('mg-f-username').value = m.username || '';
+    el('mg-f-password').value = m.password || '';
+    el('mg-f-database').value = m.database || '';
+    el('mg-f-tls').value = m.tls_mode || 'preferred';
+  }
+
+  function clearForm() {
+    el('mg-f-name').value = ''; el('mg-f-host').value = '';
+    el('mg-f-port').value = '3306'; el('mg-f-username').value = '';
+    el('mg-f-password').value = ''; el('mg-f-database').value = '';
+    el('mg-f-tls').value = 'preferred'; el('mg-form-status').textContent = '';
+    editingName = null;
+  }
+
+  el('mg-add-profile-btn').addEventListener('click', function() {
+    clearForm();
+    el('mg-f-name').disabled = false;
+    el('mg-form-title').textContent = 'Add Profile';
+    show(el('mg-profile-form'));
+  });
+
+  el('mg-form-cancel').addEventListener('click', function() {
+    hide(el('mg-profile-form'));
+    clearForm();
+  });
+
+  el('mg-form-test').addEventListener('click', function() {
+    var name = editingName || el('mg-f-name').value || '_test';
+    el('mg-form-status').textContent = 'Testing...';
+    el('mg-form-status').style.color = '';
+    fetch('/api/profiles/' + encodeURIComponent(name) + '/test', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          el('mg-form-status').textContent = 'Connected (MySQL ' + data.version + ')';
+          el('mg-form-status').style.color = '#1a7f37';
+        } else {
+          el('mg-form-status').textContent = 'Failed: ' + data.error;
+          el('mg-form-status').style.color = '#cf222e';
+        }
+      });
+  });
+
+  el('mg-form-save').addEventListener('click', function() {
+    var name = el('mg-f-name').value.trim();
+    if (!name) { alert('Profile name is required.'); return; }
+    var mysql = getFormData();
+    var url, method;
+    if (editingName) {
+      url = '/api/profiles/' + encodeURIComponent(editingName);
+      method = 'PUT';
+    } else {
+      url = '/api/profiles';
+      method = 'POST';
+    }
+    fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, mysql: mysql }) })
+      .then(function(r) { return r.json().then(function(d) { return { status: r.status, body: d }; }); })
+      .then(function(res) {
+        if (res.status >= 400) { alert(res.body.error || 'Save failed'); return; }
+        hide(el('mg-profile-form'));
+        clearForm();
+        loadProfiles();
+      });
+  });
+
+  document.addEventListener('click', function(e) {
+    var btn;
+    btn = e.target.closest('.mg-connect-btn');
+    if (btn) {
+      btn.disabled = true; btn.textContent = 'Connecting...';
+      fetch('/api/profiles/' + encodeURIComponent(btn.dataset.name) + '/connect', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) { loadProfiles(); }
+          else { alert('Connect failed: ' + data.error); btn.disabled = false; btn.textContent = 'Connect'; }
+        });
+      return;
+    }
+    btn = e.target.closest('.mg-edit-btn');
+    if (btn) {
+      fetch('/api/profiles').then(function(r) { return r.json(); }).then(function(data) {
+        var p = data.profiles.find(function(x) { return x.name === btn.dataset.name; });
+        if (p) {
+          fillForm(p); editingName = p.name;
+          el('mg-f-name').value = p.name; el('mg-f-name').disabled = true;
+          el('mg-form-title').textContent = 'Edit Profile: ' + p.name;
+          show(el('mg-profile-form'));
+        }
+      });
+      return;
+    }
+    btn = e.target.closest('.mg-delete-btn');
+    if (btn) {
+      if (!confirm('Delete profile "' + btn.dataset.name + '"?')) return;
+      fetch('/api/profiles/' + encodeURIComponent(btn.dataset.name), { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function() { loadProfiles(); });
+    }
+  });
+
+  loadProfiles();
+})();
+</script>
