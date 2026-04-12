@@ -394,6 +394,10 @@ module MysqlGenius
       get "/queries/:digest" do
         @digest = params[:digest].to_s
         render_query_detail
+      rescue StandardError => e
+        warn("[MysqlGenius] query_detail error: #{e.class}: #{e.message}")
+        warn(e.backtrace.first(5).join("\n"))
+        halt(500, json_response(error: e.message))
       end
 
       get "/api/query_history/:digest" do
