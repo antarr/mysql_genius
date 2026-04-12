@@ -12,13 +12,12 @@ module MysqlGenius
         mysql_genius_config.default_row_limit
       end
 
-      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
       runner_config = MysqlGenius::Core::QueryRunner::Config.new(
         blocked_tables: mysql_genius_config.blocked_tables,
         masked_column_patterns: mysql_genius_config.masked_column_patterns,
         query_timeout_ms: mysql_genius_config.query_timeout_ms,
       )
-      runner = MysqlGenius::Core::QueryRunner.new(connection, runner_config)
+      runner = MysqlGenius::Core::QueryRunner.new(rails_connection, runner_config)
 
       begin
         result = runner.run(sql, row_limit: row_limit)
@@ -48,13 +47,12 @@ module MysqlGenius
       sql = params[:sql].to_s.strip
       skip_validation = params[:from_slow_query] == "true"
 
-      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
       runner_config = MysqlGenius::Core::QueryRunner::Config.new(
         blocked_tables: mysql_genius_config.blocked_tables,
         masked_column_patterns: mysql_genius_config.masked_column_patterns,
         query_timeout_ms: mysql_genius_config.query_timeout_ms,
       )
-      explainer = MysqlGenius::Core::QueryExplainer.new(connection, runner_config)
+      explainer = MysqlGenius::Core::QueryExplainer.new(rails_connection, runner_config)
 
       result = explainer.explain(sql, skip_validation: skip_validation)
       render(json: { columns: result.columns, rows: result.rows })

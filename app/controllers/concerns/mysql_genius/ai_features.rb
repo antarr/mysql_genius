@@ -12,8 +12,7 @@ module MysqlGenius
       prompt = params[:prompt].to_s.strip
       return render(json: { error: "Please describe what you want to query." }, status: :unprocessable_entity) if prompt.blank?
 
-      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
-      service = MysqlGenius::Core::Ai::Suggestion.new(connection, ai_client, ai_config_for_core)
+      service = MysqlGenius::Core::Ai::Suggestion.new(rails_connection, ai_client, ai_config_for_core)
       result = service.call(prompt, queryable_tables)
       sql = sanitize_ai_sql(result["sql"].to_s)
       render(json: { sql: sql, explanation: result["explanation"] })
@@ -33,8 +32,7 @@ module MysqlGenius
         return render(json: { error: "SQL and EXPLAIN output are required." }, status: :unprocessable_entity)
       end
 
-      connection = MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
-      service = MysqlGenius::Core::Ai::Optimization.new(connection, ai_client, ai_config_for_core)
+      service = MysqlGenius::Core::Ai::Optimization.new(rails_connection, ai_client, ai_config_for_core)
       result = service.call(sql, explain_rows, queryable_tables)
       render(json: result)
     rescue StandardError => e
@@ -256,10 +254,6 @@ module MysqlGenius
 
     def ai_not_configured
       render(json: { error: "AI features are not configured." }, status: :not_found)
-    end
-
-    def rails_connection
-      MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
     end
 
     def ai_domain_context

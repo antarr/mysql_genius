@@ -59,9 +59,5 @@ module MysqlGenius
     def queryable_tables
       ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables
     end
-
-    def rails_connection
-      MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection)
-    end
   end
 end
