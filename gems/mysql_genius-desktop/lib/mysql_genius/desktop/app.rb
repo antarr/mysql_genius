@@ -46,6 +46,23 @@ module MysqlGenius
         render_dashboard
       end
 
+      get "/columns" do
+        result = settings.active_session.checkout do |adapter|
+          MysqlGenius::Core::Analysis::Columns.new(
+            adapter,
+            blocked_tables:         settings.mysql_genius_config.security.blocked_tables,
+            masked_column_patterns: settings.mysql_genius_config.security.masked_column_patterns,
+            default_columns:        settings.mysql_genius_config.security.default_columns,
+          ).call(table: params[:table])
+        end
+
+        case result.status
+        when :ok      then json_response(result.columns)
+        when :blocked then halt(403, json_response(error: result.error_message))
+        when :not_found then halt(404, json_response(error: result.error_message))
+        end
+      end
+
       private
 
       def render_dashboard
