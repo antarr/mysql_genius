@@ -308,9 +308,12 @@ module MysqlGenius
 
       private
 
+      LAYOUT_PATH = File.expand_path("layout.html.erb", __dir__).freeze
+
       def render_dashboard
-        path = File.join(MysqlGenius::Core.views_path, "mysql_genius/queries/dashboard.html.erb")
-        Tilt.new(path).render(self)
+        dashboard_path = File.join(MysqlGenius::Core.views_path, "mysql_genius/queries/dashboard.html.erb")
+        content = Tilt.new(dashboard_path).render(self)
+        Tilt.new(LAYOUT_PATH).render(self) { content }
       end
 
       def json_response(obj)
