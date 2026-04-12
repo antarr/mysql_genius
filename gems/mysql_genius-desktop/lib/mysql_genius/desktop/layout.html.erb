@@ -208,6 +208,9 @@
     [data-theme="dark"] .mg-theme-toggle:hover { background: #21262d; }
     [data-theme="dark"] .mg-db-switcher select { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
     [data-theme="dark"] .mg-db-badge { background: #0d2a3a; color: #58a6ff; }
+
+    /* Profile switcher */
+    [data-theme="dark"] #mg-profile-select { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
   </style>
 </head>
 <body>
@@ -219,7 +222,53 @@
     })();
   </script>
   <div class="mg-container">
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:8px;">
+      <select id="mg-profile-select" style="padding:4px 8px;border:1px solid #ced4da;border-radius:4px;font-size:13px;background:#fff;min-width:120px;">
+        <option>Loading...</option>
+      </select>
+      <a href="/connections" style="font-size:12px;color:#007bff;text-decoration:none;">Manage</a>
+    </div>
     <%= yield %>
   </div>
+  <script>
+  (function() {
+    var profileSelect = document.getElementById('mg-profile-select');
+    var currentProfile = null;
+
+    function loadProfiles() {
+      fetch('/api/profiles').then(function(r) { return r.json(); }).then(function(data) {
+        currentProfile = data.current;
+        profileSelect.innerHTML = data.profiles.map(function(p) {
+          var sel = p.name === data.current ? ' selected' : '';
+          return '<option value="' + p.name + '"' + sel + '>' + p.name + (p.name === data.current ? ' (active)' : '') + '</option>';
+        }).join('');
+      });
+    }
+
+    profileSelect.addEventListener('change', function() {
+      var name = profileSelect.value;
+      profileSelect.disabled = true;
+      fetch('/api/profiles/' + encodeURIComponent(name) + '/connect', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            currentProfile = data.profile;
+            window.location.reload();
+          } else {
+            alert('Connection failed: ' + (data.error || 'Unknown error'));
+            profileSelect.value = currentProfile;
+            profileSelect.disabled = false;
+          }
+        })
+        .catch(function(err) {
+          alert('Connection failed: ' + err.message);
+          profileSelect.value = currentProfile;
+          profileSelect.disabled = false;
+        });
+    });
+
+    loadProfiles();
+  })();
+  </script>
 </body>
 </html>
