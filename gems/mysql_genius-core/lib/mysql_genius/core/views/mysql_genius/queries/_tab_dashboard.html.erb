@@ -40,6 +40,7 @@
       </div>
     </div>
 
+    <% if capability?(:slow_queries) %>
     <!-- Top 5 Slow Queries -->
     <div class="mg-card mg-mb">
       <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
@@ -56,6 +57,7 @@
         </div>
       </div>
     </div>
+    <% end %>
 
     <!-- Top 5 Expensive Queries -->
     <div class="mg-card mg-mb">

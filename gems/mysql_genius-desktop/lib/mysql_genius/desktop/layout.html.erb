@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MySQLGenius</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f5f5f5; color: #333; margin: 0; font-size: 14px; line-height: 1.5; }
+    .mg-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    h4 { margin: 0 0 16px; font-size: 18px; }
+
+    /* Tabs */
+    .mg-tabs { display: flex; border-bottom: 2px solid #dee2e6; margin-bottom: 0; }
+    .mg-tab { padding: 8px 16px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -2px; border-radius: 4px 4px 0 0; background: none; font-size: 14px; color: #555; }
+    .mg-tab:hover { color: #000; }
+    .mg-tab.active { background: #fff; border-color: #dee2e6; border-bottom-color: #fff; color: #000; font-weight: 500; }
+    .mg-tab-content { display: none; background: #fff; border: 1px solid #dee2e6; border-top: none; padding: 16px; }
+    .mg-tab-content.active { display: block; }
+
+    /* Forms */
+    label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; }
+    select, input[type="number"], input[type="text"], textarea { border: 1px solid #ced4da; border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 100%; font-family: inherit; }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 2px rgba(0,123,255,.15); }
+    textarea { font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; resize: vertical; }
+    textarea[readonly] { background: #f8f9fa; }
+
+    /* Grid helpers */
+    .mg-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .mg-col-1 { flex: 0 0 80px; }
+    .mg-col-2 { flex: 0 0 160px; }
+    .mg-col-3 { flex: 0 0 240px; }
+    .mg-col-4 { flex: 0 0 320px; }
+    .mg-col-grow { flex: 1 1 200px; }
+    .mg-field { margin-bottom: 12px; }
+
+    /* Buttons */
+    .mg-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid transparent; border-radius: 4px; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .mg-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .mg-btn-primary { background: #007bff; color: #fff; border-color: #007bff; }
+    .mg-btn-primary:hover:not(:disabled) { background: #0069d9; }
+    .mg-btn-outline { background: #fff; color: #007bff; border-color: #007bff; }
+    .mg-btn-outline:hover:not(:disabled) { background: #e7f1ff; }
+    .mg-btn-outline-secondary { background: #fff; color: #6c757d; border-color: #6c757d; }
+    .mg-btn-outline-secondary:hover:not(:disabled) { background: #f8f9fa; }
+    .mg-btn-outline-danger { background: #fff; color: #dc3545; border-color: #dc3545; padding: 4px 8px; }
+    .mg-btn-outline-danger:hover:not(:disabled) { background: #ffeef0; }
+    .mg-btn-sm { padding: 3px 8px; font-size: 12px; }
+
+    /* Badge */
+    .mg-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+    .mg-badge-info { background: #d1ecf1; color: #0c5460; }
+    .mg-badge-warning { background: #fff3cd; color: #856404; }
+    .mg-badge-danger { background: #f8d7da; color: #721c24; }
+    .mg-badge-secondary { background: #e2e3e5; color: #383d41; }
+    .mg-badge-success { background: #d4edda; color: #155724; }
+
+    /* Alert */
+    .mg-alert { padding: 10px 14px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
+    .mg-alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .mg-alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .mg-alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    /* Card */
+    .mg-card { border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 12px; }
+    .mg-card-header { padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .mg-card-body { padding: 12px; }
+    .mg-card-toggle { cursor: pointer; color: #007bff; text-decoration: none; font-size: 13px; }
+    .mg-card-toggle:hover { text-decoration: underline; }
+
+    /* Stat grid */
+    .mg-stat-grid { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px; }
+    .mg-stat-grid .mg-stat-label { color: #666; }
+    .mg-stat-grid .mg-stat-value { text-align: right; font-weight: 500; }
+    .mg-usage-bar { background: #e9ecef; border-radius: 4px; height: 20px; position: relative; overflow: hidden; }
+    .mg-usage-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .mg-usage-bar-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 11px; font-weight: 500; }
+
+    /* Table */
+    .mg-table-wrap { overflow-x: auto; }
+    table.mg-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+    .mg-table th { padding: 10px 12px; text-align: left; white-space: nowrap; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #5a6770; background: #f1f3f5; border-bottom: 2px solid #d0d7de; user-select: none; }
+    .mg-table th.mg-sortable { cursor: pointer; position: relative; padding-right: 20px; }
+    .mg-table th.mg-sortable:hover { color: #333; }
+    .mg-table th.mg-sortable::after { content: '\2195'; position: absolute; right: 6px; opacity: 0.3; font-size: 10px; }
+    .mg-table th.mg-sort-asc::after { content: '\2191'; opacity: 0.8; }
+    .mg-table th.mg-sort-desc::after { content: '\2193'; opacity: 0.8; }
+    .mg-table th:first-child { border-top-left-radius: 6px; }
+    .mg-table th:last-child { border-top-right-radius: 6px; }
+    .mg-table td { padding: 8px 12px; border-bottom: 1px solid #eaecef; vertical-align: top; }
+    .mg-table tbody tr { transition: background-color 0.15s ease; }
+    .mg-table tbody tr:hover { background: #f0f6ff; }
+    .mg-table tbody tr:nth-child(even) { background: #fafbfc; }
+    .mg-table tbody tr:nth-child(even):hover { background: #f0f6ff; }
+    .mg-table tbody tr:last-child td { border-bottom: none; }
+    .mg-table em.null { color: #999; font-style: italic; }
+    .mg-table .redacted { color: #999; }
+
+    /* Numeric table cells */
+    .mg-table td.mg-num { text-align: right; font-variant-numeric: tabular-nums; font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; font-size: 12px; white-space: nowrap; }
+
+    /* SQL code blocks in tables */
+    .mg-sql-block { display: block; padding: 6px 8px; background: #1e1e2e; color: #cdd6f4; border-radius: 5px; font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; max-height: 120px; overflow-y: auto; border: 1px solid #313244; }
+    .mg-sql-block::-webkit-scrollbar { width: 4px; }
+    .mg-sql-block::-webkit-scrollbar-track { background: transparent; }
+    .mg-sql-block::-webkit-scrollbar-thumb { background: #585b70; border-radius: 2px; }
+
+    /* SQL syntax colors (Catppuccin Mocha inspired) */
+    .mg-sql-kw { color: #cba6f7; font-weight: 600; }
+    .mg-sql-fn { color: #89b4fa; }
+    .mg-sql-str { color: #a6e3a1; }
+    .mg-sql-num { color: #fab387; }
+    .mg-sql-op { color: #89dceb; }
+    .mg-sql-comment { color: #6c7086; font-style: italic; }
+    .mg-sql-tbl { color: #f9e2af; }
+    .mg-sql-star { color: #f38ba8; font-weight: 700; }
+    .mg-sql-punc { color: #9399b2; }
+    .mg-sql-placeholder { color: #74c7ec; font-style: italic; }
+
+    /* Duration color coding */
+    .mg-dur-fast { color: #1a7f37; }
+    .mg-dur-moderate { color: #9a6700; }
+    .mg-dur-slow { color: #cf222e; font-weight: 600; }
+
+    /* Checkbox grid */
+    .mg-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    .mg-check { display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
+    .mg-check input { margin: 0; }
+    .mg-check .type-hint { color: #999; font-size: 11px; }
+
+    /* Inline links */
+    .mg-link { color: #007bff; cursor: pointer; text-decoration: none; font-size: 12px; margin-left: 8px; }
+    .mg-link:hover { text-decoration: underline; }
+
+    /* Spinner */
+    @keyframes mg-spin { to { transform: rotate(360deg); } }
+    .mg-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #007bff; border-radius: 50%; animation: mg-spin .6s linear infinite; }
+
+    /* Utilities */
+    .mg-hidden { display: none !important; }
+    .mg-mt { margin-top: 16px; }
+    .mg-mb { margin-bottom: 12px; }
+    .mg-text-muted { color: #888; font-size: 13px; }
+    .mg-text-center { text-align: center; padding: 24px 0; }
+    code { font-size: 12px; word-break: break-all; background: #f0f1f3; padding: 2px 6px; border-radius: 3px; color: #24292f; }
+    pre.mg-pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+
+    /* Theme toggle */
+    .mg-theme-toggle { background: none; border: 1px solid #ced4da; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px; line-height: 1; color: inherit; }
+    .mg-theme-toggle:hover { background: #e9ecef; }
+
+    /* --- Dark Theme --- */
+    [data-theme="dark"] body,
+    [data-theme="dark"] { background: #161b22; color: #c9d1d9; }
+    [data-theme="dark"] .mg-container { color: #c9d1d9; }
+    [data-theme="dark"] .mg-tabs { border-bottom-color: #30363d; }
+    [data-theme="dark"] .mg-tab { color: #8b949e; }
+    [data-theme="dark"] .mg-tab:hover { color: #c9d1d9; }
+    [data-theme="dark"] .mg-tab.active { background: #0d1117; border-color: #30363d; border-bottom-color: #0d1117; color: #c9d1d9; }
+    [data-theme="dark"] .mg-tab-content { background: #0d1117; border-color: #30363d; }
+    [data-theme="dark"] select,
+    [data-theme="dark"] input[type="number"],
+    [data-theme="dark"] input[type="text"],
+    [data-theme="dark"] textarea { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+    [data-theme="dark"] select:focus,
+    [data-theme="dark"] input:focus,
+    [data-theme="dark"] textarea:focus { border-color: #58a6ff; box-shadow: 0 0 0 2px rgba(88,166,255,.15); }
+    [data-theme="dark"] textarea[readonly] { background: #161b22; }
+    [data-theme="dark"] label { color: #c9d1d9; }
+    [data-theme="dark"] .mg-btn-primary { background: #238636; border-color: #238636; }
+    [data-theme="dark"] .mg-btn-primary:hover:not(:disabled) { background: #2ea043; }
+    [data-theme="dark"] .mg-btn-outline { background: #0d1117; color: #58a6ff; border-color: #30363d; }
+    [data-theme="dark"] .mg-btn-outline:hover:not(:disabled) { background: #161b22; border-color: #58a6ff; }
+    [data-theme="dark"] .mg-btn-outline-secondary { background: #0d1117; color: #8b949e; border-color: #30363d; }
+    [data-theme="dark"] .mg-btn-outline-secondary:hover:not(:disabled) { background: #161b22; }
+    [data-theme="dark"] .mg-btn-outline-danger { background: #0d1117; color: #f85149; border-color: #30363d; }
+    [data-theme="dark"] .mg-btn-outline-danger:hover:not(:disabled) { background: #1c0d0d; }
+    [data-theme="dark"] .mg-badge-info { background: #0d2a3a; color: #58a6ff; }
+    [data-theme="dark"] .mg-badge-warning { background: #2d2000; color: #d29922; }
+    [data-theme="dark"] .mg-badge-danger { background: #2d0d0d; color: #f85149; }
+    [data-theme="dark"] .mg-badge-secondary { background: #21262d; color: #8b949e; }
+    [data-theme="dark"] .mg-badge-success { background: #0d2d1a; color: #3fb950; }
+    [data-theme="dark"] .mg-alert-danger { background: #2d0d0d; color: #f85149; border-color: #3d1414; }
+    [data-theme="dark"] .mg-alert-warning { background: #2d2000; color: #d29922; border-color: #3d2e00; }
+    [data-theme="dark"] .mg-alert-info { background: #0d2a3a; color: #58a6ff; border-color: #0d3a5a; }
+    [data-theme="dark"] .mg-card { border-color: #30363d; }
+    [data-theme="dark"] .mg-card-header { background: #161b22; border-bottom-color: #30363d; color: #c9d1d9; }
+    [data-theme="dark"] .mg-card-toggle { color: #58a6ff; }
+    [data-theme="dark"] .mg-stat-grid .mg-stat-label { color: #8b949e; }
+    [data-theme="dark"] .mg-usage-bar { background: #21262d; }
+    [data-theme="dark"] .mg-table th { background: #161b22; color: #8b949e; border-bottom-color: #30363d; }
+    [data-theme="dark"] .mg-table th.mg-sortable:hover { color: #c9d1d9; }
+    [data-theme="dark"] .mg-table td { border-bottom-color: #21262d; }
+    [data-theme="dark"] .mg-table tbody tr:hover { background: #1c2128; }
+    [data-theme="dark"] .mg-table tbody tr:nth-child(even) { background: #0d1117; }
+    [data-theme="dark"] .mg-table tbody tr:nth-child(even):hover { background: #1c2128; }
+    [data-theme="dark"] .mg-table em.null { color: #484f58; }
+    [data-theme="dark"] .mg-table .redacted { color: #484f58; }
+    [data-theme="dark"] .mg-dur-fast { color: #3fb950; }
+    [data-theme="dark"] .mg-dur-moderate { color: #d29922; }
+    [data-theme="dark"] .mg-dur-slow { color: #f85149; }
+    [data-theme="dark"] code { background: #21262d; color: #c9d1d9; }
+    [data-theme="dark"] pre.mg-pre { background: #161b22; color: #c9d1d9; }
+    [data-theme="dark"] .mg-link { color: #58a6ff; }
+    [data-theme="dark"] .mg-spinner { border-color: #30363d; border-top-color: #58a6ff; }
+    [data-theme="dark"] .mg-text-muted { color: #8b949e; }
+    [data-theme="dark"] .mg-check .type-hint { color: #484f58; }
+    [data-theme="dark"] .mg-theme-toggle { border-color: #30363d; color: #c9d1d9; }
+    [data-theme="dark"] .mg-theme-toggle:hover { background: #21262d; }
+    [data-theme="dark"] .mg-db-switcher select { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+    [data-theme="dark"] .mg-db-badge { background: #0d2a3a; color: #58a6ff; }
+  </style>
+</head>
+<body>
+  <script>
+    (function() {
+      var saved = localStorage.getItem('mg-theme');
+      var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <div class="mg-container">
+    <%= yield %>
+  </div>
+</body>
+</html>

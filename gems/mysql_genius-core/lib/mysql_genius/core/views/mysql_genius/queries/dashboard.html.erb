@@ -7,7 +7,9 @@
 
 <div class="mg-tabs">
   <button class="mg-tab active" data-tab="dashboard">Dashboard</button>
-  <button class="mg-tab" data-tab="slow">Slow Queries</button>
+  <% if capability?(:slow_queries) %>
+    <button class="mg-tab" data-tab="slow">Slow Queries</button>
+  <% end %>
   <button class="mg-tab" data-tab="qstats">Query Stats</button>
   <button class="mg-tab" data-tab="server">Server</button>
   <button class="mg-tab" data-tab="tables">Tables</button>
@@ -20,7 +22,9 @@
 </div>
 
 <%= render_partial(:tab_dashboard) %>
-<%= render_partial(:tab_slow_queries) %>
+<% if capability?(:slow_queries) %>
+  <%= render_partial(:tab_slow_queries) %>
+<% end %>
 <%= render_partial(:tab_query_stats) %>
 <%= render_partial(:tab_server) %>
 <%= render_partial(:tab_table_sizes) %>
@@ -313,14 +317,16 @@
     show(el('dash-loading'));
     hide(el('dash-content')); hide(el('dash-error'));
     // Reset previous data
+<% if capability?(:slow_queries) %>
     hide(el('dash-slow-table')); hide(el('dash-slow-empty'));
-    hide(el('dash-qstats-table')); hide(el('dash-qstats-empty')); hide(el('dash-qstats-error'));
     el('dash-slow-tbody').innerHTML = '';
+<% end %>
+    hide(el('dash-qstats-table')); hide(el('dash-qstats-empty')); hide(el('dash-qstats-error'));
     el('dash-qstats-tbody').innerHTML = '';
     el('dash-dup-count').textContent = '--';
     el('dash-unused-count').textContent = '--';
 
-    var loaded = { server: false, slow: false, qstats: false, dup: false, unused: false };
+    var loaded = { server: false, slow: <%= capability?(:slow_queries) ? "false" : "true" %>, qstats: false, dup: false, unused: false };
 
     function checkAllLoaded() {
       if (!loaded.server || !loaded.slow || !loaded.qstats || !loaded.dup || !loaded.unused) return;
@@ -365,6 +371,7 @@
       checkAllLoaded();
     }, function() { loaded.server = true; checkAllLoaded(); });
 
+    <% if capability?(:slow_queries) %>
     // Top 5 slow queries
     ajaxGet(ROUTES.slow_queries, {}, function(data) {
       if (!data || !data.length) {
@@ -389,6 +396,7 @@
       loaded.slow = true;
       checkAllLoaded();
     });
+    <% end %>
 
     // Top 5 expensive queries
     ajaxGet(ROUTES.query_stats, { sort: 'total_time', limit: 5 }, function(data) {
@@ -855,7 +863,9 @@
     });
   }
 
+<% if capability?(:slow_queries) %>
   el('slow-refresh').addEventListener('click', loadSlowQueries);
+<% end %>
 
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.slow-explain-btn');
@@ -1302,6 +1312,7 @@
     });
   }
 
+  <% if capability?(:slow_queries) %>
   // Server: Root Cause Analysis
   var rootCauseBtn = el('server-root-cause');
   if (rootCauseBtn) {
@@ -1349,6 +1360,7 @@
       });
     });
   }
+  <% end %>
 
   // Schema Review
   var schemaBtn = el('schema-review-btn');

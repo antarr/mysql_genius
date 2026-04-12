@@ -65,3 +65,26 @@ jobs:
 
       - name: Run specs
         run: bundle exec rspec
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Ruby 3.2
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: false
+
+      - name: Install desktop gem dependencies
+        working-directory: gems/mysql_genius-desktop
+        run: bundle install
+
+      - name: Run desktop specs
+        working-directory: gems/mysql_genius-desktop
+        run: bundle exec rspec
+
+      - name: Run desktop rubocop
+        working-directory: gems/mysql_genius-desktop
+        run: bundle exec rubocop
