@@ -1,0 +1,174 @@
+{
+  "project": "MysqlGenius",
+  "branchName": "ralph/query-detail-page",
+  "description": "Query Detail Page with Lightweight History - background stats collector, in-memory ring buffer, SVG time-series charts, and a dedicated query detail page accessible from the Query Stats tab",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add StatsHistory ring buffer to core gem",
+      "description": "As a developer, I need a thread-safe in-memory ring buffer to store per-digest query stats snapshots.",
+      "acceptanceCriteria": [
+        "Create gems/mysql_genius-core/lib/mysql_genius/core/analysis/stats_history.rb",
+        "StatsHistory.new(max_samples: 1440) initializes empty buffer",
+        "record(digest_text, {timestamp:, calls:, total_time_ms:, avg_time_ms:}) appends a snapshot",
+        "series_for(digest_text) returns ordered array oldest-to-newest",
+        "series_for returns empty array for unknown digests",
+        "Ring buffer drops oldest entry when max_samples reached",
+        "digests returns all known digest keys",
+        "clear empties all data",
+        "All operations are thread-safe via Mutex",
+        "Add require to gems/mysql_genius-core/lib/mysql_genius/core.rb",
+        "Create spec at gems/mysql_genius-core/spec/mysql_genius/core/analysis/stats_history_spec.rb with tests for all above",
+        "Core gem suite passes: (cd gems/mysql_genius-core && bundle exec rspec)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Thread safety: wrap all reads and writes in a single Mutex. The critical section is microseconds (array append/slice). Use a Hash keyed by digest_text, each value is an Array acting as ring buffer."
+    },
+    {
+      "id": "US-002",
+      "title": "Add StatsCollector background sampler to core gem",
+      "description": "As a developer, I need a background thread that periodically samples performance_schema and computes delta snapshots.",
+      "acceptanceCriteria": [
+        "Create gems/mysql_genius-core/lib/mysql_genius/core/analysis/stats_collector.rb",
+        "initialize(connection_provider:, history:, interval: 60) accepts a callable for connection",
+        "start spawns a background Thread and returns self",
+        "stop signals the thread to exit and joins with 5s timeout",
+        "running? returns boolean",
+        "Each tick: queries performance_schema for top 50 digests by SUM_TIMER_WAIT",
+        "Computes deltas: delta_calls = current - previous, delta_total_time = current - previous",
+        "Records delta snapshot into the StatsHistory instance",
+        "Negative deltas (server restart) recorded as 0",
+        "If performance_schema is unavailable, logs warning and stops (no crash loop)",
+        "Add require to gems/mysql_genius-core/lib/mysql_genius/core.rb",
+        "Create spec at gems/mysql_genius-core/spec/mysql_genius/core/analysis/stats_collector_spec.rb",
+        "Core gem suite passes",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "The connection_provider is a callable (lambda/proc) that returns a Core::Connection. This lets Rails pass -> { ActiveRecordAdapter.new(ActiveRecord::Base.connection) } and the sidecar pass -> { session.checkout { |a| a } }. Use the same SQL shape as QueryStats#build_sql but hardcoded to top 50 by SUM_TIMER_WAIT. Store @previous hash of {digest => {calls:, total_time_ms:}} for delta computation."
+    },
+    {
+      "id": "US-003",
+      "title": "Add DIGEST hash to QueryStats return value",
+      "description": "As a developer, I need the DIGEST hex hash in QueryStats output so the detail page can use it as a URL key.",
+      "acceptanceCriteria": [
+        "Modify gems/mysql_genius-core/lib/mysql_genius/core/analysis/query_stats.rb",
+        "Add DIGEST column to the SELECT in build_sql",
+        "Add digest: row['DIGEST'] to the transform method return hash",
+        "Existing fields unchanged (backward compatible addition)",
+        "Update query_stats_spec to verify the new digest field is present",
+        "Core gem suite passes",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "DIGEST is a 64-char hex string computed by MySQL. It's stable across identical query templates. The existing sql field continues to hold the truncated DIGEST_TEXT."
+    },
+    {
+      "id": "US-004",
+      "title": "Add query detail shared template with SVG charts",
+      "description": "As a user, I want to see a query's SQL, current stats, and time-series performance charts on a dedicated page.",
+      "acceptanceCriteria": [
+        "Create gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/query_detail.html.erb",
+        "Template shows: full SQL in mg-sql-block styled container",
+        "Template shows: Explain button that fires POST /explain",
+        "Template shows: stats summary cards (Calls, Total Time, Avg Time, Max Time, Rows Examined, Rows Sent, First Seen, Last Seen)",
+        "Template shows: three SVG charts stacked vertically (Total Time ms, Average Time ms, Calls)",
+        "SVG charts drawn by a drawChart(containerId, data, label, color) JS function",
+        "Charts use polyline with translucent fill below the line",
+        "Charts have Y axis auto-scaled with 4-5 ticks, X axis with time labels every ~4 hours",
+        "Charts use #89CFF0 line color in light mode, #58a6ff in dark mode",
+        "Chart height is 200px, width responsive (100% of container)",
+        "Page loads data via fetch to GET /api/query_history/:digest on page load",
+        "All JS is inline in the template (no external dependencies)",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "The template is standalone (not a tab partial). It will be rendered through each adapter's layout. The drawChart function creates an SVG element with: a viewBox for responsive scaling, a polyline for the data series, rect elements or text for axis labels. The Explain button reuses the existing POST /explain endpoint. Data fetched from /api/query_history/:digest returns {query: {...stats...}, history: [{timestamp, calls, total_time_ms, avg_time_ms}, ...]}."
+    },
+    {
+      "id": "US-005",
+      "title": "Make Query Stats tab SQL cells clickable links",
+      "description": "As a user, I want to click a query in the stats table to see its detail page.",
+      "acceptanceCriteria": [
+        "Modify gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/dashboard.html.erb",
+        "In the loadQueryStats JS function, render SQL column as <a href='/queries/:digest'> link",
+        "Link uses the digest hex hash from the query_stats API response",
+        "Link styled with mg-link class or inline color to look clickable",
+        "Existing query stats table layout and sorting still work",
+        "Rails adapter suite passes: bundle exec rspec",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "The loadQueryStats function is in dashboard.html.erb's inline JS. It currently renders the SQL as plain text in a td. Change it to an anchor tag. The href should use path_for pattern but since this is in JS, just hardcode '/queries/' + digest (the sidecar's PATHS hash and Rails route both serve this path). Also update the dashboard overview's Top 5 Expensive Queries to be clickable."
+    },
+    {
+      "id": "US-006",
+      "title": "Wire stats collector and detail routes into Rails adapter",
+      "description": "As a Rails developer, I want the stats collector to start on boot and the query detail page to be accessible.",
+      "acceptanceCriteria": [
+        "Add stats_collection config option (default true) to lib/mysql_genius/configuration.rb",
+        "Add MysqlGenius.stats_history and MysqlGenius.stats_collector module-level accessors to lib/mysql_genius.rb",
+        "Add initializer in lib/mysql_genius/engine.rb that starts StatsCollector when enabled",
+        "Initializer creates StatsHistory, StatsCollector with ActiveRecordAdapter connection_provider, calls start",
+        "Registers at_exit to stop the collector",
+        "Add two routes to config/routes.rb: get 'queries/:digest' and get 'api/query_history/:digest'",
+        "Add query_detail action to QueriesController that renders the shared template",
+        "Add query_history action that returns JSON with current stats + history",
+        "query_history looks up the digest in performance_schema and gets history from MysqlGenius.stats_history",
+        "Add request spec for GET /queries/:digest (returns 200)",
+        "Add request spec for GET /api/query_history/:digest (returns JSON with query and history keys)",
+        "Rails adapter suite passes",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "The connection_provider for Rails is -> { Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection) }. The query_detail action just renders the template with an @digest instance variable. The query_history action queries performance_schema filtered by DIGEST = :digest for current stats, and calls MysqlGenius.stats_history.series_for(digest_text) for history. If stats_history is nil (collection disabled), return empty history array."
+    },
+    {
+      "id": "US-007",
+      "title": "Wire stats collector and detail routes into desktop sidecar",
+      "description": "As a sidecar user, I want the stats collector running and the query detail page accessible.",
+      "acceptanceCriteria": [
+        "Update gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb to create StatsHistory + StatsCollector and set on App",
+        "Add App settings: :stats_history, :stats_collector",
+        "Collector uses connection_provider that checks out from the active session",
+        "Register at_exit to stop collector",
+        "Update SessionSwapper to stop old collector, clear history, start new collector on profile switch",
+        "Add GET /queries/:digest route to App (renders query_detail template through layout)",
+        "Add GET /api/query_history/:digest route to App (returns JSON)",
+        "Both new routes are under session-token auth",
+        "Add request spec for the two new routes",
+        "Desktop gem suite passes: (cd gems/mysql_genius-desktop && bundle exec rspec)",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "The connection_provider for the sidecar wraps session.checkout. On profile switch, SessionSwapper should: App.settings.stats_collector&.stop, App.settings.stats_history&.clear, then after swapping the session create a new collector with the new session and start it. The render_query_detail method follows the same pattern as render_dashboard (Tilt through layout)."
+    },
+    {
+      "id": "US-008",
+      "title": "Full green sweep across all suites",
+      "description": "As a developer, I need all test suites and linters passing before the PR.",
+      "acceptanceCriteria": [
+        "Rails adapter rspec passes (78+ examples)",
+        "Core gem rspec passes (194+ examples plus new StatsHistory/StatsCollector/QueryStats specs)",
+        "Desktop gem rspec passes (154+ examples plus new route specs)",
+        "Rails adapter rubocop clean",
+        "Core gem rubocop clean",
+        "Desktop gem rubocop clean",
+        "git diff main -- .github/workflows/publish.yml is empty (untouched)",
+        "No version bumps committed (version bump is a separate release task)",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Run all six commands in order. If any fail, fix before proceeding. This is a verification step, not an implementation step."
+    }
+  ]
+}
