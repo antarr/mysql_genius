@@ -3,6 +3,11 @@
 require "mysql_genius/core"
 require "mysql_genius/desktop/version"
 require "mysql_genius/core/connection/trilogy_adapter"
+require "mysql_genius/desktop/config/mysql_config"
+require "mysql_genius/desktop/config/server_config"
+require "mysql_genius/desktop/config/security_config"
+require "mysql_genius/desktop/config/query_config"
+require "mysql_genius/desktop/config/ai_config"
 
 module MysqlGenius
   # Sinatra + Trilogy sidecar for serving the MysqlGenius dashboard against
