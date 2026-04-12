@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/gems/mysql_genius-desktop/CHANGELOG.md"
 
   spec.files = Dir.chdir(__dir__) do
-    Dir.glob("lib/**/*.rb") +
+    Dir.glob("lib/**/*.{rb,erb}") +
       Dir.glob("exe/*") +
       ["mysql_genius-desktop.gemspec", "CHANGELOG.md", "README.md", "TESTING.md"].select { |f| File.exist?(File.join(__dir__, f)) }
   end
