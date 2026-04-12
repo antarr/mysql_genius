@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0
+
+### Added
+- **`capability?(name)` helper** in `SharedViewHelpers`. The Rails adapter returns `true` for all capabilities; the desktop sidecar uses it to hide Redis-backed features (slow_queries, anomaly_detection, root_cause) from the shared dashboard templates.
+- **Query detail page** at `GET /queries/:digest` with syntax-highlighted SQL, Explain button, aggregate stats cards, and three inline SVG time-series charts (Total Time, Average Time, Calls).
+- **`Core::Analysis::StatsHistory`** — thread-safe in-memory ring buffer for per-digest query stats snapshots (24hr retention at 60s intervals).
+- **`Core::Analysis::StatsCollector`** — background thread that samples `performance_schema.events_statements_summary_by_digest` every 60s, computes deltas, and records to StatsHistory.
+- **`DIGEST` hash** added to `Core::Analysis::QueryStats` return value for stable URL keys.
+- **Stats collection config option** (`stats_collection`, default `true`) — controls whether the background collector starts on boot.
+- **Query Stats tab linkification** — SQL cells in the Query Stats table are now clickable links to the query detail page.
+- `mysql_genius` now declares runtime dependency on `mysql_genius-core ~> 0.7.0`.
+
 ## 0.6.0
 
 ### Changed

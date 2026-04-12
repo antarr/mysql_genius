@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+### Added
+- `MysqlGenius::Core::Analysis::StatsHistory` — thread-safe in-memory ring buffer storing per-digest query performance snapshots. Supports `record`, `series_for`, `digests`, `clear`. Max 1440 samples per digest (24 hours at 60-second intervals).
+- `MysqlGenius::Core::Analysis::StatsCollector` — background thread that samples `performance_schema.events_statements_summary_by_digest` at a configurable interval, computes per-interval deltas, and records them into a `StatsHistory` instance. Handles server restarts (negative deltas clamped to 0) and performance_schema unavailability (stops gracefully).
+- `MysqlGenius::Core::Analysis::QueryStats` now includes `digest:` (the `DIGEST` hex hash from performance_schema) in its return value for stable URL keys.
+- `capability?(name)` template helper contract — shared templates gate Redis-backed UI via `<% if capability?(:slow_queries) %>` guards. Rails adapter returns `true` for all names; the desktop sidecar returns `true` only for `:ai`.
+- Query detail shared template (`query_detail.html.erb`) with SQL display, Explain button, stats cards, and inline SVG time-series charts.
+- Query Stats dashboard tab now renders SQL cells as clickable links to `/queries/:digest`.
+
 ## 0.6.0
 
 No functional changes in `mysql_genius-core`. Version bumped to maintain lockstep with `mysql_genius 0.6.0`, which drops Rails 5.2 support from the Rails adapter. See the root `CHANGELOG.md` for the full change list.
