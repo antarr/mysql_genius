@@ -46,6 +46,42 @@ module MysqlGenius
         render_dashboard
       end
 
+      post "/execute" do
+        sql = params[:sql].to_s.strip
+        row_limit = if params[:row_limit].to_s.empty?
+          settings.mysql_genius_config.query.default_row_limit
+        else
+          params[:row_limit].to_i.clamp(1, settings.mysql_genius_config.query.max_row_limit)
+        end
+
+        runner_config = MysqlGenius::Core::QueryRunner::Config.new(
+          blocked_tables:         settings.mysql_genius_config.security.blocked_tables,
+          masked_column_patterns: settings.mysql_genius_config.security.masked_column_patterns,
+          query_timeout_ms:       settings.mysql_genius_config.query.query_timeout_ms,
+        )
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            MysqlGenius::Core::QueryRunner.new(adapter, runner_config).run(sql, row_limit: row_limit)
+          end
+        rescue MysqlGenius::Core::QueryRunner::Rejected => e
+          halt(422, json_response(error: e.message))
+        rescue MysqlGenius::Core::QueryRunner::Timeout
+          timeout_seconds = settings.mysql_genius_config.query.timeout_seconds
+          halt(422, json_response(error: "Query exceeded the #{timeout_seconds} second timeout limit.", timeout: true))
+        rescue StandardError => e
+          halt(422, json_response(error: "Query error: #{e.message}"))
+        end
+
+        json_response(
+          columns:           result.columns,
+          rows:              result.rows,
+          row_count:         result.row_count,
+          execution_time_ms: result.execution_time_ms,
+          truncated:         result.truncated,
+        )
+      end
+
       get "/columns" do
         result = settings.active_session.checkout do |adapter|
           MysqlGenius::Core::Analysis::Columns.new(
