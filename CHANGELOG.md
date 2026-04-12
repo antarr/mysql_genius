@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+Lockstep version bump with `mysql_genius-core 0.7.1` which fixes missing ERB templates in the gem package.
+
 ## 0.7.0
 
 ### Added

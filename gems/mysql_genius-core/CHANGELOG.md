@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+### Fixed
+- **ERB templates missing from gem package.** The `spec.files` glob in the gemspec only matched `*.rb` files, excluding the shared ERB templates at `lib/mysql_genius/core/views/`. The `mysql_genius-desktop` sidecar crashed with `Errno::ENOENT` when installed from RubyGems (vs path dependency). Fixed by changing the glob to `*.{rb,erb}`.
+
 ## 0.7.0
 
 ### Added
