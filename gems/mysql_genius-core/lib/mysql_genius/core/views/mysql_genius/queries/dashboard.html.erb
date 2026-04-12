@@ -1312,6 +1312,7 @@
     });
   }
 
+  <% if capability?(:slow_queries) %>
   // Server: Root Cause Analysis
   var rootCauseBtn = el('server-root-cause');
   if (rootCauseBtn) {
@@ -1359,6 +1360,7 @@
       });
     });
   }
+  <% end %>
 
   // Schema Review
   var schemaBtn = el('schema-review-btn');

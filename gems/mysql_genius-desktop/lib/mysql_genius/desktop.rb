@@ -10,6 +10,8 @@ require "mysql_genius/desktop/config/query_config"
 require "mysql_genius/desktop/config/ai_config"
 require "mysql_genius/desktop/config"
 require "mysql_genius/desktop/active_session"
+require "mysql_genius/desktop/paths"
+require "mysql_genius/desktop/app"
 
 module MysqlGenius
   # Sinatra + Trilogy sidecar for serving the MysqlGenius dashboard against
@@ -18,11 +20,17 @@ module MysqlGenius
   # See `docs/superpowers/specs/2026-04-12-phase-2b-desktop-sidecar-design.md`.
   module Desktop
   end
+
+  # Minimal shim so shared ERB templates can call MysqlGenius.configuration
+  # without depending on the Rails adapter's Configuration class.
+  ConfigurationShim = Struct.new(:max_row_limit, :slow_query_threshold_ms, keyword_init: true)
+
+  class << self
+    def configuration
+      @configuration ||= ConfigurationShim.new(max_row_limit: 10_000, slow_query_threshold_ms: 1000)
+    end
+  end
 end
 
-# Concrete classes are required by later files as this plan progresses:
-#   - require "mysql_genius/desktop/config/..."                (Tasks 4-5)
-#   - require "mysql_genius/desktop/active_session"            (Task 6)
-#   - require "mysql_genius/desktop/paths"                     (Task 7)
-#   - require "mysql_genius/desktop/app"                       (Task 7)
-#   - require "mysql_genius/desktop/launcher"                  (Task 15)
+# Remaining require added by Task 15:
+#   - require "mysql_genius/desktop/launcher"
