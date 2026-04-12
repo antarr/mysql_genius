@@ -178,6 +178,134 @@ module MysqlGenius
         json_response(overview)
       end
 
+      post "/suggest" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        prompt = params[:prompt].to_s.strip
+        halt(422, json_response(error: "Please describe what you want to query.")) if prompt.empty?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::Suggestion.new(adapter, MysqlGenius::Core::Ai::Client.new(core_config), core_config)
+              .call(prompt, queryable_tables(adapter))
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "AI suggestion failed: #{e.message}"))
+        end
+
+        sql = result["sql"].to_s.gsub(/```(?:sql)?\s*/i, "").gsub("```", "").strip
+        json_response(sql: sql, explanation: result["explanation"])
+      end
+
+      post "/optimize" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        sql = params[:sql].to_s.strip
+        explain_rows = coerce_explain_rows(params[:explain_rows])
+        halt(422, json_response(error: "SQL and EXPLAIN output are required.")) if sql.empty? || explain_rows.empty?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::Optimization.new(adapter, MysqlGenius::Core::Ai::Client.new(core_config), core_config)
+              .call(sql, explain_rows, queryable_tables(adapter))
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Optimization failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/describe_query" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        sql = params[:sql].to_s.strip
+        halt(422, json_response(error: "SQL is required.")) if sql.empty?
+
+        begin
+          core_config = build_ai_core_config
+          result = MysqlGenius::Core::Ai::DescribeQuery.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config).call(sql)
+        rescue StandardError => e
+          halt(422, json_response(error: "Explanation failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/schema_review" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        table = params[:table].to_s.strip.empty? ? nil : params[:table].to_s.strip
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::SchemaReview.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call(table)
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Schema review failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/rewrite_query" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        sql = params[:sql].to_s.strip
+        halt(422, json_response(error: "SQL is required.")) if sql.empty?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::RewriteQuery.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call(sql)
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Rewrite failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/index_advisor" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        sql = params[:sql].to_s.strip
+        explain_rows = coerce_explain_rows(params[:explain_rows])
+        halt(422, json_response(error: "SQL and EXPLAIN output are required.")) if sql.empty? || explain_rows.empty?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::IndexAdvisor.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call(sql, explain_rows)
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Index advisor failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/migration_risk" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        migration_sql = params[:migration].to_s.strip
+        halt(422, json_response(error: "Migration SQL or Ruby code is required.")) if migration_sql.empty?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::MigrationRisk.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call(migration_sql)
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Migration risk assessment failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
       private
 
       def render_dashboard
@@ -188,6 +316,33 @@ module MysqlGenius
       def json_response(obj)
         content_type(:json)
         obj.to_json
+      end
+
+      def ai_not_configured
+        halt(404, json_response(error: "AI features are not configured."))
+      end
+
+      def build_ai_core_config
+        ai = settings.mysql_genius_config.ai
+        MysqlGenius::Core::Ai::Config.new(
+          client:         nil,
+          endpoint:       ai.endpoint,
+          api_key:        ai.api_key,
+          model:          ai.model,
+          auth_style:     ai.auth_style,
+          system_context: ai.system_context,
+          domain_context: ai.domain_context,
+        )
+      end
+
+      def queryable_tables(adapter)
+        adapter.tables - settings.mysql_genius_config.security.blocked_tables
+      end
+
+      def coerce_explain_rows(raw)
+        return [] if raw.nil?
+
+        Array(raw).map { |row| row.respond_to?(:values) ? row.values : Array(row) }
       end
     end
   end
