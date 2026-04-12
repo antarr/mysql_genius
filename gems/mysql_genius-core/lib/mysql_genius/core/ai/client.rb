@@ -27,12 +27,11 @@ module MysqlGenius
 
           raise NotConfigured, "AI is not configured" unless @config.enabled?
 
-          body = {
-            messages: messages,
-            response_format: { type: "json_object" },
-            temperature: temperature,
-          }
-          body[:model] = @config.model if @config.model && !@config.model.empty?
+          body = if anthropic?
+            build_anthropic_body(messages, temperature)
+          else
+            build_openai_body(messages, temperature)
+          end
 
           response = post_with_redirects(URI(@config.endpoint), body.to_json)
           parsed = JSON.parse(response.body)
@@ -41,13 +40,45 @@ module MysqlGenius
             raise ApiError, "AI API error: #{parsed["error"]["message"] || parsed["error"]}"
           end
 
-          content = parsed.dig("choices", 0, "message", "content")
+          content = if anthropic?
+            parsed.dig("content", 0, "text")
+          else
+            parsed.dig("choices", 0, "message", "content")
+          end
           raise ApiError, "No content in AI response" if content.nil?
 
           parse_json_content(content)
         end
 
         private
+
+        def anthropic?
+          @config.auth_style == :x_api_key
+        end
+
+        def build_openai_body(messages, temperature)
+          body = {
+            messages: messages,
+            response_format: { type: "json_object" },
+            temperature: temperature,
+          }
+          body[:model] = @config.model if @config.model && !@config.model.empty?
+          body
+        end
+
+        def build_anthropic_body(messages, temperature)
+          system_text = messages.select { |m| m[:role] == "system" }.map { |m| m[:content] }.join("\n\n")
+          user_messages = messages.reject { |m| m[:role] == "system" }
+
+          body = {
+            messages: user_messages,
+            max_tokens: 4096,
+            temperature: temperature,
+          }
+          body[:system] = system_text unless system_text.empty?
+          body[:model] = @config.model if @config.model && !@config.model.empty?
+          body
+        end
 
         def parse_json_content(content)
           JSON.parse(content)
