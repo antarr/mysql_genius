@@ -77,6 +77,55 @@
   </div>
 </div>
 
+<div class="mg-card mg-mb">
+  <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <strong>AI Configuration</strong>
+    <span id="mg-ai-status" style="font-size:12px;color:#888;">Loading...</span>
+  </div>
+  <div class="mg-card-body">
+    <div class="mg-text-muted mg-mb" style="font-size:12px;">Connect to an OpenAI-compatible API for query suggestions, optimization, schema review, and more.</div>
+    <div class="mg-row">
+      <div class="mg-col-grow mg-field">
+        <label for="mg-ai-endpoint">API Endpoint</label>
+        <input type="text" id="mg-ai-endpoint" placeholder="https://api.openai.com/v1/chat/completions">
+      </div>
+      <div class="mg-col-3 mg-field">
+        <label for="mg-ai-key">API Key</label>
+        <input type="password" id="mg-ai-key" placeholder="sk-...">
+      </div>
+    </div>
+    <div class="mg-row">
+      <div class="mg-col-3 mg-field">
+        <label for="mg-ai-model">Model</label>
+        <input type="text" id="mg-ai-model" placeholder="gpt-4o-mini (optional)">
+      </div>
+      <div class="mg-col-2 mg-field">
+        <label for="mg-ai-auth">Auth Style</label>
+        <select id="mg-ai-auth">
+          <option value="bearer">Bearer token</option>
+          <option value="api_key">api-key header</option>
+        </select>
+      </div>
+    </div>
+    <div class="mg-row">
+      <div class="mg-col-grow mg-field">
+        <label for="mg-ai-context">System Context <span class="mg-text-muted">(optional)</span></label>
+        <input type="text" id="mg-ai-context" placeholder="e.g. This is an e-commerce analytics database">
+      </div>
+    </div>
+    <div class="mg-row">
+      <div class="mg-col-grow mg-field">
+        <label for="mg-ai-domain">Domain Context <span class="mg-text-muted">(optional)</span></label>
+        <input type="text" id="mg-ai-domain" placeholder="e.g. Prefer window functions over correlated subqueries">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="mg-ai-save" class="mg-btn mg-btn-primary mg-btn-sm">Save</button>
+      <span id="mg-ai-save-status" style="font-size:12px;"></span>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
   var currentProfile = null;
@@ -229,5 +278,51 @@
   });
 
   loadProfiles();
+
+  // --- AI Configuration ---
+
+  function loadAiConfig() {
+    fetch('/api/ai_config').then(function(r) { return r.json(); }).then(function(data) {
+      el('mg-ai-endpoint').value = data.endpoint || '';
+      el('mg-ai-key').value = data.api_key || '';
+      el('mg-ai-model').value = data.model || '';
+      el('mg-ai-auth').value = data.auth_style || 'bearer';
+      el('mg-ai-context').value = data.system_context || '';
+      el('mg-ai-domain').value = data.domain_context || '';
+      var enabled = (data.endpoint && data.api_key);
+      el('mg-ai-status').textContent = enabled ? 'Configured' : 'Not configured';
+      el('mg-ai-status').style.color = enabled ? '#1a7f37' : '#888';
+    });
+  }
+
+  el('mg-ai-save').addEventListener('click', function() {
+    var payload = {
+      endpoint: el('mg-ai-endpoint').value.trim(),
+      api_key: el('mg-ai-key').value.trim(),
+      model: el('mg-ai-model').value.trim(),
+      auth_style: el('mg-ai-auth').value,
+      system_context: el('mg-ai-context').value.trim(),
+      domain_context: el('mg-ai-domain').value.trim()
+    };
+    el('mg-ai-save-status').textContent = 'Saving...';
+    el('mg-ai-save-status').style.color = '';
+    fetch('/api/ai_config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.error) {
+        el('mg-ai-save-status').textContent = 'Error: ' + data.error;
+        el('mg-ai-save-status').style.color = '#cf222e';
+      } else {
+        el('mg-ai-save-status').textContent = 'Saved';
+        el('mg-ai-save-status').style.color = '#1a7f37';
+        loadAiConfig();
+        setTimeout(function() { el('mg-ai-save-status').textContent = ''; }, 3000);
+      }
+    });
+  });
+
+  loadAiConfig();
 })();
 </script>

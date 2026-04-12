@@ -409,6 +409,25 @@ module MysqlGenius
         render_connections
       end
 
+      get "/api/ai_config" do
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        json_response(manager.read_ai_config)
+      end
+
+      put "/api/ai_config" do
+        data = JSON.parse(request.body.read)
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        manager.update_ai_config(data)
+
+        # Reload the AI config into the running app
+        ai = Config::AiConfig.from_hash(data)
+        settings.mysql_genius_config.instance_variable_set(:@ai, ai)
+
+        json_response(manager.read_ai_config)
+      rescue StandardError => e
+        halt(422, json_response(error: e.message))
+      end
+
       private
 
       LAYOUT_PATH = File.expand_path("layout.html.erb", __dir__).freeze

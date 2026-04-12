@@ -63,6 +63,17 @@ module MysqlGenius
         { success: false, error: e.message }
       end
 
+      def read_ai_config
+        data = read_raw
+        data["ai"] || {}
+      end
+
+      def update_ai_config(ai_hash)
+        data = read_raw
+        data["ai"] = stringify_keys(ai_hash)
+        write_raw(data)
+      end
+
       private
 
       def read_raw
