@@ -123,6 +123,7 @@ module MysqlGenius
 
       slow_summary = slow_data.first(50).map { |q| "#{q["duration_ms"]}ms @ #{q["timestamp"]}: #{q["sql"].to_s.truncate(150)}" }.join("\n")
       stats_summary = stats.map { |q| "calls=#{q[:calls]} avg=#{q[:avg_ms]}ms total=#{q[:total_ms]}ms exam=#{q[:rows_examined]} sent=#{q[:rows_sent]}: #{q[:sql]}" }.join("\n")
+      domain_ctx = mysql_genius_config.ai_system_context.present? ? "\nDomain context:\n#{mysql_genius_config.ai_system_context}" : ""
 
       messages = [
         { role: "system", content: <<~PROMPT },
@@ -132,7 +133,7 @@ module MysqlGenius
           3. Full table scans (rows_examined >> rows_sent)
           4. Sudden new query patterns that may indicate code changes
           5. Queries creating excessive temp tables or sorts
-          #{ai_domain_context}
+          #{domain_ctx}
 
           Respond with JSON: {"report": "markdown-formatted health report organized by severity. For each finding, explain the issue, affected query, and recommended fix."}
         PROMPT
@@ -194,6 +195,8 @@ module MysqlGenius
         slow_summary = slows.map { |q| "#{q["duration_ms"]}ms: #{q["sql"].to_s.truncate(150)}" }.join("\n")
       end
 
+      domain_ctx = mysql_genius_config.ai_system_context.present? ? "\nDomain context:\n#{mysql_genius_config.ai_system_context}" : ""
+
       messages = [
         { role: "system", content: <<~PROMPT },
           You are a MySQL incident responder. The user is asking "why is the database slow right now?" Analyze the provided data and give a root cause diagnosis. Consider:
@@ -204,7 +207,7 @@ module MysqlGenius
           - Disk I/O saturation
           - Replication lag
           - Unusual query patterns
-          #{ai_domain_context}
+          #{domain_ctx}
 
           Respond with JSON: {"diagnosis": "markdown-formatted root cause analysis. Start with a 1-2 sentence summary, then detailed findings. Include specific actionable steps to resolve the issue."}
         PROMPT
@@ -254,12 +257,6 @@ module MysqlGenius
 
     def ai_not_configured
       render(json: { error: "AI features are not configured." }, status: :not_found)
-    end
-
-    def ai_domain_context
-      cfg = mysql_genius_config
-      ctx = cfg.ai_system_context
-      ctx.present? ? "\nDomain context:\n#{ctx}" : ""
     end
   end
 end
