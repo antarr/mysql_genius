@@ -1,9 +1,11 @@
+<% if capability?(:standalone_header) %>
 <div style="display:flex;align-items:center;justify-content:space-between;">
   <h4>&#128024; MySQLGenius</h4>
   <button class="mg-theme-toggle" id="mg-theme-btn" title="Toggle dark/light theme" onclick="(function(){var d=document.documentElement,t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);localStorage.setItem('mg-theme',t);document.getElementById('mg-theme-btn').textContent=t==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';})()">
     <script>document.write(document.documentElement.getAttribute('data-theme')==='dark'?'\u2600\uFE0F':'\uD83C\uDF19')</script>
   </button>
 </div>
+<% end %>
 
 <div class="mg-tabs">
   <button class="mg-tab active" data-tab="dashboard">Dashboard</button>
