@@ -83,14 +83,14 @@ RSpec.describe("Profile API routes", type: :request) do
     end
   end
 
-  describe "POST /api/profiles/:name/test" do
+  describe "POST /api/test_connection" do
     it "tests a connection and returns success/version" do
       adapter = instance_double(MysqlGenius::Core::Connection::TrilogyAdapter)
       allow(adapter).to(receive(:exec_query).and_return(instance_double(MysqlGenius::Core::Result, rows: [["8.0.35"]])))
       allow(adapter).to(receive(:close))
       allow(MysqlGenius::Desktop::ActiveSession).to(receive(:open_adapter_for).and_return(adapter))
 
-      post "/api/profiles/prod/test"
+      post "/api/test_connection", { mysql: { host: "db.prod.com", username: "readonly", database: "app_prod" } }.to_json, "CONTENT_TYPE" => "application/json"
       expect(last_response.status).to(eq(200))
       body = JSON.parse(last_response.body)
       expect(body["success"]).to(be(true))

@@ -365,13 +365,13 @@ module MysqlGenius
         halt(422, json_response(error: e.message))
       end
 
-      post "/api/profiles/:name/test" do
-        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
-        profiles = manager.list
-        profile = profiles.find { |p| p[:name] == params[:name] }
-        halt(404, json_response(error: "Profile '#{params[:name]}' not found")) unless profile
+      post "/api/test_connection" do
+        data = JSON.parse(request.body.read)
+        mysql = data["mysql"]
+        halt(422, json_response(error: "mysql config is required")) unless mysql
 
-        result = manager.test_connection(mysql: profile[:mysql])
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        result = manager.test_connection(mysql: mysql)
         json_response(result)
       end
 

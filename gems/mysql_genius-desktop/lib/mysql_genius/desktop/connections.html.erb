@@ -152,10 +152,13 @@
   });
 
   el('mg-form-test').addEventListener('click', function() {
-    var name = editingName || el('mg-f-name').value || '_test';
     el('mg-form-status').textContent = 'Testing...';
     el('mg-form-status').style.color = '';
-    fetch('/api/profiles/' + encodeURIComponent(name) + '/test', { method: 'POST' })
+    fetch('/api/test_connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mysql: getFormData() })
+    })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
