@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+### Fixed
+- **Older MySQL compatibility** — the `DIGEST` column in `performance_schema.events_statements_summary_by_digest` is not present on all MySQL/MariaDB versions. `QueryStats` now checks for column existence before including it in the SELECT. Query links in the Query Stats tab gracefully degrade to plain text when the digest is unavailable.
+
 ## 0.8.0
 
 ### Added

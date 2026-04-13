@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+### Fixed
+- **`QueryStats` gracefully handles missing `DIGEST` column** on older MySQL/MariaDB versions. Checks `information_schema.COLUMNS` before including it in the SELECT. Query detail links degrade to plain text when unavailable.
+
 ## 0.8.0
 
 ### Added
