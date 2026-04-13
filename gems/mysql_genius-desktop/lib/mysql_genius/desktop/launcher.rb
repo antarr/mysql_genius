@@ -123,6 +123,12 @@ module MysqlGenius
             "password" => mysql.password,
             "database_name" => mysql.database,
             "tls_mode" => mysql.tls_mode,
+            "ssh_enabled" => mysql.ssh_enabled,
+            "ssh_host" => mysql.ssh_host,
+            "ssh_port" => mysql.ssh_port,
+            "ssh_user" => mysql.ssh_user,
+            "ssh_key_path" => mysql.ssh_key_path,
+            "ssh_password" => mysql.ssh_password,
           )
         end
       end

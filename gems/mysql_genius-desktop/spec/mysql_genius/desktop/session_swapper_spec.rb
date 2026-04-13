@@ -105,4 +105,61 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
       expect(old_session).not_to(have_received(:close))
     end
   end
+
+  context "when switching to an SSH-enabled profile" do
+    before do
+      database.add_profile(
+        "name" => "ssh_prod",
+        "host" => "db.internal",
+        "username" => "admin",
+        "database_name" => "app",
+        "ssh_enabled" => 1,
+        "ssh_host" => "bastion.example.com",
+        "ssh_port" => 22,
+        "ssh_user" => "deploy",
+        "ssh_key_path" => "~/.ssh/id_rsa",
+      )
+    end
+
+    it "passes SSH fields through to the new session config" do
+      captured_config = nil
+      allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new)) do |cfg|
+        captured_config = cfg
+        new_session
+      end
+
+      swapper.switch_to("ssh_prod")
+
+      expect(captured_config.mysql.ssh_enabled?).to(be(true))
+      expect(captured_config.mysql.ssh_host).to(eq("bastion.example.com"))
+      expect(captured_config.mysql.ssh_user).to(eq("deploy"))
+      expect(captured_config.mysql.ssh_key_path).to(eq("~/.ssh/id_rsa"))
+    end
+
+    it "closes the old session (and its tunnel) when switching away" do
+      swapper.switch_to("ssh_prod")
+      expect(old_session).to(have_received(:close))
+    end
+  end
+
+  context "when the new session has an active tunnel" do
+    let(:new_session) { instance_double(MysqlGenius::Desktop::ActiveSession, tunnel_port: 54321) }
+
+    it "captures the tunnel port for the stats collector connection provider" do
+      captured_proc = nil
+      allow(MysqlGenius::Core::Analysis::StatsCollector).to(receive(:new)) do |**kwargs|
+        captured_proc = kwargs[:connection_provider]
+        instance_double(MysqlGenius::Core::Analysis::StatsCollector, start: nil)
+      end
+      allow(MysqlGenius::Desktop::ActiveSession).to(receive(:open_adapter_for))
+
+      swapper.switch_to("staging")
+      captured_proc.call
+
+      expect(MysqlGenius::Desktop::ActiveSession).to(have_received(:open_adapter_for).with(
+        anything,
+        tunnel_port: 54321,
+      ))
+    end
+  end
 end
