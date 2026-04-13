@@ -5,7 +5,6 @@ require "tilt"
 require "json"
 require "mysql_genius/core"
 require "mysql_genius/desktop/paths"
-require "mysql_genius/desktop/profile_manager"
 require "mysql_genius/desktop/session_swapper"
 
 module MysqlGenius
@@ -342,36 +341,38 @@ module MysqlGenius
       # --- Profile API ---
 
       get "/api/profiles" do
-        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
-        json_response(profiles: manager.list, current: settings.current_profile_name)
+        profiles = settings.database.list_profiles.map { |p| format_profile(p) }
+        json_response(profiles: profiles, current: settings.current_profile_name)
       end
 
       post "/api/profiles" do
         data = JSON.parse(request.body.read)
-        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
-        manager.add(name: data["name"], mysql: data["mysql"])
-        json_response(profiles: manager.list)
-      rescue ProfileManager::DuplicateProfileError => e
+        settings.database.add_profile(profile_attrs_from_request(data))
+        profiles = settings.database.list_profiles.map { |p| format_profile(p) }
+        json_response(profiles: profiles)
+      rescue Database::DuplicateProfileError => e
         halt(409, json_response(error: e.message))
       end
 
       put "/api/profiles/:name" do
         data = JSON.parse(request.body.read)
-        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
-        manager.update(name: params[:name], mysql: data["mysql"])
-        json_response(profiles: manager.list)
-      rescue ProfileManager::ProfileNotFoundError => e
+        settings.database.update_profile(params[:name], update_attrs_from_request(data))
+        profiles = settings.database.list_profiles.map { |p| format_profile(p) }
+        json_response(profiles: profiles)
+      rescue Database::ProfileNotFoundError => e
         halt(404, json_response(error: e.message))
       end
 
       delete "/api/profiles/:name" do
-        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
-        manager.delete(name: params[:name], current_profile: settings.current_profile_name)
-        json_response(profiles: manager.list)
-      rescue ProfileManager::ProfileNotFoundError => e
+        if params[:name] == settings.current_profile_name
+          halt(422, json_response(error: "Cannot delete the active profile '#{params[:name]}'"))
+        end
+
+        settings.database.delete_profile(params[:name])
+        profiles = settings.database.list_profiles.map { |p| format_profile(p) }
+        json_response(profiles: profiles)
+      rescue Database::ProfileNotFoundError => e
         halt(404, json_response(error: e.message))
-      rescue ProfileManager::ActiveProfileError => e
-        halt(422, json_response(error: e.message))
       end
 
       post "/api/test_connection" do
@@ -379,17 +380,38 @@ module MysqlGenius
         mysql = data["mysql"]
         halt(422, json_response(error: "mysql config is required")) unless mysql
 
-        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
-        result = manager.test_connection(mysql: mysql)
-        json_response(result)
+        mysql_config = Config::MysqlConfig.from_hash(mysql)
+        switch_config = build_minimal_config(mysql_config)
+        adapter = ActiveSession.open_adapter_for(switch_config)
+        result = adapter.exec_query("SELECT VERSION()")
+        version = result.rows.first&.first
+        adapter.close
+        json_response(success: true, version: version)
+      rescue StandardError => e
+        json_response(success: false, error: e.message)
       end
 
       post "/api/profiles/:name/connect" do
+        profile = settings.database.find_profile(params[:name])
+        halt(404, json_response(error: "Profile '#{params[:name]}' not found")) unless profile
+
+        mysql_config = Config::MysqlConfig.from_hash(mysql_hash_from_profile(profile))
         swapper = SessionSwapper.new(self.class, settings.mysql_genius_config)
-        swapper.switch_to(params[:name])
+        swapper.switch_to_config(params[:name], mysql_config)
         json_response(success: true, profile: params[:name])
       rescue ActiveSession::ConnectError => e
         halt(422, json_response(error: e.message))
+      end
+
+      get "/api/ai_config" do
+        json_response(settings.database.get_ai_config)
+      end
+
+      put "/api/ai_config" do
+        data = JSON.parse(request.body.read)
+        settings.database.set_ai_config(data)
+        reload_ai_config_from_database
+        json_response(success: true)
       end
 
       get "/queries/:digest" do
@@ -530,6 +552,70 @@ module MysqlGenius
         return [] if raw.nil?
 
         Array(raw).map { |row| row.respond_to?(:values) ? row.values : Array(row) }
+      end
+
+      def format_profile(row)
+        {
+          name: row["name"],
+          mysql: {
+            host: row["host"],
+            port: row["port"],
+            username: row["username"],
+            password: row["password"],
+            database: row["database_name"],
+            tls_mode: row["tls_mode"],
+          },
+        }
+      end
+
+      def profile_attrs_from_request(data)
+        mysql = data["mysql"] || {}
+        {
+          "name" => data["name"],
+          "host" => mysql["host"],
+          "port" => mysql["port"] || 3306,
+          "username" => mysql["username"],
+          "password" => mysql["password"] || "",
+          "database_name" => mysql["database"],
+          "tls_mode" => mysql["tls_mode"] || "preferred",
+        }
+      end
+
+      def update_attrs_from_request(data)
+        mysql = data["mysql"] || {}
+        {
+          "host" => mysql["host"],
+          "port" => mysql["port"] || 3306,
+          "username" => mysql["username"],
+          "password" => mysql["password"] || "",
+          "database_name" => mysql["database"],
+          "tls_mode" => mysql["tls_mode"] || "preferred",
+        }
+      end
+
+      def mysql_hash_from_profile(profile)
+        {
+          "host" => profile["host"],
+          "port" => profile["port"],
+          "username" => profile["username"],
+          "password" => profile["password"],
+          "database" => profile["database_name"],
+          "tls_mode" => profile["tls_mode"],
+        }
+      end
+
+      def build_minimal_config(mysql_config)
+        Config.allocate.tap do |c|
+          c.instance_variable_set(:@profiles, [Config::ProfileConfig.new(name: "_test", mysql: mysql_config)])
+          c.instance_variable_set(:@default_profile, "_test")
+          c.instance_variable_set(:@query, Config::QueryConfig.from_hash({}))
+        end
+      end
+
+      def reload_ai_config_from_database
+        ai_hash = settings.database.get_ai_config
+        ai_config = Config::AiConfig.from_hash(ai_hash)
+        settings.mysql_genius_config.instance_variable_set(:@ai, ai_config)
       end
     end
   end

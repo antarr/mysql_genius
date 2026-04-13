@@ -12,16 +12,17 @@ module MysqlGenius
         profile = @config.profile_by_name(profile_name)
         raise ActiveSession::ConnectError, "Profile '#{profile_name}' not found" unless profile
 
-        # Build a config that ActiveSession can read config.mysql from
-        session_config = build_switch_config(profile.mysql)
+        switch_to_config(profile_name, profile.mysql)
+      end
+
+      def switch_to_config(profile_name, mysql_config)
+        session_config = build_switch_config(mysql_config)
         new_session = ActiveSession.new(session_config)
         old_session = @app_class.settings.active_session
 
         @app_class.settings.stats_collector&.stop
         @app_class.settings.stats_history&.clear
 
-        # Update the original config's default_profile so config.mysql
-        # resolves to the switched profile's connection
         @config.instance_variable_set(:@default_profile, profile_name)
 
         @app_class.set(:active_session, new_session)
