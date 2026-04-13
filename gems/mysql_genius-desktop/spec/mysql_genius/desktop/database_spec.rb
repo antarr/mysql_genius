@@ -184,7 +184,7 @@ RSpec.describe(MysqlGenius::Desktop::Database) do
   describe "Stats" do
     let(:snapshot) do
       {
-        "timestamp" => "2026-04-12T10:00:00Z",
+        "timestamp" => Time.now.utc.iso8601,
         "delta_calls" => 5,
         "delta_total_time_ms" => 123.4,
         "delta_avg_time_ms" => 24.68,
@@ -202,7 +202,7 @@ RSpec.describe(MysqlGenius::Desktop::Database) do
 
       it "accepts symbol keys" do
         sym_snapshot = {
-          timestamp: "2026-04-12T10:00:00Z",
+          timestamp: Time.now.utc.iso8601,
           delta_calls: 3,
           delta_total_time_ms: 50.0,
           delta_avg_time_ms: 16.7,
