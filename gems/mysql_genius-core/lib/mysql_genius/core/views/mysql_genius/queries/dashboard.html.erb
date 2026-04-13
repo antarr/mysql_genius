@@ -1424,6 +1424,7 @@
     schemaBtn.addEventListener('click', function() {
       schemaBtn.disabled = true;
       schemaBtn.innerHTML = '<span class="mg-spinner"></span> Analyzing...';
+      if (el('schema-review-progress')) show(el('schema-review-progress'));
       hide(el('schema-result'));
       var table = el('schema-table').value;
       aiCall(ROUTES.schema_review, { table: table }, function(data) {
@@ -1431,11 +1432,13 @@
         show(el('schema-result'));
         schemaBtn.disabled = false;
         schemaBtn.innerHTML = '&#9889; Analyze Schema';
+        if (el('schema-review-progress')) hide(el('schema-review-progress'));
       }, function(err) {
         el('schema-result-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
         show(el('schema-result'));
         schemaBtn.disabled = false;
         schemaBtn.innerHTML = '&#9889; Analyze Schema';
+        if (el('schema-review-progress')) hide(el('schema-review-progress'));
       });
     });
   }
@@ -1453,6 +1456,7 @@
       }
       migrationBtn.disabled = true;
       migrationBtn.innerHTML = '<span class="mg-spinner"></span> Assessing...';
+      if (el('migration-assess-progress')) show(el('migration-assess-progress'));
       hide(el('migration-result'));
       aiCall(ROUTES.migration_risk, { migration: migration }, function(data) {
         var level = (data.risk_level || '').toLowerCase();
@@ -1462,12 +1466,14 @@
         show(el('migration-result'));
         migrationBtn.disabled = false;
         migrationBtn.innerHTML = '&#9889; Assess Risk';
+        if (el('migration-assess-progress')) hide(el('migration-assess-progress'));
       }, function(err) {
         el('migration-risk-badge').innerHTML = '';
         el('migration-result-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
         show(el('migration-result'));
         migrationBtn.disabled = false;
         migrationBtn.innerHTML = '&#9889; Assess Risk';
+        if (el('migration-assess-progress')) hide(el('migration-assess-progress'));
       });
     });
   }

@@ -15,8 +15,9 @@
             <% end %>
           </select>
         </div>
-        <div class="mg-field">
+        <div class="mg-field" style="display:flex;align-items:center;gap:10px;">
           <button id="schema-review-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Analyze Schema</button>
+          <span id="schema-review-progress" class="mg-analyzing mg-hidden">Analyzing your schema...</span>
         </div>
       </div>
       <div id="schema-result" class="mg-mt mg-hidden">
@@ -33,7 +34,10 @@
       <div class="mg-field">
         <textarea id="migration-input" rows="8" placeholder="class AddIndexToUsers < ActiveRecord::Migration[7.0]&#10;  def change&#10;    add_index :users, :email, unique: true&#10;  end&#10;end"></textarea>
       </div>
-      <button id="migration-assess-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Assess Risk</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="migration-assess-btn" class="mg-btn mg-btn-primary mg-btn-sm">&#9889; Assess Risk</button>
+        <span id="migration-assess-progress" class="mg-analyzing mg-hidden">Assessing migration risk...</span>
+      </div>
       <div id="migration-result" class="mg-mt mg-hidden">
         <div id="migration-risk-badge" style="margin-bottom:8px;"></div>
         <div id="migration-result-content" style="font-size:13px;"></div>
