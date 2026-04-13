@@ -62,6 +62,12 @@
     anomaly_detection: '<%= path_for(:anomaly_detection) %>',
     root_cause: '<%= path_for(:root_cause) %>',
     migration_risk: '<%= path_for(:migration_risk) %>',
+    variable_review: '<%= path_for(:variable_review) %>',
+    connection_advisor: '<%= path_for(:connection_advisor) %>',
+    workload_digest: '<%= path_for(:workload_digest) %>',
+    innodb_health: '<%= path_for(:innodb_health) %>',
+    index_planner: '<%= path_for(:index_planner) %>',
+    pattern_grouper: '<%= path_for(:pattern_grouper) %>',
     query_detail: '/queries/'
   };
 
@@ -1417,6 +1423,148 @@
     });
   }
   <% end %>
+
+  // Server: Variable Review
+  var varReviewBtn = el('server-variable-review');
+  if (varReviewBtn) {
+    varReviewBtn.addEventListener('click', function() {
+      varReviewBtn.disabled = true;
+      varReviewBtn.innerHTML = '<span class="mg-spinner"></span> Reviewing...';
+      hide(el('server-ai-result'));
+      aiCall(ROUTES.variable_review, {}, function(data) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Variable Configuration Review</strong>';
+        el('server-ai-content').innerHTML = formatMarkdown(data.findings || data.raw || 'No findings.') + copyButton('server-ai-content');
+        show(el('server-ai-result'));
+        varReviewBtn.disabled = false;
+        varReviewBtn.innerHTML = '&#9889; Variable Review';
+      }, function(err) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('server-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('server-ai-result'));
+        varReviewBtn.disabled = false;
+        varReviewBtn.innerHTML = '&#9889; Variable Review';
+      });
+    });
+  }
+
+  // Server: Connection Advisor
+  var connAdvisorBtn = el('server-connection-advisor');
+  if (connAdvisorBtn) {
+    connAdvisorBtn.addEventListener('click', function() {
+      connAdvisorBtn.disabled = true;
+      connAdvisorBtn.innerHTML = '<span class="mg-spinner"></span> Diagnosing...';
+      hide(el('server-ai-result'));
+      aiCall(ROUTES.connection_advisor, {}, function(data) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Connection Pressure Diagnosis</strong>';
+        el('server-ai-content').innerHTML = formatMarkdown(data.diagnosis || data.raw || 'No diagnosis.') + copyButton('server-ai-content');
+        show(el('server-ai-result'));
+        connAdvisorBtn.disabled = false;
+        connAdvisorBtn.innerHTML = '&#9889; Connection Advisor';
+      }, function(err) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('server-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('server-ai-result'));
+        connAdvisorBtn.disabled = false;
+        connAdvisorBtn.innerHTML = '&#9889; Connection Advisor';
+      });
+    });
+  }
+
+  // Server: InnoDB Health
+  var innodbHealthBtn = el('server-innodb-health');
+  if (innodbHealthBtn) {
+    innodbHealthBtn.addEventListener('click', function() {
+      innodbHealthBtn.disabled = true;
+      innodbHealthBtn.innerHTML = '<span class="mg-spinner"></span> Interpreting...';
+      hide(el('server-ai-result'));
+      aiCall(ROUTES.innodb_health, {}, function(data) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; InnoDB Health Interpretation</strong>';
+        el('server-ai-content').innerHTML = formatMarkdown(data.findings || data.raw || 'No findings.') + copyButton('server-ai-content');
+        show(el('server-ai-result'));
+        innodbHealthBtn.disabled = false;
+        innodbHealthBtn.innerHTML = '&#9889; InnoDB Health';
+      }, function(err) {
+        el('server-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('server-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('server-ai-result'));
+        innodbHealthBtn.disabled = false;
+        innodbHealthBtn.innerHTML = '&#9889; InnoDB Health';
+      });
+    });
+  }
+
+  // Query Stats: Workload Digest
+  var workloadBtn = el('qstats-workload-digest');
+  if (workloadBtn) {
+    workloadBtn.addEventListener('click', function() {
+      workloadBtn.disabled = true;
+      workloadBtn.innerHTML = '<span class="mg-spinner"></span> Analyzing...';
+      hide(el('qstats-ai-result'));
+      aiCall(ROUTES.workload_digest, {}, function(data) {
+        el('qstats-ai-title').innerHTML = '<strong>&#9889; Workload Digest</strong>';
+        el('qstats-ai-content').innerHTML = formatMarkdown(data.digest || data.raw || 'No digest available.') + copyButton('qstats-ai-content');
+        show(el('qstats-ai-result'));
+        workloadBtn.disabled = false;
+        workloadBtn.innerHTML = '&#9889; Workload Digest';
+      }, function(err) {
+        el('qstats-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('qstats-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('qstats-ai-result'));
+        workloadBtn.disabled = false;
+        workloadBtn.innerHTML = '&#9889; Workload Digest';
+      });
+    });
+
+    el('qstats-ai-close').addEventListener('click', function() { hide(el('qstats-ai-result')); });
+  }
+
+  // Query Stats: Pattern Grouper
+  var patternBtn = el('qstats-pattern-grouper');
+  if (patternBtn) {
+    patternBtn.addEventListener('click', function() {
+      patternBtn.disabled = true;
+      patternBtn.innerHTML = '<span class="mg-spinner"></span> Grouping...';
+      hide(el('qstats-ai-result'));
+      aiCall(ROUTES.pattern_grouper, {}, function(data) {
+        el('qstats-ai-title').innerHTML = '<strong>&#9889; Slow Query Pattern Groups</strong>';
+        el('qstats-ai-content').innerHTML = formatMarkdown(data.groups || data.raw || 'No patterns found.') + copyButton('qstats-ai-content');
+        show(el('qstats-ai-result'));
+        patternBtn.disabled = false;
+        patternBtn.innerHTML = '&#9889; Pattern Grouper';
+      }, function(err) {
+        el('qstats-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('qstats-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('qstats-ai-result'));
+        patternBtn.disabled = false;
+        patternBtn.innerHTML = '&#9889; Pattern Grouper';
+      });
+    });
+  }
+
+  // Unused Indexes: Index Planner
+  var indexPlannerBtn = el('unused-index-planner');
+  if (indexPlannerBtn) {
+    indexPlannerBtn.addEventListener('click', function() {
+      indexPlannerBtn.disabled = true;
+      indexPlannerBtn.innerHTML = '<span class="mg-spinner"></span> Planning...';
+      hide(el('unused-ai-result'));
+      aiCall(ROUTES.index_planner, {}, function(data) {
+        el('unused-ai-title').innerHTML = '<strong>&#9889; Index Consolidation Plan</strong>';
+        el('unused-ai-content').innerHTML = formatMarkdown(data.plan || data.raw || 'No plan generated.') + copyButton('unused-ai-content');
+        show(el('unused-ai-result'));
+        indexPlannerBtn.disabled = false;
+        indexPlannerBtn.innerHTML = '&#9889; Index Planner';
+      }, function(err) {
+        el('unused-ai-title').innerHTML = '<strong>&#9889; Error</strong>';
+        el('unused-ai-content').innerHTML = '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>';
+        show(el('unused-ai-result'));
+        indexPlannerBtn.disabled = false;
+        indexPlannerBtn.innerHTML = '&#9889; Index Planner';
+      });
+    });
+
+    el('unused-ai-close').addEventListener('click', function() { hide(el('unused-ai-result')); });
+  }
 
   // Schema Review
   var schemaBtn = el('schema-review-btn');

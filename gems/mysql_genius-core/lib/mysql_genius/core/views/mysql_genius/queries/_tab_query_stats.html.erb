@@ -2,6 +2,23 @@
 <div class="mg-tab-content" id="tab-qstats">
   <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
     <div class="mg-text-muted">Top queries from <code>performance_schema.events_statements_summary_by_digest</code>. <span id="qstats-count" class="mg-badge mg-badge-secondary"></span></div>
+    <div style="display:flex;gap:4px;">
+      <% if @ai_enabled %>
+        <button id="qstats-workload-digest" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Workload Digest</button>
+        <button id="qstats-pattern-grouper" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Pattern Grouper</button>
+      <% end %>
+    </div>
+  </div>
+  <div id="qstats-ai-result" class="mg-mt mg-hidden" style="margin-bottom:12px;">
+    <div class="mg-card">
+      <div class="mg-card-header">
+        <span id="qstats-ai-title"><strong>&#9889; AI Analysis</strong></span>
+        <button id="qstats-ai-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
+      </div>
+      <div class="mg-card-body">
+        <div id="qstats-ai-content" style="font-size:13px;"></div>
+      </div>
+    </div>
   </div>
   <div id="qstats-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Loading...</div>
   <div id="qstats-error" class="mg-hidden"></div>

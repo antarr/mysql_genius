@@ -1,138 +1,146 @@
 # Ralph Progress Log
-Started: Sun Apr 12 23:47:10 CDT 2026
+Started: Mon Apr 13 05:51:47 CDT 2026
 ---
 
 ## Codebase Patterns
-- Desktop gem specs use `Dir.mktmpdir` for isolated file-based test fixtures (DB files, YAML configs)
-- Desktop gem rubocop config inherits from root `.rubocop.yml` via `inherit_from`
-- Desktop gem Gemfile.lock is not tracked in git (gem convention)
-- Use `results_as_hash = true` on SQLite3::Database to get hash-style row access
-- Desktop app settings are injected via `App.set(:key, value)` (Sinatra pattern)
-- Launcher private methods can be stubbed via `allow(launcher).to(receive(:method_name))` in RSpec
-- First-boot import logic: only runs when DB is empty (list_profiles.empty? / get_setting returns nil)
-- rack_helper.rb must set `App.set(:database, ...)` for request specs that depend on DB settings
-- Database returns `database_name` key; `MysqlConfig.from_hash` expects `database` — remap via `mysql_hash_from_profile`
-- Profile API response must be `{name:, mysql: {host:, port:, database:, ...}}` — use `format_profile` to reshape DB rows
+- AI classes follow two constructor signatures: `(client, config, connection)` for server-level features (SchemaReview, VariableReviewer) and `(connection, client, config)` for query-level features (Suggestion, Optimization)
+- Desktop FakeAdapter `stub_query` stubs must cover all SHOW/performance_schema queries that downstream service classes issue — add them in the spec's `before` block
+- New AI buttons in tab partials use a shared result panel pattern: `{prefix}-ai-result`, `{prefix}-ai-title`, `{prefix}-ai-content`, `{prefix}-ai-close`
+- JS ROUTES hash in dashboard.html.erb must be updated whenever new routes are added — buttons reference `ROUTES.route_name`
+- FakeAdapter `stub_query` takes a regex pattern, columns array, and rows array-of-arrays
+- RuboCop enforces double-quoted strings and literal arrays (not `%w[]`) — use `bundle exec rubocop -A` to auto-correct
+- All new AI classes must be required in `gems/mysql_genius-core/lib/mysql_genius/core.rb`
+- Specs use `instance_double(MysqlGenius::Core::Ai::Client)` for the AI client mock
+- When using `ServerOverview` in an AI class, the FakeAdapter needs stubs for all SHOW GLOBAL STATUS/VARIABLES keys that ServerOverview reads (not just the keys your class cares about)
+- `ColumnDefinition.new` requires `primary_key:` keyword — always include it in spec stubs
+- RuboCop prefers `to_h { |x| [key, val] }` over `each_with_object({})` for hash construction
 
+## 2026-04-13 - US-001
+- Implemented `MysqlGenius::Core::Ai::VariableReviewer` — reviews MySQL config variables against best practices
+- Queries SHOW GLOBAL VARIABLES (filtered to 21 performance-relevant keys) and SHOW GLOBAL STATUS (11 counters)
+- Builds system+user prompt pair, delegates to AI client for analysis
+- Files changed:
+  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/variable_reviewer.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
+  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/variable_reviewer_spec.rb` (new, 5 examples)
+- **Learnings for future iterations:**
+  - Pattern: AI specs use `expect(client).to(receive(:chat)) do |messages:| ... end.and_return(...)` for message assertions
+  - RuboCop will reject `%w[]` word arrays — use literal arrays with double-quoted strings
+  - Core gem suite: 220 examples, 0 failures after adding US-001
 ---
 
-## 2026-04-12 - US-001
-- What was implemented:
-  - Added `sqlite3 ~> 2.0` runtime dependency to `mysql_genius-desktop.gemspec`
-  - Created `Database` class at `lib/mysql_genius/desktop/database.rb` with:
-    - SQLite WAL mode for concurrent reads
-    - 3 tables: profiles, settings, stats_snapshots
-    - Composite index on stats_snapshots(digest_text, timestamp)
-    - Full profile CRUD: list_profiles, find_profile, add_profile, update_profile, delete_profile
-    - Settings: get_setting, set_setting, get_ai_config, set_ai_config
-    - Stats: record_snapshot (with 24hr pruning), series_for, digests, clear
-    - Error classes: DuplicateProfileError, ProfileNotFoundError
-  - Created comprehensive spec at `spec/mysql_genius/desktop/database_spec.rb` (29 examples)
+## 2026-04-13 - US-002
+- Implemented `MysqlGenius::Core::Ai::ConnectionAdvisor` — diagnoses connection pool health
+- Gathers connection-related metrics: Threads_connected, Threads_running, Max_used_connections, Aborted_connects, Aborted_clients, Connections, Threads_created from SHOW GLOBAL STATUS plus max_connections, wait_timeout, interactive_timeout, thread_cache_size from SHOW GLOBAL VARIABLES
+- Builds system+user prompt pair distinguishing pool misconfiguration, connection leaks, missing pooling, and traffic saturation
 - Files changed:
-  - `gems/mysql_genius-desktop/mysql_genius-desktop.gemspec` (added sqlite3 dep)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/database.rb` (new)
-  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/database_spec.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/connection_advisor.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
+  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/connection_advisor_spec.rb` (new, 5 examples)
 - **Learnings for future iterations:**
-  - ISO 8601 timestamps have second precision — `sleep(0.01)` is not enough to test timestamp changes, need `sleep(1.1)`
-  - RSpec `let` is lazy — must reference the variable in the test body before asserting on side effects like file creation
-  - `Naming/AccessorMethodName` cop flags `get_`/`set_` prefixes — disable inline when API names are mandated by the PRD
-  - `add_profile` accepts both `database_name` and `database` keys for compatibility with existing config hash shapes
+  - The ConnectionAdvisor follows server-level pattern: `(client, config, connection)` constructor
+  - Core gem suite: 225 examples, 0 failures after adding US-002
+  - RuboCop clean on both source and spec files
 ---
 
 ## 2026-04-13 - US-003
-- What was implemented:
-  - Modified `launcher.rb` to create Database at `~/.config/mysql_genius/mysql_genius.db`
-  - Added first-boot YAML import: profiles imported when DB empty, AI config imported when endpoint missing
-  - Replaced `StatsHistory.new` with `SqliteStatsHistory.new(db)` for persistent stats
-  - Added `App.set(:database, db)` to wire Database into Sinatra settings
-  - Added `database` and `sqlite_stats_history` requires to `desktop.rb`
-  - Added `set :database, nil` to `app.rb` settings
-  - Updated `rack_helper.rb` to create tmpdir-based test Database for request specs
-  - Updated `launcher_spec.rb` to stub `open_database` and verify Database wiring
+- Implemented `MysqlGenius::Core::Ai::WorkloadDigest` — produces executive workload summary
+- Pulls top 30 queries by total_time via `Core::Analysis::QueryStats`, formats with calls/avg_time_ms/rows_ratio/tmp_disk_tables
+- Builds system+user prompt pair asking LLM to characterize read/write ratio, access patterns, waste concentration, and top 3 optimization opportunities
 - Files changed:
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb` (modified)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (added database setting)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop.rb` (added requires)
-  - `gems/mysql_genius-desktop/spec/rack_helper.rb` (inject test Database)
-  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/launcher_spec.rb` (updated)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/workload_digest.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
+  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/workload_digest_spec.rb` (new, 5 examples)
 - **Learnings for future iterations:**
-  - `open_database` extracted as private method so specs can stub it without touching filesystem
-  - Import logic checks DB emptiness, not config emptiness — deleting mysql_genius.db forces re-import
-  - Profile import maps `mysql.database` → `database_name` for Database schema compatibility
-  - rack_helper cleanup: must `FileUtils.remove_entry` tmpdir in after block to avoid leftover test DBs
+  - WorkloadDigest follows the query-level constructor pattern: `(connection, client, config)`
+  - Stubbing `QueryStats` in specs: use `instance_double` + `allow(QueryStats).to receive(:new).with(connection).and_return(instance)` then stub `.call` on the instance
+  - RuboCop `Layout/LineContinuationLeadingSpace` triggers on multi-line string concatenation — run `rubocop -A` to auto-fix
+  - Core gem suite: 230 examples, 0 failures after adding US-003
 ---
 
 ## 2026-04-13 - US-004
-- What was implemented:
-  - Rewired all profile API routes (GET/POST/PUT/DELETE) in `app.rb` to use `Database` instead of `ProfileManager`
-  - Added `GET /api/ai_config` and `PUT /api/ai_config` routes backed by Database settings
-  - Removed `require 'mysql_genius/desktop/profile_manager'` from `app.rb`
-  - Added `switch_to_config(name, mysql_config)` to `SessionSwapper` for pre-built MysqlConfig objects
-  - Inlined `test_connection` logic in the route handler (was delegated to ProfileManager)
-  - Added private helpers: `format_profile`, `profile_attrs_from_request`, `update_attrs_from_request`, `mysql_hash_from_profile`, `build_minimal_config`, `reload_ai_config_from_database`
-  - Rewrote `profiles_api_spec.rb` to seed test data via `@test_database.add_profile` instead of YAML tmpdir
-  - Added specs for `GET /api/ai_config`, `PUT /api/ai_config`, and `POST /api/profiles/:name/connect` with unknown profile
+- Implemented `MysqlGenius::Core::Ai::InnodbInterpreter` — interprets SHOW ENGINE INNODB STATUS in plain English
+- Runs `SHOW ENGINE INNODB STATUS` via `connection.exec_query`, extracts status text from 3rd column (index 2), truncates to 4000 chars if too long
+- Gathers InnoDB metrics from `ServerOverview` (buffer_pool_hit_rate, dirty pages, free pages, total pages, row lock waits/time)
+- Builds system+user prompt organized by: Deadlocks, Transaction History, Buffer Pool, I/O, Semaphores
 - Files changed:
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (rewired routes, removed ProfileManager require)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/session_swapper.rb` (added switch_to_config method)
-  - `gems/mysql_genius-desktop/spec/requests/profiles_api_spec.rb` (rewrote for Database)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/innodb_interpreter.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
+  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/innodb_interpreter_spec.rb` (new, 5 examples)
 - **Learnings for future iterations:**
-  - Database returns `database_name` key but `MysqlConfig.from_hash` expects `database` — need `mysql_hash_from_profile` helper to remap
-  - Profile API response format must be `{name:, mysql: {host:, port:, database:, ...}}` to match frontend expectations (connections.html.erb)
-  - `SessionSwapper.switch_to_config` allows callers that already have a MysqlConfig to skip the config lookup
-  - Active profile delete check stays in route handler, not in Database (Database.delete_profile has no concept of "active")
+  - InnodbInterpreter follows server-level pattern: `(client, config, connection)` constructor
+  - `SHOW ENGINE INNODB STATUS` returns columns [Type, Name, Status] — the status text is at index 2 (`row.dig(2)`)
+  - ServerOverview requires many SHOW GLOBAL STATUS/VARIABLES stubs — the FakeAdapter needs all keys used by ServerOverview's `innodb_block`, `connections_block`, `queries_block`, and `server_block`
+  - Core gem suite: 235 examples, 0 failures after adding US-004
 ---
 
 ## 2026-04-13 - US-005
-- What was implemented:
-  - Changed `SessionSwapper.initialize` to accept `(app_class, config, database)` instead of `(app_class, config)`
-  - Rewired `switch_to` to look up profiles via `@database.find_profile(name)` instead of `@config.profile_by_name(name)`
-  - Added `mysql_hash_from_profile` private helper to remap `database_name` → `database` for `MysqlConfig.from_hash`
-  - Changed `switch_to_config` to create `SqliteStatsHistory.new(@database)` instead of in-memory `StatsHistory.new`
-  - Updated the caller in `app.rb` connect route to pass `settings.database` as third arg
-  - Rewrote `session_swapper_spec.rb` to use a tmpdir-based Database instead of Config profile lookup
+- Implemented `MysqlGenius::Core::Ai::IndexPlanner` — holistic index optimization planner
+- Combines 3 data sources: `UnusedIndexes`, `DuplicateIndexes`, and `connection.indexes_for` per table
+- Uses `SchemaContextBuilder` with `:with_cardinality` for full index statistics
+- Falls back to top 10 largest tables (by data_length + index_length) when no tables specified
+- Builds system+user prompt asking LLM for consolidated DROP/MERGE/KEEP/ADD index plan
 - Files changed:
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/session_swapper.rb` (rewired to use Database)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (updated SessionSwapper.new call)
-  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/session_swapper_spec.rb` (rewrote for Database)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/index_planner.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
+  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/index_planner_spec.rb` (new, 7 examples)
 - **Learnings for future iterations:**
-  - `RSpec/MultipleMemoizedHelpers` max is 5 (subject excluded via AllowSubject). Inline tmpdir into `let(:database)` via `Dir.mktmpdir` to avoid extra helper
-  - `mysql_hash_from_profile` is duplicated between `app.rb` and `session_swapper.rb` — could be extracted to a shared module in US-006 cleanup if desired
-  - `switch_to_config` is still used by the connect route in `app.rb` which pre-builds the MysqlConfig — `switch_to` is for callers that only have a profile name
+  - IndexPlanner follows server-level pattern: `(client, config, connection)` constructor, with `call(tables)` accepting optional table list
+  - `ColumnDefinition.new` requires `primary_key:` keyword — don't forget it in specs
+  - RuboCop prefers `to_h { |x| [key, val] }` over `each_with_object({})` for hash construction
+  - DuplicateIndexes `covers?` protects unique indexes from being flagged as duplicates by non-unique ones — test data must account for this
+  - Core gem suite: 242 examples, 0 failures after adding US-005
 ---
 
 ## 2026-04-13 - US-006
-- What was implemented:
-  - Deleted `profile_manager.rb` source file
-  - Deleted `profile_manager_spec.rb` spec file
-  - Removed `require "mysql_genius/desktop/profile_manager"` from `desktop.rb`
-  - Verified no remaining `ProfileManager` or `profile_manager` references in the desktop gem
-  - Confirmed route handlers already rescue `Database::DuplicateProfileError` / `Database::ProfileNotFoundError` (not ProfileManager versions)
+- Implemented `MysqlGenius::Core::Ai::PatternGrouper` — groups slow queries by shared root cause
+- Pulls top 30 queries by total_time via `QueryStats`, filters to high-cost (rows_ratio > 10 OR avg_time_ms > 50)
+- Extracts table references via `SqlValidator.extract_table_references` for each query
+- Builds schema context for referenced tables using `SchemaContextBuilder` with `:basic` detail
+- Asks LLM to cluster queries by root cause and suggest single fixes per group
 - Files changed:
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/profile_manager.rb` (deleted)
-  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/profile_manager_spec.rb` (deleted)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop.rb` (removed require line)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/pattern_grouper.rb` (new)
+  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
+  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/pattern_grouper_spec.rb` (new, 6 examples)
 - **Learnings for future iterations:**
-  - US-004 already removed `profile_manager` require from `app.rb`, so only `desktop.rb` needed updating
-  - All error classes were already migrated to `Database::` namespace in US-001/US-004 — cleanup was straightforward
-  - 190 desktop specs pass, all 3 rubocops clean after removal
+  - PatternGrouper follows query-level constructor pattern: `(connection, client, config)`
+  - `SqlValidator.extract_table_references(sql, connection)` requires a connection that has `tables` stubbed — the FakeAdapter must have `stub_tables` called before the method works
+  - SchemaContextBuilder also needs `columns_for`, `primary_key`, `indexes_for`, and a TABLE_ROWS query stub for each table
+  - Core gem suite: 248 examples, 0 failures after adding US-006
 ---
 
 ## 2026-04-13 - US-007
-- What was implemented:
-  - Full green sweep: ran all 6 quality commands and verified all pass
-  - Rails adapter rspec: 82 examples, 0 failures
-  - Core gem rspec: 215 examples, 0 failures
-  - Desktop gem rspec: 190 examples, 0 failures
-  - Rails adapter rubocop: 152 files, no offenses
-  - Core gem rubocop: 64 files, no offenses
-  - Desktop gem rubocop: 48 files, no offenses
-  - Verified no changes to mysql_genius-core or mysql_genius Rails adapter source files
-  - Verified publish.yml untouched
+- Wired all 6 new AI features into Rails adapter, desktop sidecar, and dashboard UI
+- Added 6 POST routes to Rails adapter config/routes.rb: variable_review, connection_advisor, workload_digest, innodb_health, index_planner, pattern_grouper
+- Added 6 controller actions to AiFeatures concern with correct constructor signatures
+- Added 6 POST routes to desktop sidecar app.rb following existing AI route pattern
+- Added 6 entries to desktop PATHS hash in paths.rb
+- Added 6 new routes to JS ROUTES hash in dashboard.html.erb
+- Added 3 AI buttons to _tab_server.html.erb: Variable Review, Connection Advisor, InnoDB Health (gated on @ai_enabled)
+- Added 2 AI buttons to _tab_query_stats.html.erb: Workload Digest, Pattern Grouper with result panel (gated on @ai_enabled)
+- Added 1 AI button to _tab_unused_indexes.html.erb: Index Planner with result panel (gated on @ai_enabled)
+- Added JS event handlers for all 6 buttons with spinner, result display, copy button, error handling
+- Added 12 new Rails adapter request specs (2 per route: success + AI-not-configured)
+- Added 12 new desktop sidecar request specs (2 per route: success + AI-not-configured)
 - Files changed:
-  - `ralph/prd.json` (marked US-007 passes: true)
-  - `ralph/progress.txt` (this entry)
+  - `config/routes.rb` (added 6 routes)
+  - `app/controllers/concerns/mysql_genius/ai_features.rb` (added 6 actions)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (added 6 routes)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/paths.rb` (added 6 paths)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/dashboard.html.erb` (JS routes + handlers)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/_tab_server.html.erb` (3 buttons)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/_tab_query_stats.html.erb` (2 buttons + result panel)
+  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/_tab_unused_indexes.html.erb` (1 button + result panel)
+  - `spec/requests/mysql_genius/ai_features_spec.rb` (12 new examples)
+  - `gems/mysql_genius-desktop/spec/requests/ai_features_spec.rb` (12 new examples + FakeAdapter stubs)
 - **Learnings for future iterations:**
-  - All 487 examples across 3 suites (82 + 215 + 190) pass — the SQLite migration touched only the desktop gem
-  - The .DS_Store files appear as untracked — these should stay ignored (not committed)
+  - Desktop sidecar specs need explicit FakeAdapter stubs for SHOW GLOBAL VARIABLES/STATUS, SHOW ENGINE INNODB STATUS, and performance_schema queries when testing AI routes that invoke service classes with deep connection queries
+  - Server-level AI features (client, config, connection): VariableReviewer, ConnectionAdvisor, InnodbInterpreter, IndexPlanner
+  - Query-level AI features (connection, client, config): WorkloadDigest, PatternGrouper
+  - IndexPlanner.call(tables) accepts an optional tables parameter — route passes params[:tables] or nil
+  - Tab partials use a shared AI result panel pattern: `{prefix}-ai-result` div with title, content, close button
+  - The 2 pre-existing failures in desktop/database_spec.rb (#record_snapshot) are unrelated to AI features
+  - Rails adapter suite: 94 examples, 0 failures
+  - Desktop suite: 200 pass, 2 pre-existing failures
+  - Core gem suite: 248 examples, 0 failures
 ---
