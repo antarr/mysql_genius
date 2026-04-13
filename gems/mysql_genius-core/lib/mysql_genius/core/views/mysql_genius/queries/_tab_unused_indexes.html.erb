@@ -2,7 +2,23 @@
 <div class="mg-tab-content" id="tab-unused">
   <div class="mg-row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
     <div class="mg-text-muted">Indexes with zero reads since last server restart, from <code>performance_schema</code>. <span id="unused-count" class="mg-badge mg-badge-secondary"></span></div>
-    <button id="unused-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+    <div style="display:flex;gap:4px;">
+      <% if @ai_enabled %>
+        <button id="unused-index-planner" class="mg-btn mg-btn-outline mg-btn-sm">&#9889; Index Planner</button>
+      <% end %>
+      <button id="unused-refresh" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#8635; Refresh</button>
+    </div>
+  </div>
+  <div id="unused-ai-result" class="mg-mt mg-hidden" style="margin-bottom:12px;">
+    <div class="mg-card">
+      <div class="mg-card-header">
+        <span id="unused-ai-title"><strong>&#9889; Index Planner</strong></span>
+        <button id="unused-ai-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm">&#10005;</button>
+      </div>
+      <div class="mg-card-body">
+        <div id="unused-ai-content" style="font-size:13px;"></div>
+      </div>
+    </div>
   </div>
   <div id="unused-loading" class="mg-text-center mg-hidden"><span class="mg-spinner"></span> Scanning...</div>
   <div id="unused-error" class="mg-hidden"></div>

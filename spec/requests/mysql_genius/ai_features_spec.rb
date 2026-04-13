@@ -110,4 +110,82 @@ RSpec.describe("AI feature routes", type: :request) do
       expect(last_response.status).to(eq(422))
     end
   end
+
+  describe "POST /mysql_genius/variable_review" do
+    it "returns 200 when AI is configured" do
+      post "/mysql_genius/variable_review"
+      expect(last_response).to(be_ok)
+    end
+
+    it "returns 404 when AI is not configured" do
+      MysqlGenius.configure { |c| c.ai_endpoint = nil }
+      post "/mysql_genius/variable_review"
+      expect(last_response.status).to(eq(404))
+    end
+  end
+
+  describe "POST /mysql_genius/connection_advisor" do
+    it "returns 200 when AI is configured" do
+      post "/mysql_genius/connection_advisor"
+      expect(last_response).to(be_ok)
+    end
+
+    it "returns 404 when AI is not configured" do
+      MysqlGenius.configure { |c| c.ai_endpoint = nil }
+      post "/mysql_genius/connection_advisor"
+      expect(last_response.status).to(eq(404))
+    end
+  end
+
+  describe "POST /mysql_genius/workload_digest" do
+    it "returns 200 when AI is configured" do
+      post "/mysql_genius/workload_digest"
+      expect(last_response).to(be_ok)
+    end
+
+    it "returns 404 when AI is not configured" do
+      MysqlGenius.configure { |c| c.ai_endpoint = nil }
+      post "/mysql_genius/workload_digest"
+      expect(last_response.status).to(eq(404))
+    end
+  end
+
+  describe "POST /mysql_genius/innodb_health" do
+    it "returns 200 when AI is configured" do
+      post "/mysql_genius/innodb_health"
+      expect(last_response).to(be_ok)
+    end
+
+    it "returns 404 when AI is not configured" do
+      MysqlGenius.configure { |c| c.ai_endpoint = nil }
+      post "/mysql_genius/innodb_health"
+      expect(last_response.status).to(eq(404))
+    end
+  end
+
+  describe "POST /mysql_genius/index_planner" do
+    it "returns 200 when AI is configured" do
+      post "/mysql_genius/index_planner"
+      expect(last_response).to(be_ok)
+    end
+
+    it "returns 404 when AI is not configured" do
+      MysqlGenius.configure { |c| c.ai_endpoint = nil }
+      post "/mysql_genius/index_planner"
+      expect(last_response.status).to(eq(404))
+    end
+  end
+
+  describe "POST /mysql_genius/pattern_grouper" do
+    it "returns 200 when AI is configured" do
+      post "/mysql_genius/pattern_grouper"
+      expect(last_response).to(be_ok)
+    end
+
+    it "returns 404 when AI is not configured" do
+      MysqlGenius.configure { |c| c.ai_endpoint = nil }
+      post "/mysql_genius/pattern_grouper"
+      expect(last_response.status).to(eq(404))
+    end
+  end
 end

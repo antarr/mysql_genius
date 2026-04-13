@@ -338,6 +338,98 @@ module MysqlGenius
         json_response(result)
       end
 
+      post "/variable_review" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::VariableReviewer.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Variable review failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/connection_advisor" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::ConnectionAdvisor.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Connection advisor failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/workload_digest" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::WorkloadDigest.new(adapter, MysqlGenius::Core::Ai::Client.new(core_config), core_config).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Workload digest failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/innodb_health" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::InnodbInterpreter.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "InnoDB health analysis failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/index_planner" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        tables = params[:tables].to_s.strip.empty? ? nil : Array(params[:tables])
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::IndexPlanner.new(MysqlGenius::Core::Ai::Client.new(core_config), core_config, adapter).call(tables)
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Index planner failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
+      post "/pattern_grouper" do
+        ai_not_configured unless settings.mysql_genius_config.ai.enabled?
+
+        begin
+          result = settings.active_session.checkout do |adapter|
+            core_config = build_ai_core_config
+            MysqlGenius::Core::Ai::PatternGrouper.new(adapter, MysqlGenius::Core::Ai::Client.new(core_config), core_config).call
+          end
+        rescue StandardError => e
+          halt(422, json_response(error: "Pattern grouper failed: #{e.message}"))
+        end
+
+        json_response(result)
+      end
+
       # --- Profile API ---
 
       get "/api/profiles" do

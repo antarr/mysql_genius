@@ -25,4 +25,10 @@ MysqlGenius::Engine.routes.draw do
   post "anomaly_detection", to: "queries#anomaly_detection"
   post "root_cause",       to: "queries#root_cause"
   post "migration_risk",   to: "queries#migration_risk"
+  post "variable_review",  to: "queries#variable_review"
+  post "connection_advisor", to: "queries#connection_advisor"
+  post "workload_digest",  to: "queries#workload_digest"
+  post "innodb_health",    to: "queries#innodb_health"
+  post "index_planner",    to: "queries#index_planner"
+  post "pattern_grouper",  to: "queries#pattern_grouper"
 end

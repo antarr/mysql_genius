@@ -232,6 +232,61 @@ module MysqlGenius
       render(json: { error: "Migration risk assessment failed: #{e.message}" }, status: :unprocessable_entity)
     end
 
+    def variable_review
+      return ai_not_configured unless mysql_genius_config.ai_enabled?
+
+      result = MysqlGenius::Core::Ai::VariableReviewer.new(ai_client, ai_config_for_core, rails_connection).call
+      render(json: result)
+    rescue StandardError => e
+      render(json: { error: "Variable review failed: #{e.message}" }, status: :unprocessable_entity)
+    end
+
+    def connection_advisor
+      return ai_not_configured unless mysql_genius_config.ai_enabled?
+
+      result = MysqlGenius::Core::Ai::ConnectionAdvisor.new(ai_client, ai_config_for_core, rails_connection).call
+      render(json: result)
+    rescue StandardError => e
+      render(json: { error: "Connection advisor failed: #{e.message}" }, status: :unprocessable_entity)
+    end
+
+    def workload_digest
+      return ai_not_configured unless mysql_genius_config.ai_enabled?
+
+      result = MysqlGenius::Core::Ai::WorkloadDigest.new(rails_connection, ai_client, ai_config_for_core).call
+      render(json: result)
+    rescue StandardError => e
+      render(json: { error: "Workload digest failed: #{e.message}" }, status: :unprocessable_entity)
+    end
+
+    def innodb_health
+      return ai_not_configured unless mysql_genius_config.ai_enabled?
+
+      result = MysqlGenius::Core::Ai::InnodbInterpreter.new(ai_client, ai_config_for_core, rails_connection).call
+      render(json: result)
+    rescue StandardError => e
+      render(json: { error: "InnoDB health analysis failed: #{e.message}" }, status: :unprocessable_entity)
+    end
+
+    def index_planner
+      return ai_not_configured unless mysql_genius_config.ai_enabled?
+
+      tables = params[:tables].present? ? Array(params[:tables]) : nil
+      result = MysqlGenius::Core::Ai::IndexPlanner.new(ai_client, ai_config_for_core, rails_connection).call(tables)
+      render(json: result)
+    rescue StandardError => e
+      render(json: { error: "Index planner failed: #{e.message}" }, status: :unprocessable_entity)
+    end
+
+    def pattern_grouper
+      return ai_not_configured unless mysql_genius_config.ai_enabled?
+
+      result = MysqlGenius::Core::Ai::PatternGrouper.new(rails_connection, ai_client, ai_config_for_core).call
+      render(json: result)
+    rescue StandardError => e
+      render(json: { error: "Pattern grouper failed: #{e.message}" }, status: :unprocessable_entity)
+    end
+
     private
 
     RAILS_DOMAIN_CONTEXT = <<~CTX
