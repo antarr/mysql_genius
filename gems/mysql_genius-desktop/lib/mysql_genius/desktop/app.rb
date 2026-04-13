@@ -17,6 +17,7 @@ module MysqlGenius
       set :mysql_genius_config, nil
       set :active_session, nil
       set :host_authorization, permitted_hosts: []
+      set :database, nil
       set :boot_token, nil
       set :current_profile_name, nil
       set :stats_history, nil

@@ -3,6 +3,7 @@
 require "spec_helper"
 require "tmpdir"
 require "mysql_genius/desktop/launcher"
+require "mysql_genius/desktop/database"
 
 RSpec.describe(MysqlGenius::Desktop::Launcher) do
   let(:launcher) { described_class.new }
@@ -96,14 +97,17 @@ RSpec.describe(MysqlGenius::Desktop::Launcher) do
       YAML
 
       fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil)
+      test_db = MysqlGenius::Desktop::Database.new(File.join(tmpdir, "test.db"))
       allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(fake_session))
       allow(launcher).to(receive(:start_server))
       allow(launcher).to(receive(:register_shutdown))
+      allow(launcher).to(receive(:open_database).and_return(test_db))
 
       launcher.call(["--config", path])
 
       expect(MysqlGenius::Desktop::App.settings.mysql_genius_config).to(be_a(MysqlGenius::Desktop::Config))
       expect(MysqlGenius::Desktop::App.settings.active_session).to(equal(fake_session))
+      expect(MysqlGenius::Desktop::App.settings.database).to(equal(test_db))
       expect(launcher).to(have_received(:start_server).with(port: 5555, bind: "127.0.0.1"))
     end
   end

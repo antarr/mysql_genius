@@ -2,9 +2,12 @@
 
 require "securerandom"
 require "optparse"
+require "fileutils"
 require "mysql_genius/desktop/version"
 require "mysql_genius/desktop/config"
 require "mysql_genius/desktop/active_session"
+require "mysql_genius/desktop/database"
+require "mysql_genius/desktop/sqlite_stats_history"
 require "mysql_genius/desktop/app"
 
 module MysqlGenius
@@ -27,15 +30,20 @@ module MysqlGenius
         return print_help    if options[:help]
 
         config  = Config.load(path: options[:config], override_port: options[:port], override_bind: options[:bind])
+        db      = open_database
+        import_profiles(config, db)
+        import_ai_config(config, db)
+
         session = ActiveSession.new(config)
 
         App.set(:mysql_genius_config, config)
         App.set(:active_session,      session)
+        App.set(:database,            db)
         App.set(:boot_token, SecureRandom.hex(32))
         App.set(:current_profile_name, config.default_profile)
         App.set(:environment, :production)
 
-        history   = MysqlGenius::Core::Analysis::StatsHistory.new
+        history   = SqliteStatsHistory.new(db)
         # The collector gets its own dedicated connection (not shared with
         # web requests) to avoid mutex contention and TRILOGY_INVALID_SEQUENCE_ID.
         conn_proc = -> { ActiveSession.open_adapter_for(config) }
@@ -93,6 +101,43 @@ module MysqlGenius
 
           See https://github.com/antarr/mysql_genius for documentation.
         HELP
+      end
+
+      def open_database
+        dir = File.join(Dir.home, ".config", "mysql_genius")
+        FileUtils.mkdir_p(dir)
+        Database.new(File.join(dir, "mysql_genius.db"))
+      end
+
+      def import_profiles(config, db)
+        return unless db.list_profiles.empty? && config.profiles.any?
+
+        config.profiles.each do |profile|
+          mysql = profile.mysql
+          db.add_profile(
+            "name" => profile.name,
+            "host" => mysql.host,
+            "port" => mysql.port,
+            "username" => mysql.username,
+            "password" => mysql.password,
+            "database_name" => mysql.database,
+            "tls_mode" => mysql.tls_mode,
+          )
+        end
+      end
+
+      def import_ai_config(config, db)
+        return unless db.get_setting("ai.endpoint").nil? && config.ai.endpoint
+
+        ai = config.ai
+        db.set_ai_config(
+          "endpoint" => ai.endpoint,
+          "api_key" => ai.api_key,
+          "model" => ai.model.to_s,
+          "auth_style" => ai.auth_style.to_s,
+          "system_context" => ai.system_context.to_s,
+          "domain_context" => ai.domain_context.to_s,
+        )
       end
 
       # Extracted so specs can stub it without booting a real server.

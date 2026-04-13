@@ -4,6 +4,7 @@ ENV["RACK_ENV"] ||= "test"
 
 require "spec_helper"
 require "rack/test"
+require "tmpdir"
 require "mysql_genius/desktop"
 
 module DesktopSpecSupport
@@ -47,8 +48,11 @@ RSpec.configure do |config|
     @fake_adapter = DesktopSpecSupport.build_fake_adapter
     @fake_adapter.stub_tables([])
     @test_config = DesktopSpecSupport.build_config
+    @test_db_dir = Dir.mktmpdir
+    @test_database = MysqlGenius::Desktop::Database.new(File.join(@test_db_dir, "test.db"))
     MysqlGenius::Desktop::App.set(:mysql_genius_config, @test_config)
     MysqlGenius::Desktop::App.set(:active_session, DesktopSpecSupport::FakeSession.new(@fake_adapter))
+    MysqlGenius::Desktop::App.set(:database, @test_database)
     MysqlGenius::Desktop::App.set(:boot_token, "test-token")
     MysqlGenius::Desktop::App.set(:current_profile_name, "default")
     MysqlGenius::Desktop::App.set(:stats_history, nil)
@@ -63,10 +67,12 @@ RSpec.configure do |config|
   config.after(:each, type: :request) do
     MysqlGenius::Desktop::App.set(:mysql_genius_config, nil)
     MysqlGenius::Desktop::App.set(:active_session, nil)
+    MysqlGenius::Desktop::App.set(:database, nil)
     MysqlGenius::Desktop::App.set(:boot_token, nil)
     MysqlGenius::Desktop::App.set(:current_profile_name, nil)
     MysqlGenius::Desktop::App.set(:stats_history, nil)
     MysqlGenius::Desktop::App.set(:stats_collector, nil)
+    FileUtils.remove_entry(@test_db_dir) if @test_db_dir && File.exist?(@test_db_dir)
   end
 end
 
