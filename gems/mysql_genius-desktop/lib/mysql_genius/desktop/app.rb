@@ -394,6 +394,10 @@ module MysqlGenius
       get "/queries/:digest" do
         @digest = params[:digest].to_s
         render_query_detail
+      rescue StandardError => e
+        warn("[MysqlGenius] query_detail error: #{e.class}: #{e.message}")
+        warn(e.backtrace.first(5).join("\n"))
+        halt(500, json_response(error: e.message))
       end
 
       get "/api/query_history/:digest" do
@@ -407,6 +411,25 @@ module MysqlGenius
 
       get "/connections" do
         render_connections
+      end
+
+      get "/api/ai_config" do
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        json_response(manager.read_ai_config)
+      end
+
+      put "/api/ai_config" do
+        data = JSON.parse(request.body.read)
+        manager = ProfileManager.new(settings.mysql_genius_config.source_path)
+        manager.update_ai_config(data)
+
+        # Reload the AI config into the running app
+        ai = Config::AiConfig.from_hash(data)
+        settings.mysql_genius_config.instance_variable_set(:@ai, ai)
+
+        json_response(manager.read_ai_config)
+      rescue StandardError => e
+        halt(422, json_response(error: e.message))
       end
 
       private
