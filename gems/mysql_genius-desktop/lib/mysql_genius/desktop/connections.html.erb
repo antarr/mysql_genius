@@ -145,6 +145,7 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
+      <button id="mg-ai-test" class="mg-btn mg-btn-outline mg-btn-sm">Test Connection</button>
       <button id="mg-ai-save" class="mg-btn mg-btn-primary mg-btn-sm">Save</button>
       <span id="mg-ai-save-status" style="font-size:12px;"></span>
     </div>
@@ -319,16 +320,35 @@
     custom:    { endpoint: '',                                                  model: '',                             auth: 'bearer',  keyPlaceholder: 'your-api-key' }
   };
 
+  // Cache credentials per provider so switching back restores them
+  var providerCredentials = {};
+
+  function cacheCurrentProvider() {
+    var current = el('mg-ai-provider').value;
+    providerCredentials[current] = {
+      endpoint: el('mg-ai-endpoint').value,
+      key: el('mg-ai-key').value,
+      model: el('mg-ai-model').value,
+      auth: el('mg-ai-auth').value,
+    };
+  }
+
   el('mg-ai-provider').addEventListener('change', function() {
+    cacheCurrentProvider();
+    var cached = providerCredentials[this.value];
     var preset = AI_PROVIDERS[this.value];
-    if (!preset) return;
-    el('mg-ai-endpoint').value = preset.endpoint;
-    el('mg-ai-model').value = preset.model;
-    el('mg-ai-auth').value = preset.auth;
-    el('mg-ai-key').placeholder = preset.keyPlaceholder;
-    if (this.value === 'ollama') {
-      el('mg-ai-key').value = 'ollama';
+    if (cached && cached.key) {
+      el('mg-ai-endpoint').value = cached.endpoint;
+      el('mg-ai-key').value = cached.key;
+      el('mg-ai-model').value = cached.model;
+      el('mg-ai-auth').value = cached.auth;
+    } else if (preset) {
+      el('mg-ai-endpoint').value = preset.endpoint;
+      el('mg-ai-model').value = preset.model;
+      el('mg-ai-auth').value = preset.auth;
+      el('mg-ai-key').value = this.value === 'ollama' ? 'ollama' : '';
     }
+    if (preset) el('mg-ai-key').placeholder = preset.keyPlaceholder;
   });
 
   function detectProvider(endpoint) {
@@ -368,6 +388,31 @@
       el('mg-ai-status').style.color = enabled ? '#1a7f37' : '#888';
     });
   }
+
+  el('mg-ai-test').addEventListener('click', function() {
+    el('mg-ai-save-status').textContent = 'Testing...';
+    el('mg-ai-save-status').style.color = '';
+    var payload = {
+      endpoint: el('mg-ai-endpoint').value.trim(),
+      api_key: el('mg-ai-key').value.trim(),
+      model: el('mg-ai-model').value.trim(),
+      auth_style: el('mg-ai-auth').value,
+      max_tokens: parseInt(maxTokensSlider.value) || 4096
+    };
+    fetch('/api/ai_config/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.success) {
+        el('mg-ai-save-status').textContent = 'Connected (' + (data.model || 'ok') + ')';
+        el('mg-ai-save-status').style.color = '#1a7f37';
+      } else {
+        el('mg-ai-save-status').textContent = 'Failed: ' + (data.error || 'unknown');
+        el('mg-ai-save-status').style.color = '#cf222e';
+      }
+    });
+  });
 
   el('mg-ai-save').addEventListener('click', function() {
     var payload = {

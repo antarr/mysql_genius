@@ -414,6 +414,22 @@ module MysqlGenius
         json_response(success: true)
       end
 
+      post "/api/ai_config/test" do
+        data = JSON.parse(request.body.read)
+        test_config = MysqlGenius::Core::Ai::Config.new(
+          endpoint:   data["endpoint"],
+          api_key:    data["api_key"],
+          model:      data["model"],
+          auth_style: (data["auth_style"] || "bearer").to_sym,
+          max_tokens: (data["max_tokens"] || 4096).to_i,
+        )
+        client = MysqlGenius::Core::Ai::Client.new(test_config)
+        client.chat(messages: [{ role: "user", content: "Reply with exactly: ok" }])
+        json_response(success: true, model: data["model"])
+      rescue StandardError => e
+        json_response(success: false, error: e.message)
+      end
+
       get "/queries/:digest" do
         @digest = params[:digest].to_s
         render_query_detail
