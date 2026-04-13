@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+### Fixed
+- **ERB templates missing from `mysql_genius-core` gem package.** The gemspec glob only matched `*.rb` files, excluding the shared ERB templates. The dashboard crashed with `MissingTemplate` error when installed from RubyGems. Fixed by changing the glob to `*.{rb,erb}`.
+
 ## 0.5.0
 
 ### Changed

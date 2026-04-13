@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+### Fixed
+- **ERB templates missing from gem package.** The `spec.files` glob only matched `*.rb`, excluding the shared ERB templates at `lib/mysql_genius/core/views/`. Fixed by changing to `*.{rb,erb}`.
+
 ## 0.5.0
 
 ### Added
