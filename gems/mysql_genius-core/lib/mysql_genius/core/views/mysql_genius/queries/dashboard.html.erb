@@ -301,6 +301,13 @@
     btn.classList.add('active');
     el('tab-' + name).classList.add('active');
     history.replaceState(null, '', location.pathname + '#' + name);
+
+    // Hide query results and AI responses when leaving the explorer tab
+    if (name !== 'explorer') {
+      hide(el('query-results'));
+      hide(el('explain-results'));
+      hide(el('ai-query-result'));
+    }
     if (name === 'dashboard') loadDashboard();
     if (name === 'slow') loadSlowQueries();
     if (name === 'indexes') loadDuplicateIndexes();
