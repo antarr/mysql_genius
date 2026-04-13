@@ -38,58 +38,26 @@ ssh -L 3307:db.internal:3306 user@bastion-host.example.com -N -f
 
 The `-f` flag sends SSH to the background after connecting.
 
-## Step 2: Configure MysqlGenius
+## Step 2: Configure your Rails app
 
-### Desktop app (Tauri / sidecar)
-
-In the Connection Manager (`/connections`), create a profile with:
-
-| Field | Value |
-|---|---|
-| Host | `127.0.0.1` |
-| Port | `3307` (the local tunnel port) |
-| Username | Your MySQL username |
-| Password | Your MySQL password |
-| Database | The database name |
-
-### Rails adapter
-
-In your Rails app's initializer:
-
-```ruby
-MysqlGenius.configure do |config|
-  # No special config needed — MysqlGenius uses your app's
-  # ActiveRecord::Base.connection, which is already configured
-  # in database.yml. If your Rails app connects through a tunnel,
-  # MysqlGenius automatically uses the same connection.
-end
-```
-
-### YAML config (sidecar CLI)
+MysqlGenius uses your app's `ActiveRecord::Base.connection`, which reads from `database.yml`. Point it at the tunnel:
 
 ```yaml
-version: 1
-mysql:
+# config/database.yml
+production:
+  adapter: mysql2
   host: 127.0.0.1
   port: 3307
   username: readonly
-  password: your_password
+  password: <%= ENV["DB_PASSWORD"] %>
   database: app_production
 ```
 
+No special MysqlGenius configuration needed — it automatically uses the same connection as your Rails app.
+
 ## Step 3: Verify the connection
 
-### Desktop app
-
-Click **Test Connection** on the profile form. If the tunnel is running, you should see "Connected (MySQL X.Y.Z)".
-
-### Sidecar CLI
-
-```bash
-mysql-genius-sidecar --config /path/to/config.yml
-```
-
-If the tunnel is not running, you'll see: `Failed to connect to MySQL at 127.0.0.1:3307: Connection refused`.
+Start your Rails server and visit `/mysql_genius`. If the tunnel is running, the dashboard loads normally. If not, you'll see a connection error.
 
 ## Common issues
 
