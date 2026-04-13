@@ -12,6 +12,25 @@ RSpec.describe(MysqlGenius::Desktop::Database) do
 
   after { FileUtils.remove_entry(tmpdir) }
 
+  def create_legacy_database(path)
+    raw = SQLite3::Database.new(path)
+    raw.execute_batch(<<~SQL)
+      CREATE TABLE profiles (
+        name TEXT PRIMARY KEY, host TEXT NOT NULL, port INTEGER DEFAULT 3306,
+        username TEXT NOT NULL, password TEXT DEFAULT '', database_name TEXT NOT NULL,
+        tls_mode TEXT DEFAULT 'preferred', created_at TEXT, updated_at TEXT
+      );
+      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+      CREATE TABLE stats_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, digest_text TEXT NOT NULL,
+        timestamp TEXT NOT NULL, delta_calls INTEGER DEFAULT 0,
+        delta_total_time_ms REAL DEFAULT 0, delta_avg_time_ms REAL DEFAULT 0
+      );
+    SQL
+    raw.execute("INSERT INTO profiles (name, host, username, database_name) VALUES ('old', 'h', 'u', 'd')")
+    raw.close
+  end
+
   describe "initialization" do
     it "creates the SQLite file if missing" do
       db
@@ -138,6 +157,79 @@ RSpec.describe(MysqlGenius::Desktop::Database) do
       it "raises ProfileNotFoundError for unknown profile" do
         expect { db.delete_profile("unknown") }
           .to(raise_error(MysqlGenius::Desktop::Database::ProfileNotFoundError))
+      end
+    end
+
+    describe "SSH fields" do
+      let(:ssh_attrs) do
+        profile_attrs.merge(
+          "ssh_enabled" => 1,
+          "ssh_host" => "bastion.prod.com",
+          "ssh_port" => 2222,
+          "ssh_user" => "deploy",
+          "ssh_key_path" => "~/.ssh/id_rsa",
+          "ssh_password" => "tunnel-pass",
+          "remote_host" => "10.0.0.5",
+          "remote_port" => 3307,
+        )
+      end
+
+      it "stores and retrieves SSH fields on add_profile" do
+        db.add_profile(ssh_attrs)
+        profile = db.find_profile("prod")
+        expect(profile["ssh_enabled"]).to(eq(1))
+        expect(profile["ssh_host"]).to(eq("bastion.prod.com"))
+        expect(profile["ssh_port"]).to(eq(2222))
+        expect(profile["ssh_user"]).to(eq("deploy"))
+        expect(profile["ssh_key_path"]).to(eq("~/.ssh/id_rsa"))
+        expect(profile["ssh_password"]).to(eq("tunnel-pass"))
+        expect(profile["remote_host"]).to(eq("10.0.0.5"))
+        expect(profile["remote_port"]).to(eq(3307))
+      end
+
+      it "defaults ssh_enabled to 0 when not provided" do
+        db.add_profile(profile_attrs)
+        profile = db.find_profile("prod")
+        expect(profile["ssh_enabled"]).to(eq(0))
+      end
+
+      it "defaults ssh_port to 22 and remote_port to 3306" do
+        attrs = profile_attrs.merge("ssh_enabled" => 1, "ssh_host" => "bastion.prod.com")
+        db.add_profile(attrs)
+        profile = db.find_profile("prod")
+        expect(profile["ssh_port"]).to(eq(22))
+        expect(profile["remote_port"]).to(eq(3306))
+      end
+
+      it "round-trips SSH fields through update_profile" do
+        db.add_profile(profile_attrs)
+        db.update_profile("prod", ssh_attrs)
+        profile = db.find_profile("prod")
+        expect(profile["ssh_enabled"]).to(eq(1))
+        expect(profile["ssh_host"]).to(eq("bastion.prod.com"))
+        expect(profile["ssh_port"]).to(eq(2222))
+        expect(profile["ssh_user"]).to(eq("deploy"))
+        expect(profile["ssh_key_path"]).to(eq("~/.ssh/id_rsa"))
+        expect(profile["ssh_password"]).to(eq("tunnel-pass"))
+        expect(profile["remote_host"]).to(eq("10.0.0.5"))
+        expect(profile["remote_port"]).to(eq(3307))
+      end
+
+      it "lists profiles with SSH fields" do
+        db.add_profile(ssh_attrs)
+        profiles = db.list_profiles
+        expect(profiles.first["ssh_enabled"]).to(eq(1))
+        expect(profiles.first["ssh_host"]).to(eq("bastion.prod.com"))
+      end
+
+      it "migrates SSH columns into a pre-existing database" do
+        legacy_path = File.join(tmpdir, "legacy.db")
+        create_legacy_database(legacy_path)
+        legacy_db = described_class.new(legacy_path)
+        profile = legacy_db.find_profile("old")
+        expect(profile["ssh_enabled"]).to(eq(0))
+        expect(profile["ssh_port"]).to(eq(22))
+        expect(profile["remote_port"]).to(eq(3306))
       end
     end
   end
