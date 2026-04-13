@@ -1,146 +1,119 @@
 # Ralph Progress Log
-Started: Mon Apr 13 05:51:47 CDT 2026
+Started: Mon Apr 13 06:43:11 CDT 2026
 ---
 
 ## Codebase Patterns
-- AI classes follow two constructor signatures: `(client, config, connection)` for server-level features (SchemaReview, VariableReviewer) and `(connection, client, config)` for query-level features (Suggestion, Optimization)
-- Desktop FakeAdapter `stub_query` stubs must cover all SHOW/performance_schema queries that downstream service classes issue — add them in the spec's `before` block
-- New AI buttons in tab partials use a shared result panel pattern: `{prefix}-ai-result`, `{prefix}-ai-title`, `{prefix}-ai-content`, `{prefix}-ai-close`
-- JS ROUTES hash in dashboard.html.erb must be updated whenever new routes are added — buttons reference `ROUTES.route_name`
-- FakeAdapter `stub_query` takes a regex pattern, columns array, and rows array-of-arrays
-- RuboCop enforces double-quoted strings and literal arrays (not `%w[]`) — use `bundle exec rubocop -A` to auto-correct
-- All new AI classes must be required in `gems/mysql_genius-core/lib/mysql_genius/core.rb`
-- Specs use `instance_double(MysqlGenius::Core::Ai::Client)` for the AI client mock
-- When using `ServerOverview` in an AI class, the FakeAdapter needs stubs for all SHOW GLOBAL STATUS/VARIABLES keys that ServerOverview reads (not just the keys your class cares about)
-- `ColumnDefinition.new` requires `primary_key:` keyword — always include it in spec stubs
-- RuboCop prefers `to_h { |x| [key, val] }` over `each_with_object({})` for hash construction
+- Desktop gem specs use RSpec mocking (allow/receive), NOT Mocha - Mocha is only for the Rails adapter
+- Desktop gem uses `instance_double` for test doubles (VerifiedDoubles cop is disabled)
+- Config objects are built in tests via `Config.allocate` + `instance_variable_set` pattern
+- RSpec/MultipleMemoizedHelpers max is 5 - inline simple constants to stay under the limit
+- Net::SSH is mocked at the class level: `allow(Net::SSH).to(receive(:start).and_return(ssh_session))`
+- SshTunnel event loop runs in a background Thread - test thread existence, not `session.loop` (race condition)
+- SQLite migration: use `PRAGMA table_info(table)` to check column existence before `ALTER TABLE ADD COLUMN`
+- Database profiles use string keys throughout (from `results_as_hash = true`); `ssh_enabled` is INTEGER 0/1
+- ActiveSession.open_adapter_for accepts `tunnel_port:` kwarg — pass it from `session.tunnel_port` in conn_proc lambdas
+- MysqlConfig#ssh_enabled? coerces INTEGER/boolean/string to boolean (handles DB and YAML sources)
+- When SSH enabled, profile.host/port become SshTunnel remote_host/remote_port; Trilogy connects to 127.0.0.1:tunnel_port
+- Instance doubles of ActiveSession must include `tunnel_port: nil` in specs that trigger conn_proc creation
+- Launcher `import_profiles` must include all profile fields — keep in sync when adding new columns to Database schema
+- Use `stub_boot(session:, db_name:)` helper in launcher_spec.rb for full boot mock setup
+- Eye toggle: `.mg-eye-toggle` button with `data-target="input-id"` toggles password/text input type
+- input[type="password"] must be included in both light-mode and dark-mode CSS selectors alongside text/number
+- Layout/MultilineHashKeyLineBreaks cop: each key on its own line in multiline hashes (use rubocop -A to auto-fix)
+---
 
 ## 2026-04-13 - US-001
-- Implemented `MysqlGenius::Core::Ai::VariableReviewer` — reviews MySQL config variables against best practices
-- Queries SHOW GLOBAL VARIABLES (filtered to 21 performance-relevant keys) and SHOW GLOBAL STATUS (11 counters)
-- Builds system+user prompt pair, delegates to AI client for analysis
+- What was implemented: SshTunnel class with start/stop/running? methods, net-ssh dependency, 22 specs
 - Files changed:
-  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/variable_reviewer.rb` (new)
-  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
-  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/variable_reviewer_spec.rb` (new, 5 examples)
+  - gems/mysql_genius-desktop/mysql_genius-desktop.gemspec (added net-ssh ~> 7.0)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop.rb (added require for ssh_tunnel)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/ssh_tunnel.rb (new - SshTunnel class)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/ssh_tunnel_spec.rb (new - 22 examples)
 - **Learnings for future iterations:**
-  - Pattern: AI specs use `expect(client).to(receive(:chat)) do |messages:| ... end.and_return(...)` for message assertions
-  - RuboCop will reject `%w[]` word arrays — use literal arrays with double-quoted strings
-  - Core gem suite: 220 examples, 0 failures after adding US-001
+  - SshTunnel uses Net::SSH::Service::Forward for port forwarding, NOT Net::SSH::Gateway
+  - Ephemeral port allocation: bind TCPServer to port 0, read assigned port, close immediately
+  - Auth priority: ssh_key_path > ssh_password > ssh-agent (no auth options = agent fallback)
+  - The event loop thread runs `@session.loop(0.5) { @running }` - the 0.5 is the poll interval in seconds
+  - ConnectionError wraps all SSH failures with descriptive messages including host:port
 ---
 
 ## 2026-04-13 - US-002
-- Implemented `MysqlGenius::Core::Ai::ConnectionAdvisor` — diagnoses connection pool health
-- Gathers connection-related metrics: Threads_connected, Threads_running, Max_used_connections, Aborted_connects, Aborted_clients, Connections, Threads_created from SHOW GLOBAL STATUS plus max_connections, wait_timeout, interactive_timeout, thread_cache_size from SHOW GLOBAL VARIABLES
-- Builds system+user prompt pair distinguishing pool misconfiguration, connection leaks, missing pooling, and traffic saturation
+- What was implemented: Added SSH tunnel columns to the profiles SQLite table with backward-compatible migration
 - Files changed:
-  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/connection_advisor.rb` (new)
-  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
-  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/connection_advisor_spec.rb` (new, 5 examples)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/database.rb (schema + migration + add_profile + update_profile)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/database_spec.rb (6 new SSH field specs + legacy migration test)
 - **Learnings for future iterations:**
-  - The ConnectionAdvisor follows server-level pattern: `(client, config, connection)` constructor
-  - Core gem suite: 225 examples, 0 failures after adding US-002
-  - RuboCop clean on both source and spec files
+  - SQLite doesn't support `ADD COLUMN IF NOT EXISTS` — use `PRAGMA table_info(table)` to check column existence before ALTER TABLE
+  - The `migrate_ssh_columns` method runs after `create_schema` so it handles both fresh and legacy databases
+  - `ssh_enabled` is stored as INTEGER (0/1) since SQLite has no native boolean type — use `.to_i` when writing
+  - `find_profile` and `list_profiles` use `SELECT *` so they automatically return new columns without code changes
+  - RSpec/ExampleLength max is 25 lines — extract DB setup into helper methods for longer integration tests
+  - SSH fields use string keys throughout (matching SQLite3 `results_as_hash = true` output)
 ---
 
 ## 2026-04-13 - US-003
-- Implemented `MysqlGenius::Core::Ai::WorkloadDigest` — produces executive workload summary
-- Pulls top 30 queries by total_time via `Core::Analysis::QueryStats`, formats with calls/avg_time_ms/rows_ratio/tmp_disk_tables
-- Builds system+user prompt pair asking LLM to characterize read/write ratio, access patterns, waste concentration, and top 3 optimization opportunities
+- What was implemented: Wired SSH tunnel into ActiveSession connection flow with tunnel lifecycle management
 - Files changed:
-  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/workload_digest.rb` (new)
-  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
-  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/workload_digest_spec.rb` (new, 5 examples)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/config/mysql_config.rb (added SSH fields + ssh_enabled? method)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/active_session.rb (tunnel start/stop/restart, open_adapter_for tunnel_port kwarg)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/session_swapper.rb (SSH fields in mysql_hash_from_profile, tunnel_port in conn_proc)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb (tunnel_port in conn_proc)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/active_session_spec.rb (7 new SSH tunnel specs)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/launcher_spec.rb (added tunnel_port to instance_double)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/session_swapper_spec.rb (added tunnel_port to instance_double)
+  - gems/mysql_genius-desktop/spec/requests/profiles_api_spec.rb (added tunnel_port to instance_double)
 - **Learnings for future iterations:**
-  - WorkloadDigest follows the query-level constructor pattern: `(connection, client, config)`
-  - Stubbing `QueryStats` in specs: use `instance_double` + `allow(QueryStats).to receive(:new).with(connection).and_return(instance)` then stub `.call` on the instance
-  - RuboCop `Layout/LineContinuationLeadingSpace` triggers on multi-line string concatenation — run `rubocop -A` to auto-fix
-  - Core gem suite: 230 examples, 0 failures after adding US-003
+  - ActiveSession manages SSH tunnel lifecycle: start in initialize, stop in close, restart on retry
+  - open_adapter_for(config, tunnel_port: nil) — when tunnel_port is set, connect to 127.0.0.1:tunnel_port instead of config host/port
+  - Profile host/port become SshTunnel remote_host/remote_port — this is the key architectural pattern
+  - SshTunnel::ConnectionError is caught and re-raised as ConnectError with SSH host context
+  - Tunnel restart on Trilogy::ConnectionResetError creates a fresh SshTunnel object (stop old, start new)
+  - StatsCollector conn_proc captures tunnel_port via closure so it routes through the existing tunnel
+  - Any instance_double(ActiveSession) in specs that trigger conn_proc must stub tunnel_port
 ---
 
 ## 2026-04-13 - US-004
-- Implemented `MysqlGenius::Core::Ai::InnodbInterpreter` — interprets SHOW ENGINE INNODB STATUS in plain English
-- Runs `SHOW ENGINE INNODB STATUS` via `connection.exec_query`, extracts status text from 3rd column (index 2), truncates to 4000 chars if too long
-- Gathers InnoDB metrics from `ServerOverview` (buffer_pool_hit_rate, dirty pages, free pages, total pages, row lock waits/time)
-- Builds system+user prompt organized by: Deadlocks, Transaction History, Buffer Pool, I/O, Semaphores
+- What was implemented: Added SSH tunnel UI fields to the connections page profile form
 - Files changed:
-  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/innodb_interpreter.rb` (new)
-  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
-  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/innodb_interpreter_spec.rb` (new, 5 examples)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/connections.html.erb (SSH checkbox, conditional fields, eye toggle, JS updates)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb (format_profile, profile_attrs_from_request, update_attrs_from_request, mysql_hash_from_profile, test_connection route with SSH tunnel support)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/layout.html.erb (input[type="password"] in base + dark mode CSS)
+  - gems/mysql_genius-desktop/spec/requests/profiles_api_spec.rb (3 new specs: SSH create, SSH update, SSH test_connection)
 - **Learnings for future iterations:**
-  - InnodbInterpreter follows server-level pattern: `(client, config, connection)` constructor
-  - `SHOW ENGINE INNODB STATUS` returns columns [Type, Name, Status] — the status text is at index 2 (`row.dig(2)`)
-  - ServerOverview requires many SHOW GLOBAL STATUS/VARIABLES stubs — the FakeAdapter needs all keys used by ServerOverview's `innodb_block`, `connections_block`, `queries_block`, and `server_block`
-  - Core gem suite: 235 examples, 0 failures after adding US-004
+  - Password field was type="text" — changed to type="password" with eye toggle using data-target attribute
+  - Eye toggle pattern: button with class `mg-eye-toggle` and `data-target="input-id"`, toggles input.type between password/text
+  - SSH fields are conditionally shown via `toggleSshFields()` — checkbox change listener toggles `.mg-hidden` on `#mg-ssh-fields` div
+  - `getFormData()` only includes SSH fields when checkbox is checked (sends ssh_enabled: 0 when unchecked)
+  - `fillForm()` must call `toggleSshFields()` after setting checkbox state to show/hide fields on edit
+  - test_connection route opens/closes SshTunnel inline when ssh_enabled — tunnel.stop in both success and rescue paths
+  - input[type="password"] was not in the original CSS selectors — must be added to both light and dark mode rules
+  - Layout/MultilineHashKeyLineBreaks cop requires each hash key on its own line in multiline hashes
 ---
 
 ## 2026-04-13 - US-005
-- Implemented `MysqlGenius::Core::Ai::IndexPlanner` — holistic index optimization planner
-- Combines 3 data sources: `UnusedIndexes`, `DuplicateIndexes`, and `connection.indexes_for` per table
-- Uses `SchemaContextBuilder` with `:with_cardinality` for full index statistics
-- Falls back to top 10 largest tables (by data_length + index_length) when no tables specified
-- Builds system+user prompt asking LLM for consolidated DROP/MERGE/KEEP/ADD index plan
+- What was implemented: SSH tunnel lifecycle management during profile switching, boot, and shutdown
+- Bug fix: `import_profiles` in Launcher was not importing SSH fields from YAML config to SQLite database
+- Added SessionSwapper specs: SSH fields pass-through, old session/tunnel closure, tunnel_port capture for conn_proc
+- Added Launcher specs: SSH field import, tunnel_port capture for stats collector, shutdown registration
+- Extracted `stub_boot` helper in launcher_spec.rb to keep tests under RSpec/ExampleLength limit
 - Files changed:
-  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/index_planner.rb` (new)
-  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
-  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/index_planner_spec.rb` (new, 7 examples)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb (import_profiles now includes SSH fields)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/session_swapper_spec.rb (3 new SSH switching specs)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/launcher_spec.rb (4 new specs + stub_boot helper)
 - **Learnings for future iterations:**
-  - IndexPlanner follows server-level pattern: `(client, config, connection)` constructor, with `call(tables)` accepting optional table list
-  - `ColumnDefinition.new` requires `primary_key:` keyword — don't forget it in specs
-  - RuboCop prefers `to_h { |x| [key, val] }` over `each_with_object({})` for hash construction
-  - DuplicateIndexes `covers?` protects unique indexes from being flagged as duplicates by non-unique ones — test data must account for this
-  - Core gem suite: 242 examples, 0 failures after adding US-005
+  - Most SSH tunnel lifecycle was already implemented in US-003 via ActiveSession — US-005 was about verifying integration points
+  - import_profiles must be kept in sync with any new profile fields — it's easy to miss when adding columns
+  - Launcher `register_shutdown` uses at_exit — test by capturing the arguments passed to it, not by invoking at_exit
+  - Use `stub_boot` helper in launcher_spec.rb for tests that need the full boot mock setup
+  - StatsCollector conn_proc captures tunnel_port via closure — test by capturing the proc from StatsCollector.new kwargs
 ---
 
 ## 2026-04-13 - US-006
-- Implemented `MysqlGenius::Core::Ai::PatternGrouper` — groups slow queries by shared root cause
-- Pulls top 30 queries by total_time via `QueryStats`, filters to high-cost (rows_ratio > 10 OR avg_time_ms > 50)
-- Extracts table references via `SqlValidator.extract_table_references` for each query
-- Builds schema context for referenced tables using `SchemaContextBuilder` with `:basic` detail
-- Asks LLM to cluster queries by root cause and suggest single fixes per group
-- Files changed:
-  - `gems/mysql_genius-core/lib/mysql_genius/core/ai/pattern_grouper.rb` (new)
-  - `gems/mysql_genius-core/lib/mysql_genius/core.rb` (added require)
-  - `gems/mysql_genius-core/spec/mysql_genius/core/ai/pattern_grouper_spec.rb` (new, 6 examples)
-- **Learnings for future iterations:**
-  - PatternGrouper follows query-level constructor pattern: `(connection, client, config)`
-  - `SqlValidator.extract_table_references(sql, connection)` requires a connection that has `tables` stubbed — the FakeAdapter must have `stub_tables` called before the method works
-  - SchemaContextBuilder also needs `columns_for`, `primary_key`, `indexes_for`, and a TABLE_ROWS query stub for each table
-  - Core gem suite: 248 examples, 0 failures after adding US-006
----
-
-## 2026-04-13 - US-007
-- Wired all 6 new AI features into Rails adapter, desktop sidecar, and dashboard UI
-- Added 6 POST routes to Rails adapter config/routes.rb: variable_review, connection_advisor, workload_digest, innodb_health, index_planner, pattern_grouper
-- Added 6 controller actions to AiFeatures concern with correct constructor signatures
-- Added 6 POST routes to desktop sidecar app.rb following existing AI route pattern
-- Added 6 entries to desktop PATHS hash in paths.rb
-- Added 6 new routes to JS ROUTES hash in dashboard.html.erb
-- Added 3 AI buttons to _tab_server.html.erb: Variable Review, Connection Advisor, InnoDB Health (gated on @ai_enabled)
-- Added 2 AI buttons to _tab_query_stats.html.erb: Workload Digest, Pattern Grouper with result panel (gated on @ai_enabled)
-- Added 1 AI button to _tab_unused_indexes.html.erb: Index Planner with result panel (gated on @ai_enabled)
-- Added JS event handlers for all 6 buttons with spinner, result display, copy button, error handling
-- Added 12 new Rails adapter request specs (2 per route: success + AI-not-configured)
-- Added 12 new desktop sidecar request specs (2 per route: success + AI-not-configured)
-- Files changed:
-  - `config/routes.rb` (added 6 routes)
-  - `app/controllers/concerns/mysql_genius/ai_features.rb` (added 6 actions)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (added 6 routes)
-  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/paths.rb` (added 6 paths)
-  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/dashboard.html.erb` (JS routes + handlers)
-  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/_tab_server.html.erb` (3 buttons)
-  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/_tab_query_stats.html.erb` (2 buttons + result panel)
-  - `gems/mysql_genius-core/lib/mysql_genius/core/views/mysql_genius/queries/_tab_unused_indexes.html.erb` (1 button + result panel)
-  - `spec/requests/mysql_genius/ai_features_spec.rb` (12 new examples)
-  - `gems/mysql_genius-desktop/spec/requests/ai_features_spec.rb` (12 new examples + FakeAdapter stubs)
-- **Learnings for future iterations:**
-  - Desktop sidecar specs need explicit FakeAdapter stubs for SHOW GLOBAL VARIABLES/STATUS, SHOW ENGINE INNODB STATUS, and performance_schema queries when testing AI routes that invoke service classes with deep connection queries
-  - Server-level AI features (client, config, connection): VariableReviewer, ConnectionAdvisor, InnodbInterpreter, IndexPlanner
-  - Query-level AI features (connection, client, config): WorkloadDigest, PatternGrouper
-  - IndexPlanner.call(tables) accepts an optional tables parameter — route passes params[:tables] or nil
-  - Tab partials use a shared AI result panel pattern: `{prefix}-ai-result` div with title, content, close button
-  - The 2 pre-existing failures in desktop/database_spec.rb (#record_snapshot) are unrelated to AI features
-  - Rails adapter suite: 94 examples, 0 failures
-  - Desktop suite: 200 pass, 2 pre-existing failures
-  - Core gem suite: 248 examples, 0 failures
+- What was verified: Full green sweep across all three gems
+- Results:
+  - Rails adapter: 94 examples, 0 failures
+  - Core gem: 248 examples, 0 failures
+  - Desktop gem: 246 examples, 0 failures
+  - All rubocops clean (166 + 76 + 50 files inspected, no offenses)
+- No code changes required — all suites passed after US-005 commit
 ---

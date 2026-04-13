@@ -52,7 +52,10 @@
       </div>
       <div class="mg-col-3 mg-field">
         <label for="mg-f-password">Password</label>
-        <input type="text" id="mg-f-password" placeholder="(leave blank if none)">
+        <div style="position:relative;">
+          <input type="password" id="mg-f-password" placeholder="(leave blank if none)" style="padding-right:32px;">
+          <button type="button" class="mg-eye-toggle" data-target="mg-f-password" title="Toggle visibility" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;font-size:14px;color:#6e7781;">&#128065;</button>
+        </div>
       </div>
       <div class="mg-col-3 mg-field">
         <label for="mg-f-database">Database</label>
@@ -68,6 +71,43 @@
           <option value="disabled">Disabled</option>
         </select>
       </div>
+      <div class="mg-col-2 mg-field" style="display:flex;align-items:flex-end;padding-bottom:2px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;font-weight:400;">
+          <input type="checkbox" id="mg-f-ssh-enabled" style="width:auto;margin:0;">
+          Enable SSH Tunnel
+        </label>
+      </div>
+    </div>
+    <div id="mg-ssh-fields" class="mg-hidden">
+      <div class="mg-row">
+        <div class="mg-col-3 mg-field">
+          <label for="mg-f-ssh-host">SSH Host</label>
+          <input type="text" id="mg-f-ssh-host" placeholder="bastion.example.com">
+        </div>
+        <div class="mg-col-1 mg-field">
+          <label for="mg-f-ssh-port">SSH Port</label>
+          <input type="number" id="mg-f-ssh-port" value="22">
+        </div>
+        <div class="mg-col-3 mg-field">
+          <label for="mg-f-ssh-user">SSH User</label>
+          <input type="text" id="mg-f-ssh-user" placeholder="deploy">
+        </div>
+      </div>
+      <div class="mg-row">
+        <div class="mg-col-3 mg-field">
+          <label for="mg-f-ssh-key-path">SSH Key Path</label>
+          <input type="text" id="mg-f-ssh-key-path" placeholder="~/.ssh/id_rsa">
+        </div>
+        <div class="mg-col-3 mg-field">
+          <label for="mg-f-ssh-password">SSH Password</label>
+          <div style="position:relative;">
+            <input type="password" id="mg-f-ssh-password" placeholder="(leave blank for key/agent auth)" style="padding-right:32px;">
+            <button type="button" class="mg-eye-toggle" data-target="mg-f-ssh-password" title="Toggle visibility" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;font-size:14px;color:#6e7781;">&#128065;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mg-row">
       <div class="mg-field" style="display:flex;gap:8px;align-items:flex-end;">
         <button id="mg-form-test" class="mg-btn mg-btn-outline mg-btn-sm">Test Connection</button>
         <button id="mg-form-save" class="mg-btn mg-btn-primary mg-btn-sm">Save</button>
@@ -188,11 +228,22 @@
   }
 
   function getFormData() {
-    return {
+    var data = {
       host: el('mg-f-host').value, port: parseInt(el('mg-f-port').value) || 3306,
       username: el('mg-f-username').value, password: el('mg-f-password').value,
       database: el('mg-f-database').value, tls_mode: el('mg-f-tls').value,
     };
+    if (el('mg-f-ssh-enabled').checked) {
+      data.ssh_enabled = 1;
+      data.ssh_host = el('mg-f-ssh-host').value;
+      data.ssh_port = parseInt(el('mg-f-ssh-port').value) || 22;
+      data.ssh_user = el('mg-f-ssh-user').value;
+      data.ssh_key_path = el('mg-f-ssh-key-path').value;
+      data.ssh_password = el('mg-f-ssh-password').value;
+    } else {
+      data.ssh_enabled = 0;
+    }
+    return data;
   }
 
   function fillForm(profile) {
@@ -204,6 +255,14 @@
     el('mg-f-password').value = m.password || '';
     el('mg-f-database').value = m.database || '';
     el('mg-f-tls').value = m.tls_mode || 'preferred';
+    var sshEnabled = m.ssh_enabled === 1 || m.ssh_enabled === '1' || m.ssh_enabled === true;
+    el('mg-f-ssh-enabled').checked = sshEnabled;
+    el('mg-f-ssh-host').value = m.ssh_host || '';
+    el('mg-f-ssh-port').value = m.ssh_port || 22;
+    el('mg-f-ssh-user').value = m.ssh_user || '';
+    el('mg-f-ssh-key-path').value = m.ssh_key_path || '';
+    el('mg-f-ssh-password').value = m.ssh_password || '';
+    toggleSshFields(sshEnabled);
   }
 
   function clearForm() {
@@ -211,8 +270,31 @@
     el('mg-f-port').value = '3306'; el('mg-f-username').value = '';
     el('mg-f-password').value = ''; el('mg-f-database').value = '';
     el('mg-f-tls').value = 'preferred'; el('mg-form-status').textContent = '';
+    el('mg-f-ssh-enabled').checked = false;
+    el('mg-f-ssh-host').value = ''; el('mg-f-ssh-port').value = '22';
+    el('mg-f-ssh-user').value = ''; el('mg-f-ssh-key-path').value = '';
+    el('mg-f-ssh-password').value = '';
+    toggleSshFields(false);
     editingName = null;
   }
+
+  function toggleSshFields(show) {
+    var fields = el('mg-ssh-fields');
+    if (show) { fields.classList.remove('mg-hidden'); }
+    else { fields.classList.add('mg-hidden'); }
+  }
+
+  el('mg-f-ssh-enabled').addEventListener('change', function() {
+    toggleSshFields(this.checked);
+  });
+
+  document.querySelectorAll('.mg-eye-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var input = el(this.dataset.target);
+      if (input.type === 'password') { input.type = 'text'; }
+      else { input.type = 'password'; }
+    });
+  });
 
   el('mg-add-profile-btn').addEventListener('click', function() {
     clearForm();

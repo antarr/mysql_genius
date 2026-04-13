@@ -31,7 +31,13 @@ module MysqlGenius
 
         now = Time.now.utc.iso8601
         @db.execute(
-          "INSERT INTO profiles (name, host, port, username, password, database_name, tls_mode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          <<~SQL.tr("\n", " ").strip,
+            INSERT INTO profiles
+            (name, host, port, username, password, database_name, tls_mode,
+             ssh_enabled, ssh_host, ssh_port, ssh_user, ssh_key_path, ssh_password, remote_host, remote_port,
+             created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          SQL
           [
             attrs["name"],
             attrs["host"],
@@ -40,6 +46,14 @@ module MysqlGenius
             attrs.fetch("password", ""),
             attrs["database_name"] || attrs["database"],
             attrs.fetch("tls_mode", "preferred"),
+            attrs.fetch("ssh_enabled", 0).to_i,
+            attrs["ssh_host"],
+            attrs.fetch("ssh_port", 22),
+            attrs["ssh_user"],
+            attrs["ssh_key_path"],
+            attrs["ssh_password"],
+            attrs["remote_host"],
+            attrs.fetch("remote_port", 3306),
             now,
             now,
           ],
@@ -51,7 +65,14 @@ module MysqlGenius
 
         now = Time.now.utc.iso8601
         @db.execute(
-          "UPDATE profiles SET host = ?, port = ?, username = ?, password = ?, database_name = ?, tls_mode = ?, updated_at = ? WHERE name = ?",
+          <<~SQL.tr("\n", " ").strip,
+            UPDATE profiles SET
+              host = ?, port = ?, username = ?, password = ?, database_name = ?, tls_mode = ?,
+              ssh_enabled = ?, ssh_host = ?, ssh_port = ?, ssh_user = ?, ssh_key_path = ?, ssh_password = ?,
+              remote_host = ?, remote_port = ?,
+              updated_at = ?
+            WHERE name = ?
+          SQL
           [
             attrs["host"],
             attrs.fetch("port", 3306),
@@ -59,6 +80,14 @@ module MysqlGenius
             attrs.fetch("password", ""),
             attrs["database_name"] || attrs["database"],
             attrs.fetch("tls_mode", "preferred"),
+            attrs.fetch("ssh_enabled", 0).to_i,
+            attrs["ssh_host"],
+            attrs.fetch("ssh_port", 22),
+            attrs["ssh_user"],
+            attrs["ssh_key_path"],
+            attrs["ssh_password"],
+            attrs["remote_host"],
+            attrs.fetch("remote_port", 3306),
             now,
             name,
           ],
@@ -151,6 +180,14 @@ module MysqlGenius
             password TEXT DEFAULT '',
             database_name TEXT NOT NULL,
             tls_mode TEXT DEFAULT 'preferred',
+            ssh_enabled INTEGER DEFAULT 0,
+            ssh_host TEXT,
+            ssh_port INTEGER DEFAULT 22,
+            ssh_user TEXT,
+            ssh_key_path TEXT,
+            ssh_password TEXT,
+            remote_host TEXT,
+            remote_port INTEGER DEFAULT 3306,
             created_at TEXT,
             updated_at TEXT
           );
@@ -171,6 +208,27 @@ module MysqlGenius
 
           CREATE INDEX IF NOT EXISTS idx_stats_digest_ts ON stats_snapshots(digest_text, timestamp);
         SQL
+
+        migrate_ssh_columns
+      end
+
+      def migrate_ssh_columns
+        existing = @db.execute("PRAGMA table_info(profiles)").map { |col| col["name"] }
+        ssh_columns = {
+          "ssh_enabled" => "INTEGER DEFAULT 0",
+          "ssh_host" => "TEXT",
+          "ssh_port" => "INTEGER DEFAULT 22",
+          "ssh_user" => "TEXT",
+          "ssh_key_path" => "TEXT",
+          "ssh_password" => "TEXT",
+          "remote_host" => "TEXT",
+          "remote_port" => "INTEGER DEFAULT 3306",
+        }
+        ssh_columns.each do |name, type|
+          next if existing.include?(name)
+
+          @db.execute("ALTER TABLE profiles ADD COLUMN #{name} #{type}")
+        end
       end
 
       def prune_old_snapshots

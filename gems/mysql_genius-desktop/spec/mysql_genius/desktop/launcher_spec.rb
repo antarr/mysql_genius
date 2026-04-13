@@ -46,6 +46,15 @@ RSpec.describe(MysqlGenius::Desktop::Launcher) do
       path
     end
 
+    def stub_boot(session:, db_name: "test.db")
+      test_db = MysqlGenius::Desktop::Database.new(File.join(tmpdir, db_name))
+      allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(session))
+      allow(launcher).to(receive(:start_server))
+      allow(launcher).to(receive(:register_shutdown))
+      allow(launcher).to(receive(:open_database).and_return(test_db))
+      test_db
+    end
+
     it "prints the version for --version and exits zero" do
       expect { launcher.call(["--version"]) }.to(output(/mysql-genius-sidecar #{MysqlGenius::Desktop::VERSION}/).to_stdout)
     end
@@ -96,12 +105,8 @@ RSpec.describe(MysqlGenius::Desktop::Launcher) do
           bind: 127.0.0.1
       YAML
 
-      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil)
-      test_db = MysqlGenius::Desktop::Database.new(File.join(tmpdir, "test.db"))
-      allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(fake_session))
-      allow(launcher).to(receive(:start_server))
-      allow(launcher).to(receive(:register_shutdown))
-      allow(launcher).to(receive(:open_database).and_return(test_db))
+      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil, tunnel_port: nil)
+      test_db = stub_boot(session: fake_session)
 
       launcher.call(["--config", path])
 
@@ -109,6 +114,88 @@ RSpec.describe(MysqlGenius::Desktop::Launcher) do
       expect(MysqlGenius::Desktop::App.settings.active_session).to(equal(fake_session))
       expect(MysqlGenius::Desktop::App.settings.database).to(equal(test_db))
       expect(launcher).to(have_received(:start_server).with(port: 5555, bind: "127.0.0.1"))
+    end
+
+    it "imports SSH fields when seeding profiles from YAML config" do
+      path = write_config(<<~YAML)
+        version: 1
+        mysql:
+          host: db.internal
+          username: admin
+          database: app
+          ssh_enabled: 1
+          ssh_host: bastion.example.com
+          ssh_port: 22
+          ssh_user: deploy
+          ssh_key_path: ~/.ssh/id_rsa
+        server:
+          port: 5556
+          bind: 127.0.0.1
+      YAML
+
+      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil, tunnel_port: 13306)
+      test_db = stub_boot(session: fake_session, db_name: "test_ssh.db")
+      launcher.call(["--config", path])
+
+      profile = test_db.list_profiles.first
+      expect(profile["ssh_enabled"]).to(eq(1))
+      expect(profile["ssh_host"]).to(eq("bastion.example.com"))
+      expect(profile["ssh_user"]).to(eq("deploy"))
+      expect(profile["ssh_key_path"]).to(eq("~/.ssh/id_rsa"))
+    end
+
+    it "captures tunnel_port from the session for the stats collector conn_proc" do
+      path = write_config(<<~YAML)
+        version: 1
+        mysql:
+          host: db.internal
+          username: admin
+          database: app
+        server:
+          port: 5557
+          bind: 127.0.0.1
+      YAML
+
+      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil, tunnel_port: 13306)
+      stub_boot(session: fake_session, db_name: "test_tp.db")
+      allow(MysqlGenius::Desktop::ActiveSession).to(receive(:open_adapter_for))
+      captured_proc = nil
+      allow(MysqlGenius::Core::Analysis::StatsCollector).to(receive(:new)) do |**kwargs|
+        captured_proc = kwargs[:connection_provider]
+        instance_double(MysqlGenius::Core::Analysis::StatsCollector, start: nil, stop: nil)
+      end
+
+      launcher.call(["--config", path])
+      captured_proc.call
+
+      expect(MysqlGenius::Desktop::ActiveSession).to(have_received(:open_adapter_for).with(anything, tunnel_port: 13306))
+    end
+
+    it "registers shutdown that closes both the session and collector" do
+      path = write_config(<<~YAML)
+        version: 1
+        mysql:
+          host: 127.0.0.1
+          username: u
+          database: d
+        server:
+          port: 5558
+          bind: 127.0.0.1
+      YAML
+
+      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil, tunnel_port: nil)
+      stub_boot(session: fake_session, db_name: "test_sd.db")
+      captured_session = nil
+      captured_collector = nil
+      allow(launcher).to(receive(:register_shutdown)) do |session, collector|
+        captured_session = session
+        captured_collector = collector
+      end
+
+      launcher.call(["--config", path])
+
+      expect(captured_session).to(equal(fake_session))
+      expect(captured_collector).to(be_a(MysqlGenius::Core::Analysis::StatsCollector))
     end
   end
 end
