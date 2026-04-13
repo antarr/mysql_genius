@@ -22,7 +22,7 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
   end
 
   let(:old_session) { instance_double(MysqlGenius::Desktop::ActiveSession, close: nil) }
-  let(:new_session) { instance_double(MysqlGenius::Desktop::ActiveSession) }
+  let(:new_session) { instance_double(MysqlGenius::Desktop::ActiveSession, tunnel_port: nil) }
 
   let(:app_class) do
     Class.new do

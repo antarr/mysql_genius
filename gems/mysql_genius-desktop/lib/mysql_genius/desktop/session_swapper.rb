@@ -31,7 +31,8 @@ module MysqlGenius
         @app_class.set(:current_profile_name, profile_name)
 
         new_history   = SqliteStatsHistory.new(@database)
-        conn_proc     = -> { ActiveSession.open_adapter_for(session_config) }
+        tp            = new_session.tunnel_port
+        conn_proc     = -> { ActiveSession.open_adapter_for(session_config, tunnel_port: tp) }
         new_collector = MysqlGenius::Core::Analysis::StatsCollector.new(
           connection_provider: conn_proc,
           history:             new_history,
@@ -53,6 +54,12 @@ module MysqlGenius
           "password" => profile["password"],
           "database" => profile["database_name"],
           "tls_mode" => profile["tls_mode"],
+          "ssh_enabled" => profile["ssh_enabled"],
+          "ssh_host" => profile["ssh_host"],
+          "ssh_port" => profile["ssh_port"],
+          "ssh_user" => profile["ssh_user"],
+          "ssh_key_path" => profile["ssh_key_path"],
+          "ssh_password" => profile["ssh_password"],
         }
       end
 

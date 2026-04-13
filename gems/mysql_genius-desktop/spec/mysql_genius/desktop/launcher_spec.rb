@@ -96,7 +96,7 @@ RSpec.describe(MysqlGenius::Desktop::Launcher) do
           bind: 127.0.0.1
       YAML
 
-      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil)
+      fake_session = instance_double(MysqlGenius::Desktop::ActiveSession, close: nil, tunnel_port: nil)
       test_db = MysqlGenius::Desktop::Database.new(File.join(tmpdir, "test.db"))
       allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(fake_session))
       allow(launcher).to(receive(:start_server))

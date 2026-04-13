@@ -9,6 +9,8 @@ Started: Mon Apr 13 06:43:11 CDT 2026
 - RSpec/MultipleMemoizedHelpers max is 5 - inline simple constants to stay under the limit
 - Net::SSH is mocked at the class level: `allow(Net::SSH).to(receive(:start).and_return(ssh_session))`
 - SshTunnel event loop runs in a background Thread - test thread existence, not `session.loop` (race condition)
+- SQLite migration: use `PRAGMA table_info(table)` to check column existence before `ALTER TABLE ADD COLUMN`
+- Database profiles use string keys throughout (from `results_as_hash = true`); `ssh_enabled` is INTEGER 0/1
 ---
 
 ## 2026-04-13 - US-001
@@ -24,4 +26,18 @@ Started: Mon Apr 13 06:43:11 CDT 2026
   - Auth priority: ssh_key_path > ssh_password > ssh-agent (no auth options = agent fallback)
   - The event loop thread runs `@session.loop(0.5) { @running }` - the 0.5 is the poll interval in seconds
   - ConnectionError wraps all SSH failures with descriptive messages including host:port
+---
+
+## 2026-04-13 - US-002
+- What was implemented: Added SSH tunnel columns to the profiles SQLite table with backward-compatible migration
+- Files changed:
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/database.rb (schema + migration + add_profile + update_profile)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/database_spec.rb (6 new SSH field specs + legacy migration test)
+- **Learnings for future iterations:**
+  - SQLite doesn't support `ADD COLUMN IF NOT EXISTS` — use `PRAGMA table_info(table)` to check column existence before ALTER TABLE
+  - The `migrate_ssh_columns` method runs after `create_schema` so it handles both fresh and legacy databases
+  - `ssh_enabled` is stored as INTEGER (0/1) since SQLite has no native boolean type — use `.to_i` when writing
+  - `find_profile` and `list_profiles` use `SELECT *` so they automatically return new columns without code changes
+  - RSpec/ExampleLength max is 25 lines — extract DB setup into helper methods for longer integration tests
+  - SSH fields use string keys throughout (matching SQLite3 `results_as_hash = true` output)
 ---

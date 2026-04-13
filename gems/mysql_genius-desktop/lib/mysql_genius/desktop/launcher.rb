@@ -46,7 +46,8 @@ module MysqlGenius
         history   = SqliteStatsHistory.new(db)
         # The collector gets its own dedicated connection (not shared with
         # web requests) to avoid mutex contention and TRILOGY_INVALID_SEQUENCE_ID.
-        conn_proc = -> { ActiveSession.open_adapter_for(config) }
+        tp        = session.tunnel_port
+        conn_proc = -> { ActiveSession.open_adapter_for(config, tunnel_port: tp) }
         collector = MysqlGenius::Core::Analysis::StatsCollector.new(
           connection_provider: conn_proc,
           history:             history,

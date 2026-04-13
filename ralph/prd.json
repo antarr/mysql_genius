@@ -40,7 +40,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "SQLite doesn't support ADD COLUMN IF NOT EXISTS directly. Use a rescue on the ALTER TABLE or check pragma_table_info for column existence before adding. The ssh_password field stores the SSH password (not the MySQL password). For Tauri app, the SSH password could later move to Keychain — for now store in SQLite alongside the MySQL password."
     },
     {

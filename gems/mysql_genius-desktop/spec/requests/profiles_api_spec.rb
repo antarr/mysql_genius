@@ -93,7 +93,7 @@ RSpec.describe("Profile API routes", type: :request) do
 
   describe "POST /api/profiles/:name/connect" do
     it "switches the active connection to the named profile" do
-      new_session = instance_double(MysqlGenius::Desktop::ActiveSession)
+      new_session = instance_double(MysqlGenius::Desktop::ActiveSession, tunnel_port: nil)
       allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(new_session))
 
       post "/api/profiles/staging/connect"
