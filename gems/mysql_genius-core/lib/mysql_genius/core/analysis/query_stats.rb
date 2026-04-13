@@ -40,9 +40,10 @@ module MysqlGenius
         end
 
         def build_sql(order_clause, limit)
+          digest_col = digest_column_available? ? "DIGEST," : ""
           <<~SQL
             SELECT
-              DIGEST,
+              #{digest_col}
               DIGEST_TEXT,
               COUNT_STAR AS calls,
               ROUND(SUM_TIMER_WAIT / 1000000000, 1) AS total_time_ms,
@@ -98,6 +99,20 @@ module MysqlGenius
           return string if string.length <= max
 
           "#{string[0, max - 3]}..."
+        end
+
+        def digest_column_available?
+          return @digest_available if defined?(@digest_available)
+
+          result = @connection.exec_query(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS " \
+            "WHERE TABLE_SCHEMA = 'performance_schema' " \
+            "AND TABLE_NAME = 'events_statements_summary_by_digest' " \
+            "AND COLUMN_NAME = 'DIGEST'",
+          )
+          @digest_available = !result.rows.empty?
+        rescue StandardError
+          @digest_available = false
         end
       end
     end

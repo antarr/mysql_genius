@@ -424,7 +424,7 @@
         show(el('dash-qstats-empty'));
       } else {
         el('dash-qstats-tbody').innerHTML = data.map(function(q) {
-          var sqlCell = q.digest
+          var sqlCell = (q.digest && q.digest.length > 0)
             ? '<a href="' + ROUTES.query_detail + encodeURIComponent(q.digest) + '" class="mg-link">' + sqlBlock(q.sql, 120) + '</a>'
             : sqlBlock(q.sql, 120);
           return '<tr>' +
