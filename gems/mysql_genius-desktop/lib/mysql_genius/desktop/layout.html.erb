@@ -19,7 +19,7 @@
 
     /* Forms */
     label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; }
-    select, input[type="number"], input[type="text"], textarea { border: 1px solid #ced4da; border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 100%; font-family: inherit; }
+    select, input[type="number"], input[type="text"], input[type="password"], textarea { border: 1px solid #ced4da; border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 100%; font-family: inherit; }
     select:focus, input:focus, textarea:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 2px rgba(0,123,255,.15); }
     textarea { font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace; resize: vertical; }
     textarea[readonly] { background: #f8f9fa; }
@@ -135,6 +135,10 @@
     @keyframes mg-spin { to { transform: rotate(360deg); } }
     .mg-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #007bff; border-radius: 50%; animation: mg-spin .6s linear infinite; }
 
+    /* Pulsing "analyzing" label */
+    @keyframes mg-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .mg-analyzing { animation: mg-pulse 1.4s ease-in-out infinite; font-size: 12px; color: #6c757d; }
+
     /* Utilities */
     .mg-hidden { display: none !important; }
     .mg-mt { margin-top: 16px; }
@@ -171,12 +175,14 @@
     [data-theme="dark"] select,
     [data-theme="dark"] input[type="number"],
     [data-theme="dark"] input[type="text"],
+    [data-theme="dark"] input[type="password"],
     [data-theme="dark"] textarea { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
     [data-theme="dark"] select:focus,
     [data-theme="dark"] input:focus,
     [data-theme="dark"] textarea:focus { border-color: #58a6ff; box-shadow: 0 0 0 2px rgba(88,166,255,.15); }
     [data-theme="dark"] textarea[readonly] { background: #161b22; }
     [data-theme="dark"] label { color: #c9d1d9; }
+    [data-theme="dark"] input[type="range"] { accent-color: #58a6ff; }
     [data-theme="dark"] .mg-btn-primary { background: #238636; border-color: #238636; }
     [data-theme="dark"] .mg-btn-primary:hover:not(:disabled) { background: #2ea043; }
     [data-theme="dark"] .mg-btn-outline { background: #0d1117; color: #58a6ff; border-color: #30363d; }
@@ -220,6 +226,7 @@
     [data-theme="dark"] .mg-link { color: #58a6ff; }
     [data-theme="dark"] .mg-spinner { border-color: #30363d; border-top-color: #58a6ff; }
     [data-theme="dark"] .mg-text-muted { color: #8b949e; }
+    [data-theme="dark"] .mg-analyzing { color: #8b949e; }
     [data-theme="dark"] .mg-check .type-hint { color: #484f58; }
     [data-theme="dark"] .mg-ai-section { border-color: #30363d; }
     [data-theme="dark"] .mg-ai-danger { background: #2d0d0d; border-left-color: #f85149; }
