@@ -827,7 +827,7 @@
       });
 
       ajax('POST', ROUTES.optimize, data, function(resp) {
-        el('optimize-content').innerHTML = formatMarkdown(resp.suggestions || 'No suggestions available.');
+        el('optimize-content').innerHTML = formatMarkdown(resp.suggestions || 'No suggestions available.') + copyButton('optimize-content');
         show(el('optimize-results'));
         explainOptimize.disabled = false;
         explainOptimize.innerHTML = '&#9889; AI Optimization';
@@ -1232,9 +1232,25 @@
     });
   }
 
+  function copyButton(targetId) {
+    return '<div style="text-align:right;margin-top:8px;"><button class="mg-btn mg-btn-outline-secondary mg-btn-sm mg-copy-ai" data-target="' + targetId + '">Copy response</button></div>';
+  }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.mg-copy-ai');
+    if (!btn) return;
+    var target = el(btn.dataset.target);
+    if (!target) return;
+    var text = target.innerText || target.textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy response'; }, 2000);
+    });
+  });
+
   function showAiQueryResult(title, html) {
     el('ai-query-title').innerHTML = '<strong>&#9889; ' + escHtml(title) + '</strong>';
-    el('ai-query-content').innerHTML = html;
+    el('ai-query-content').innerHTML = html + copyButton('ai-query-content');
     show(el('ai-query-result'));
   }
 
@@ -1308,7 +1324,7 @@
       });
 
       aiCall(ROUTES.index_advisor, data, function(resp) {
-        el('optimize-content').innerHTML = formatMarkdown(resp.indexes || resp.raw || 'No suggestions.');
+        el('optimize-content').innerHTML = formatMarkdown(resp.indexes || resp.raw || 'No suggestions.') + copyButton('optimize-content');
         show(el('optimize-results'));
         indexAdvisor.disabled = false;
         indexAdvisor.innerHTML = '&#9889; Index Advisor';
@@ -1331,7 +1347,7 @@
       hide(el('server-ai-result'));
       aiCall(ROUTES.root_cause, {}, function(data) {
         el('server-ai-title').innerHTML = '<strong>&#9889; Root Cause Analysis</strong>';
-        el('server-ai-content').innerHTML = formatMarkdown(data.diagnosis || data.raw || 'No diagnosis.');
+        el('server-ai-content').innerHTML = formatMarkdown(data.diagnosis || data.raw || 'No diagnosis.') + copyButton('server-ai-content');
         show(el('server-ai-result'));
         rootCauseBtn.disabled = false;
         rootCauseBtn.innerHTML = '&#9889; Why is it slow?';
@@ -1356,7 +1372,7 @@
       hide(el('server-ai-result'));
       aiCall(ROUTES.anomaly_detection, {}, function(data) {
         el('server-ai-title').innerHTML = '<strong>&#9889; Query Health Report</strong>';
-        el('server-ai-content').innerHTML = formatMarkdown(data.report || data.raw || 'No anomalies detected.');
+        el('server-ai-content').innerHTML = formatMarkdown(data.report || data.raw || 'No anomalies detected.') + copyButton('server-ai-content');
         show(el('server-ai-result'));
         anomalyBtn.disabled = false;
         anomalyBtn.innerHTML = '&#9889; Anomaly Detection';
@@ -1380,7 +1396,7 @@
       hide(el('schema-result'));
       var table = el('schema-table').value;
       aiCall(ROUTES.schema_review, { table: table }, function(data) {
-        el('schema-result-content').innerHTML = formatFindings(data.findings || data.raw || '');
+        el('schema-result-content').innerHTML = formatFindings(data.findings || data.raw || '') + copyButton('schema-result-content');
         show(el('schema-result'));
         schemaBtn.disabled = false;
         schemaBtn.innerHTML = '&#9889; Analyze Schema';
@@ -1411,7 +1427,7 @@
         var level = (data.risk_level || '').toLowerCase();
         var badgeClass = level === 'critical' ? 'mg-badge-danger' : level === 'high' ? 'mg-badge-danger' : level === 'medium' ? 'mg-badge-warning' : 'mg-badge-info';
         el('migration-risk-badge').innerHTML = level ? '<span class="mg-badge ' + badgeClass + '" style="font-size:14px;padding:4px 12px;">Risk: ' + level.toUpperCase() + '</span>' : '';
-        el('migration-result-content').innerHTML = formatFindings(data.assessment || data.raw || '');
+        el('migration-result-content').innerHTML = formatFindings(data.assessment || data.raw || '') + copyButton('migration-result-content');
         show(el('migration-result'));
         migrationBtn.disabled = false;
         migrationBtn.innerHTML = '&#9889; Assess Risk';
