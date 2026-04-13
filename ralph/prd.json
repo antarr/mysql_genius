@@ -44,7 +44,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "The StatsCollector passes snapshot hashes with string keys from its tick method. SqliteStatsHistory should accept both string and symbol keys. The series_for return format must match what the query_detail template JS expects: [{timestamp:, calls:, total_time_ms:, avg_time_ms:}]."
     },
     {
@@ -64,7 +64,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "The rack_helper.rb needs to create a tmpdir-based Database and set it on the App via App.set(:database, db). Ensure mkdir_p for ~/.config/mysql_genius/ before creating the DB. The import only runs when the DB is empty — deleting mysql_genius.db forces re-import on next boot."
     },
     {

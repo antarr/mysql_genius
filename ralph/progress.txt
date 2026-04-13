@@ -8,6 +8,9 @@ Started: Sun Apr 12 23:47:10 CDT 2026
 - Desktop gem Gemfile.lock is not tracked in git (gem convention)
 - Use `results_as_hash = true` on SQLite3::Database to get hash-style row access
 - Desktop app settings are injected via `App.set(:key, value)` (Sinatra pattern)
+- Launcher private methods can be stubbed via `allow(launcher).to(receive(:method_name))` in RSpec
+- First-boot import logic: only runs when DB is empty (list_profiles.empty? / get_setting returns nil)
+- rack_helper.rb must set `App.set(:database, ...)` for request specs that depend on DB settings
 
 ---
 
@@ -32,4 +35,27 @@ Started: Sun Apr 12 23:47:10 CDT 2026
   - RSpec `let` is lazy — must reference the variable in the test body before asserting on side effects like file creation
   - `Naming/AccessorMethodName` cop flags `get_`/`set_` prefixes — disable inline when API names are mandated by the PRD
   - `add_profile` accepts both `database_name` and `database` keys for compatibility with existing config hash shapes
+---
+
+## 2026-04-13 - US-003
+- What was implemented:
+  - Modified `launcher.rb` to create Database at `~/.config/mysql_genius/mysql_genius.db`
+  - Added first-boot YAML import: profiles imported when DB empty, AI config imported when endpoint missing
+  - Replaced `StatsHistory.new` with `SqliteStatsHistory.new(db)` for persistent stats
+  - Added `App.set(:database, db)` to wire Database into Sinatra settings
+  - Added `database` and `sqlite_stats_history` requires to `desktop.rb`
+  - Added `set :database, nil` to `app.rb` settings
+  - Updated `rack_helper.rb` to create tmpdir-based test Database for request specs
+  - Updated `launcher_spec.rb` to stub `open_database` and verify Database wiring
+- Files changed:
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb` (modified)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (added database setting)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop.rb` (added requires)
+  - `gems/mysql_genius-desktop/spec/rack_helper.rb` (inject test Database)
+  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/launcher_spec.rb` (updated)
+- **Learnings for future iterations:**
+  - `open_database` extracted as private method so specs can stub it without touching filesystem
+  - Import logic checks DB emptiness, not config emptiness — deleting mysql_genius.db forces re-import
+  - Profile import maps `mysql.database` → `database_name` for Database schema compatibility
+  - rack_helper cleanup: must `FileUtils.remove_entry` tmpdir in after block to avoid leftover test DBs
 ---
