@@ -261,6 +261,9 @@
           <option>Loading...</option>
         </select>
         <a href="/connections" style="font-size:12px;color:#007bff;text-decoration:none;">Manage</a>
+        <button class="mg-theme-toggle" id="mg-theme-btn" title="Toggle dark/light theme" onclick="(function(){var d=document.documentElement,t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);localStorage.setItem('mg-theme',t);document.getElementById('mg-theme-btn').textContent=t==='dark'?'\u2600\uFE0F':'\uD83C\uDF19';})()">
+          <script>document.write(document.documentElement.getAttribute('data-theme')==='dark'?'\u2600\uFE0F':'\uD83C\uDF19')</script>
+        </button>
       </div>
     </div>
     <%= yield %>
