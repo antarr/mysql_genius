@@ -1,18 +1,17 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 require "mysql_genius/desktop"
 
 RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
-  subject(:swapper) { described_class.new(app_class, config) }
+  subject(:swapper) { described_class.new(app_class, config, database) }
+
+  let(:database) { MysqlGenius::Desktop::Database.new(File.join(Dir.mktmpdir, "test.db")) }
 
   let(:config) do
-    mysql_config = ->(host) { MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => host, "username" => "u", "database" => "d" }) }
     MysqlGenius::Desktop::Config.allocate.tap do |c|
-      c.instance_variable_set(:@profiles, [
-        MysqlGenius::Desktop::Config::ProfileConfig.new(name: "prod", mysql: mysql_config.call("db.prod.com")),
-        MysqlGenius::Desktop::Config::ProfileConfig.new(name: "staging", mysql: mysql_config.call("db.staging.com")),
-      ])
+      c.instance_variable_set(:@profiles, [])
       c.instance_variable_set(:@default_profile, "prod")
       c.instance_variable_set(:@query, MysqlGenius::Desktop::Config::QueryConfig.from_hash({}))
       c.instance_variable_set(:@security, MysqlGenius::Desktop::Config::SecurityConfig.from_hash({}))
@@ -24,8 +23,6 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
 
   let(:old_session) { instance_double(MysqlGenius::Desktop::ActiveSession, close: nil) }
   let(:new_session) { instance_double(MysqlGenius::Desktop::ActiveSession) }
-
-  let(:new_collector) { instance_double(MysqlGenius::Core::Analysis::StatsCollector, start: nil) }
 
   let(:app_class) do
     Class.new do
@@ -64,13 +61,17 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
   end
 
   before do
+    database.add_profile("name" => "prod", "host" => "db.prod.com", "username" => "u", "database_name" => "d")
+    database.add_profile("name" => "staging", "host" => "db.staging.com", "username" => "u", "database_name" => "d")
+
     app_class.set(:active_session, old_session)
     app_class.set(:current_profile_name, "prod")
     app_class.set(:stats_history, nil)
     app_class.set(:stats_collector, nil)
     allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_return(new_session))
-    allow(MysqlGenius::Core::Analysis::StatsCollector).to(receive(:new).and_return(new_collector))
-    allow(MysqlGenius::Core::Analysis::StatsHistory).to(receive(:new).and_return(instance_double(MysqlGenius::Core::Analysis::StatsHistory, clear: nil)))
+    allow(MysqlGenius::Core::Analysis::StatsCollector).to(receive(:new).and_return(
+      instance_double(MysqlGenius::Core::Analysis::StatsCollector, start: nil),
+    ))
   end
 
   describe "#switch_to" do
@@ -80,6 +81,12 @@ RSpec.describe(MysqlGenius::Desktop::SessionSwapper) do
       expect(app_class.active_session_value).to(equal(new_session))
       expect(app_class.current_profile_name_value).to(eq("staging"))
       expect(old_session).to(have_received(:close))
+    end
+
+    it "sets a SqliteStatsHistory as the new stats_history" do
+      swapper.switch_to("staging")
+
+      expect(app_class.stats_history_value).to(be_a(MysqlGenius::Desktop::SqliteStatsHistory))
     end
 
     it "raises ConnectError when the profile name is not found" do

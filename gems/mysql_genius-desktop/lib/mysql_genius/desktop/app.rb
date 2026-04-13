@@ -396,7 +396,7 @@ module MysqlGenius
         halt(404, json_response(error: "Profile '#{params[:name]}' not found")) unless profile
 
         mysql_config = Config::MysqlConfig.from_hash(mysql_hash_from_profile(profile))
-        swapper = SessionSwapper.new(self.class, settings.mysql_genius_config)
+        swapper = SessionSwapper.new(self.class, settings.mysql_genius_config, settings.database)
         swapper.switch_to_config(params[:name], mysql_config)
         json_response(success: true, profile: params[:name])
       rescue ActiveSession::ConnectError => e
