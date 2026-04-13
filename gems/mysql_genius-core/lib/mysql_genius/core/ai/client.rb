@@ -62,7 +62,7 @@ module MysqlGenius
             response_format: { type: "json_object" },
             temperature: temperature,
           }
-          body[:max_tokens] = @config.max_tokens if @config.max_tokens
+          body[:max_tokens] = @config.max_tokens.to_i if @config.max_tokens
           body[:model] = @config.model if @config.model && !@config.model.empty?
           body
         end
@@ -73,7 +73,7 @@ module MysqlGenius
 
           body = {
             messages: user_messages,
-            max_tokens: @config.max_tokens || 4096,
+            max_tokens: (@config.max_tokens || 4096).to_i,
             temperature: temperature,
           }
           body[:system] = system_text unless system_text.empty?
