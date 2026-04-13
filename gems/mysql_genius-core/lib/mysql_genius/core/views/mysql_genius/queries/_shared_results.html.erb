@@ -26,13 +26,16 @@
 </div>
 
 <!-- Results Area -->
-<div id="query-results" class="mg-mt">
-  <div id="results-alert" class="mg-hidden"></div>
-  <div id="results-stats" class="mg-mb mg-hidden">
-    <span id="results-row-count" class="mg-badge mg-badge-info"></span>
-    <span id="results-time" class="mg-badge mg-badge-secondary"></span>
-    <span id="results-truncated" class="mg-badge mg-badge-warning mg-hidden">Results truncated</span>
+<div id="query-results" class="mg-mt mg-hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div id="results-stats" class="mg-mb mg-hidden">
+      <span id="results-row-count" class="mg-badge mg-badge-info"></span>
+      <span id="results-time" class="mg-badge mg-badge-secondary"></span>
+      <span id="results-truncated" class="mg-badge mg-badge-warning mg-hidden">Results truncated</span>
+    </div>
+    <button id="results-close" class="mg-btn mg-btn-outline-secondary mg-btn-sm" style="margin-bottom:12px;">&#10005; Dismiss</button>
   </div>
+  <div id="results-alert" class="mg-hidden"></div>
   <div id="results-table-wrapper" class="mg-table-wrap mg-hidden">
     <table class="mg-table">
       <thead id="results-thead"></thead>

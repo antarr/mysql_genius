@@ -707,6 +707,7 @@
     }, function(json) {
       var cls = (json && json.timeout) ? 'mg-alert-warning' : 'mg-alert-danger';
       el('results-alert').innerHTML = '<div class="mg-alert ' + cls + '">' + escHtml((json && json.error) || 'An unexpected error occurred.') + '</div>';
+      show(el('query-results'));
       show(el('results-alert'));
       setBtnLoading(['vb-run', 'sql-run'], false);
     });
@@ -718,9 +719,11 @@
     hide(el('results-truncated'));
     el('results-thead').innerHTML = '';
     el('results-tbody').innerHTML = '';
+    show(el('query-results'));
   }
 
   function renderResults(data) {
+    show(el('query-results'));
     if (data.row_count === 0) {
       show(el('results-empty')); show(el('results-stats'));
       el('results-row-count').textContent = '0 rows';
@@ -748,6 +751,7 @@
   el('vb-explain').addEventListener('click', function() { var sql = buildSql(); if (sql) runExplain(sql); });
   el('sql-explain').addEventListener('click', function() { var sql = el('sql-input').value.trim(); if (sql) runExplain(sql); });
   el('explain-close').addEventListener('click', function() { hide(el('explain-results')); });
+  el('results-close').addEventListener('click', function() { hide(el('query-results')); });
 
   function runExplain(sql, fromSlowQuery) {
     lastExplainSql = sql;
@@ -1033,7 +1037,9 @@
           '<td class="mg-num"><strong>' + formatMb(t.total_mb) + '</strong></td>' +
           '<td class="mg-num">' + fragText + '</td>' +
           '<td>' + updated + '</td>' +
-          '<td>' + sizeBar(pct, color) + '</td>' +
+          '<td>' + sizeBar(pct, color) +
+            (t.needs_optimize ? ' <button class="mg-btn mg-btn-outline mg-btn-sm mg-table-optimize" data-table="' + escHtml(t.table) + '" style="margin-left:4px;">&#9889; AI Optimize</button>' : '') +
+          '</td>' +
           '</tr>';
       }).join('');
       show(el('sizes-table-wrapper'));
@@ -1045,6 +1051,24 @@
   }
 
   el('sizes-refresh').addEventListener('click', loadTableSizes);
+
+  // AI Optimize button on tables with fragmentation
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.mg-table-optimize');
+    if (!btn) return;
+    var table = btn.dataset.table;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="mg-spinner"></span>';
+    aiCall(ROUTES.schema_review, { table: table }, function(data) {
+      showAiQueryResult('Optimization: ' + table, formatFindings(data.findings || data.raw || 'No suggestions.'));
+      btn.disabled = false;
+      btn.innerHTML = '&#9889; AI Optimize';
+    }, function(err) {
+      showAiQueryResult('Error', '<div class="mg-alert mg-alert-danger">' + escHtml(err) + '</div>');
+      btn.disabled = false;
+      btn.innerHTML = '&#9889; AI Optimize';
+    });
+  });
 
   // --- Query Stats ---
 
