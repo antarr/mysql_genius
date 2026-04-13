@@ -2,31 +2,21 @@
 
 # rubocop:disable RSpec/InstanceVariable
 require "rack_helper"
-require "tmpdir"
 
 RSpec.describe("Profile API routes", type: :request) do
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @config_path = File.join(dir, "mg.yml")
-      File.write(@config_path, YAML.dump({
-        "version" => 2,
-        "default_profile" => "prod",
-        "profiles" => [
-          { "name" => "prod", "mysql" => { "host" => "db.prod.com", "username" => "readonly", "database" => "app_prod" } },
-          { "name" => "staging", "mysql" => { "host" => "db.staging.com", "username" => "readonly", "database" => "app_staging" } },
-        ],
-      }))
-      example.run
-    end
-  end
-
   before do
-    @test_config.instance_variable_set(:@source_path, @config_path)
-    @test_config.instance_variable_set(:@profiles, [
-      MysqlGenius::Desktop::Config::ProfileConfig.new(name: "prod", mysql: MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => "db.prod.com", "username" => "readonly", "database" => "app_prod" })),
-      MysqlGenius::Desktop::Config::ProfileConfig.new(name: "staging", mysql: MysqlGenius::Desktop::Config::MysqlConfig.from_hash({ "host" => "db.staging.com", "username" => "readonly", "database" => "app_staging" })),
-    ])
-    @test_config.instance_variable_set(:@default_profile, "prod")
+    @test_database.add_profile({
+      "name" => "prod",
+      "host" => "db.prod.com",
+      "username" => "readonly",
+      "database_name" => "app_prod",
+    })
+    @test_database.add_profile({
+      "name" => "staging",
+      "host" => "db.staging.com",
+      "username" => "readonly",
+      "database_name" => "app_staging",
+    })
     MysqlGenius::Desktop::App.set(:current_profile_name, "prod")
   end
 
@@ -37,6 +27,9 @@ RSpec.describe("Profile API routes", type: :request) do
       body = JSON.parse(last_response.body)
       expect(body["profiles"].length).to(eq(2))
       expect(body["current"]).to(eq("prod"))
+      expect(body["profiles"].first["name"]).to(eq("prod"))
+      expect(body["profiles"].first["mysql"]["host"]).to(eq("db.prod.com"))
+      expect(body["profiles"].first["mysql"]["database"]).to(eq("app_prod"))
     end
   end
 
@@ -110,6 +103,11 @@ RSpec.describe("Profile API routes", type: :request) do
       expect(body["profile"]).to(eq("staging"))
     end
 
+    it "returns 404 for unknown profile" do
+      post "/api/profiles/unknown/connect"
+      expect(last_response.status).to(eq(404))
+    end
+
     it "returns 422 when the connection fails" do
       allow(MysqlGenius::Desktop::ActiveSession).to(receive(:new).and_raise(
         MysqlGenius::Desktop::ActiveSession::ConnectError, "connection refused"
@@ -119,6 +117,37 @@ RSpec.describe("Profile API routes", type: :request) do
       expect(last_response.status).to(eq(422))
       body = JSON.parse(last_response.body)
       expect(body["error"]).to(include("connection refused"))
+    end
+  end
+
+  describe "GET /api/ai_config" do
+    it "returns empty hash when no AI config set" do
+      get "/api/ai_config"
+      expect(last_response.status).to(eq(200))
+      body = JSON.parse(last_response.body)
+      expect(body).to(eq({}))
+    end
+
+    it "returns stored AI config" do
+      @test_database.set_ai_config({ "endpoint" => "https://api.example.com", "api_key" => "sk-123", "model" => "gpt-4" })
+      get "/api/ai_config"
+      expect(last_response.status).to(eq(200))
+      body = JSON.parse(last_response.body)
+      expect(body["endpoint"]).to(eq("https://api.example.com"))
+      expect(body["model"]).to(eq("gpt-4"))
+    end
+  end
+
+  describe "PUT /api/ai_config" do
+    it "saves AI config and reloads into running app" do
+      put "/api/ai_config", { endpoint: "https://api.example.com", api_key: "sk-123", model: "gpt-4" }.to_json, "CONTENT_TYPE" => "application/json"
+      expect(last_response.status).to(eq(200))
+      body = JSON.parse(last_response.body)
+      expect(body["success"]).to(be(true))
+
+      stored = @test_database.get_ai_config
+      expect(stored["endpoint"]).to(eq("https://api.example.com"))
+      expect(stored["model"]).to(eq("gpt-4"))
     end
   end
 end
