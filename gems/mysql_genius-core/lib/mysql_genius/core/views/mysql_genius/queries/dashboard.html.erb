@@ -1567,19 +1567,12 @@
 
     if (!sections.length) return formatMarkdown(text);
 
-    var badgeColors = { danger: '#dc3545', warning: '#ffc107', info: '#17a2b8' };
-    var bgColors = { danger: '#fff5f5', warning: '#fffbeb', info: '#f0f9ff' };
-    var borderColors = { danger: '#f5c6cb', warning: '#ffeeba', info: '#bee5eb' };
-
     return sections.map(function(sec) {
       var content = formatMarkdown(sec.lines.join('\n').trim());
       if (!content || content === '<br>') return '';
-      var badge = badgeColors[sec.severity] || badgeColors.info;
-      var bg = bgColors[sec.severity] || bgColors.info;
-      var border = borderColors[sec.severity] || borderColors.info;
-      return '<div class="mg-card mg-mb" style="border-left:4px solid ' + badge + ';background:' + bg + ';border-color:' + border + ';">' +
-        (sec.title ? '<div class="mg-card-header" style="background:transparent;border-bottom:1px solid ' + border + ';"><strong>' + escHtml(sec.title) + '</strong></div>' : '') +
-        '<div class="mg-card-body" style="font-size:13px;">' + content + '</div></div>';
+      return '<div class="mg-ai-section mg-ai-' + sec.severity + ' mg-mb">' +
+        (sec.title ? '<div class="mg-ai-section-header"><strong>' + escHtml(sec.title) + '</strong></div>' : '') +
+        '<div class="mg-ai-section-body">' + content + '</div></div>';
     }).filter(function(s) { return s; }).join('');
   }
 })();
