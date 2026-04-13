@@ -517,6 +517,7 @@ module MysqlGenius
           auth_style:     ai.auth_style,
           system_context: ai.system_context,
           domain_context: ai.domain_context,
+          max_tokens:     ai.respond_to?(:max_tokens) ? (ai.max_tokens || 4096) : 4096,
         )
       end
 

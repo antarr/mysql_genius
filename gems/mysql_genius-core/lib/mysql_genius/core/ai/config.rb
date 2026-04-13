@@ -26,10 +26,11 @@ module MysqlGenius
         :auth_style,
         :system_context,
         :domain_context,
+        :max_tokens,
         keyword_init: true,
       ) do
         def initialize(**kwargs)
-          super(domain_context: "", **kwargs)
+          super(domain_context: "", max_tokens: 4096, **kwargs)
           freeze
         end
 

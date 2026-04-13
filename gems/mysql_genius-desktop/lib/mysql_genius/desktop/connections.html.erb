@@ -140,6 +140,15 @@
         <input type="text" id="mg-ai-domain" placeholder="e.g. Prefer window functions over correlated subqueries">
       </div>
     </div>
+    <div class="mg-row">
+      <div class="mg-col-grow mg-field">
+        <label for="mg-ai-max-tokens">Max Tokens <span id="mg-ai-max-tokens-val" style="font-weight:400;">4096</span></label>
+        <input type="range" id="mg-ai-max-tokens" min="256" max="16384" step="256" value="4096" style="width:100%;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;">
+          <span>256</span><span>1k</span><span>2k</span><span>4k</span><span>8k</span><span>16k</span>
+        </div>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button id="mg-ai-save" class="mg-btn mg-btn-primary mg-btn-sm">Save</button>
       <span id="mg-ai-save-status" style="font-size:12px;"></span>
@@ -351,6 +360,12 @@
     return 'custom';
   }
 
+  var maxTokensSlider = el('mg-ai-max-tokens');
+  var maxTokensVal = el('mg-ai-max-tokens-val');
+  maxTokensSlider.addEventListener('input', function() {
+    maxTokensVal.textContent = Number(this.value).toLocaleString();
+  });
+
   function loadAiConfig() {
     fetch('/api/ai_config').then(function(r) { return r.json(); }).then(function(data) {
       el('mg-ai-endpoint').value = data.endpoint || '';
@@ -359,6 +374,9 @@
       el('mg-ai-auth').value = data.auth_style || 'bearer';
       el('mg-ai-context').value = data.system_context || '';
       el('mg-ai-domain').value = data.domain_context || '';
+      var tokens = parseInt(data.max_tokens) || 4096;
+      maxTokensSlider.value = tokens;
+      maxTokensVal.textContent = tokens.toLocaleString();
       el('mg-ai-provider').value = detectProvider(data.endpoint);
       var enabled = (data.endpoint && data.api_key);
       el('mg-ai-status').textContent = enabled ? 'Configured' : 'Not configured';
@@ -373,7 +391,8 @@
       model: el('mg-ai-model').value.trim(),
       auth_style: el('mg-ai-auth').value,
       system_context: el('mg-ai-context').value.trim(),
-      domain_context: el('mg-ai-domain').value.trim()
+      domain_context: el('mg-ai-domain').value.trim(),
+      max_tokens: parseInt(maxTokensSlider.value) || 4096
     };
     el('mg-ai-save-status').textContent = 'Saving...';
     el('mg-ai-save-status').style.color = '';

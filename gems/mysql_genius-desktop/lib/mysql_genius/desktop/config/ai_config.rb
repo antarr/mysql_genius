@@ -11,6 +11,7 @@ module MysqlGenius
         :auth_style,
         :system_context,
         :domain_context,
+        :max_tokens,
         keyword_init: true,
       )
         DEFAULTS = {
@@ -21,6 +22,7 @@ module MysqlGenius
           auth_style: :bearer,
           system_context: "",
           domain_context: "",
+          max_tokens: 4096,
         }.freeze
 
         class << self
