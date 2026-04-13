@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.2
+
+### Added
+- **Anthropic Messages API support** in `Core::Ai::Client` — detects `:x_api_key` auth style, sends `x-api-key` + `anthropic-version` headers, uses top-level `system` parameter and `content[0].text` response parsing.
+- **`max_tokens` field** on `Core::Ai::Config` (default 4096) — sent in both OpenAI and Anthropic request bodies.
+- **Copy response button** on all AI result sections in the shared dashboard template.
+- **Dark mode CSS classes** for AI result sections (`mg-ai-section`, `mg-ai-danger`, `mg-ai-warning`, `mg-ai-info`) replacing hardcoded inline styles.
+- **`capability?(:standalone_header)`** guard on the dashboard heading — hides it when the rendering adapter provides its own header.
+
 ## 0.7.1
 
 ### Fixed

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.2
+
+### Added
+- **Anthropic Messages API support** — `x-api-key` auth style with `anthropic-version` header, top-level `system` parameter, `content[0].text` response parsing.
+- **Configurable `max_tokens`** — new field on `Core::Ai::Config` (default 4096), sent to both OpenAI and Anthropic APIs.
+- **Copy response button** on all AI result sections (schema review, migration risk, optimization, describe query, rewrite, index advisor, root cause, anomaly detection).
+- **Dark mode contrast fixes** for AI result sections — proper CSS classes with dark-mode variants replace hardcoded light-mode inline styles.
+- **`capability?(:standalone_header)`** guard hides the dashboard header when rendered inside a layout that already provides one.
+
 ## 0.7.1
 
 Lockstep version bump with `mysql_genius-core 0.7.1` which fixes missing ERB templates in the gem package.
