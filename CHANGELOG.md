@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+- **6 new AI analysis features:**
+  - **Variable Config Reviewer** — reviews my.cnf settings against observed workload
+  - **Connection Pressure Advisor** — diagnoses connection pool health
+  - **Workload Digest** — executive summary of the entire query workload
+  - **InnoDB Health Interpreter** — plain English translation of `SHOW ENGINE INNODB STATUS`
+  - **Index Consolidation Planner** — holistic drop/merge/add index plan across tables
+  - **Slow Query Pattern Grouper** — groups slow queries by shared root cause
+- AI buttons added to Server tab, Query Stats tab, and Indexes tabs
+- `mysql_genius` now declares runtime dependency on `mysql_genius-core ~> 0.8.0`
+
 ## 0.7.2
 
 ### Added

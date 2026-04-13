@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+- `MysqlGenius::Core::Ai::VariableReviewer` — reviews MySQL config variables against best practices
+- `MysqlGenius::Core::Ai::ConnectionAdvisor` — diagnoses connection pool health
+- `MysqlGenius::Core::Ai::WorkloadDigest` — executive summary of the query workload
+- `MysqlGenius::Core::Ai::InnodbInterpreter` — interprets `SHOW ENGINE INNODB STATUS` in plain English
+- `MysqlGenius::Core::Ai::IndexPlanner` — holistic index optimization plan across tables
+- `MysqlGenius::Core::Ai::PatternGrouper` — groups slow queries by shared root cause
+- AI buttons in shared dashboard templates: Server tab (Variable Review, Connection Advisor, InnoDB Health), Query Stats tab (Workload Digest, Pattern Grouper), Unused Indexes tab (Index Planner)
+
 ## 0.7.2
 
 ### Added
