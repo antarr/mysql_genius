@@ -41,6 +41,33 @@ RSpec.describe("Profile API routes", type: :request) do
       expect(body["profiles"].length).to(eq(3))
     end
 
+    it "saves and returns SSH fields in a new profile" do
+      payload = {
+        name: "tunnel",
+        mysql: {
+          host: "db.internal",
+          username: "root",
+          database: "app",
+          ssh_enabled: 1,
+          ssh_host: "bastion.example.com",
+          ssh_port: 2222,
+          ssh_user: "deploy",
+          ssh_key_path: "~/.ssh/id_ed25519",
+          ssh_password: "secret",
+        },
+      }
+      post "/api/profiles", payload.to_json, "CONTENT_TYPE" => "application/json"
+      expect(last_response.status).to(eq(200))
+      body = JSON.parse(last_response.body)
+      tunnel_profile = body["profiles"].find { |p| p["name"] == "tunnel" }
+      expect(tunnel_profile["mysql"]["ssh_enabled"]).to(eq(1))
+      expect(tunnel_profile["mysql"]["ssh_host"]).to(eq("bastion.example.com"))
+      expect(tunnel_profile["mysql"]["ssh_port"]).to(eq(2222))
+      expect(tunnel_profile["mysql"]["ssh_user"]).to(eq("deploy"))
+      expect(tunnel_profile["mysql"]["ssh_key_path"]).to(eq("~/.ssh/id_ed25519"))
+      expect(tunnel_profile["mysql"]["ssh_password"]).to(eq("secret"))
+    end
+
     it "returns 409 for duplicate profile name" do
       post "/api/profiles", { name: "prod", mysql: { host: "h", username: "u", database: "d" } }.to_json, "CONTENT_TYPE" => "application/json"
       expect(last_response.status).to(eq(409))
@@ -54,6 +81,26 @@ RSpec.describe("Profile API routes", type: :request) do
       body = JSON.parse(last_response.body)
       updated = body["profiles"].find { |p| p["name"] == "prod" }
       expect(updated["mysql"]["host"]).to(eq("new-host.com"))
+    end
+
+    it "updates SSH fields on an existing profile" do
+      payload = {
+        mysql: {
+          host: "db.prod.com",
+          username: "readonly",
+          database: "app_prod",
+          ssh_enabled: 1,
+          ssh_host: "jump.prod.com",
+          ssh_user: "ops",
+        },
+      }
+      put "/api/profiles/prod", payload.to_json, "CONTENT_TYPE" => "application/json"
+      expect(last_response.status).to(eq(200))
+      body = JSON.parse(last_response.body)
+      updated = body["profiles"].find { |p| p["name"] == "prod" }
+      expect(updated["mysql"]["ssh_enabled"]).to(eq(1))
+      expect(updated["mysql"]["ssh_host"]).to(eq("jump.prod.com"))
+      expect(updated["mysql"]["ssh_user"]).to(eq("ops"))
     end
 
     it "returns 404 for unknown profile" do
@@ -88,6 +135,36 @@ RSpec.describe("Profile API routes", type: :request) do
       body = JSON.parse(last_response.body)
       expect(body["success"]).to(be(true))
       expect(body["version"]).to(eq("8.0.35"))
+    end
+
+    it "opens an SSH tunnel when ssh_enabled and tests through it" do
+      tunnel = instance_double(MysqlGenius::Desktop::SshTunnel, local_port: 13306)
+      allow(tunnel).to(receive(:start))
+      allow(tunnel).to(receive(:stop))
+      allow(MysqlGenius::Desktop::SshTunnel).to(receive(:new).and_return(tunnel))
+
+      adapter = instance_double(MysqlGenius::Core::Connection::TrilogyAdapter)
+      allow(adapter).to(receive(:exec_query).and_return(instance_double(MysqlGenius::Core::Result, rows: [["8.0.35"]])))
+      allow(adapter).to(receive(:close))
+      allow(MysqlGenius::Desktop::ActiveSession).to(receive(:open_adapter_for).and_return(adapter))
+
+      payload = {
+        mysql: {
+          host: "db.internal",
+          username: "root",
+          database: "app",
+          ssh_enabled: 1,
+          ssh_host: "bastion.example.com",
+          ssh_user: "deploy",
+        },
+      }
+      post "/api/test_connection", payload.to_json, "CONTENT_TYPE" => "application/json"
+      expect(last_response.status).to(eq(200))
+      body = JSON.parse(last_response.body)
+      expect(body["success"]).to(be(true))
+      expect(MysqlGenius::Desktop::SshTunnel).to(have_received(:new))
+      expect(tunnel).to(have_received(:start))
+      expect(tunnel).to(have_received(:stop))
     end
   end
 

@@ -474,12 +474,31 @@ module MysqlGenius
 
         mysql_config = Config::MysqlConfig.from_hash(mysql)
         switch_config = build_minimal_config(mysql_config)
-        adapter = ActiveSession.open_adapter_for(switch_config)
+        tunnel = nil
+        tunnel_port = nil
+
+        if mysql_config.ssh_enabled?
+          tunnel = SshTunnel.new(
+            ssh_host:    mysql_config.ssh_host,
+            ssh_port:    mysql_config.ssh_port,
+            ssh_user:    mysql_config.ssh_user,
+            ssh_key_path: mysql_config.ssh_key_path,
+            ssh_password: mysql_config.ssh_password,
+            remote_host: mysql_config.host,
+            remote_port: mysql_config.port,
+          )
+          tunnel.start
+          tunnel_port = tunnel.local_port
+        end
+
+        adapter = ActiveSession.open_adapter_for(switch_config, tunnel_port: tunnel_port)
         result = adapter.exec_query("SELECT VERSION()")
         version = result.rows.first&.first
         adapter.close
+        tunnel&.stop
         json_response(success: true, version: version)
       rescue StandardError => e
+        tunnel&.stop
         json_response(success: false, error: e.message)
       end
 
@@ -672,13 +691,19 @@ module MysqlGenius
             password: row["password"],
             database: row["database_name"],
             tls_mode: row["tls_mode"],
+            ssh_enabled: row["ssh_enabled"],
+            ssh_host: row["ssh_host"],
+            ssh_port: row["ssh_port"],
+            ssh_user: row["ssh_user"],
+            ssh_key_path: row["ssh_key_path"],
+            ssh_password: row["ssh_password"],
           },
         }
       end
 
       def profile_attrs_from_request(data)
         mysql = data["mysql"] || {}
-        {
+        attrs = {
           "name" => data["name"],
           "host" => mysql["host"],
           "port" => mysql["port"] || 3306,
@@ -686,7 +711,14 @@ module MysqlGenius
           "password" => mysql["password"] || "",
           "database_name" => mysql["database"],
           "tls_mode" => mysql["tls_mode"] || "preferred",
+          "ssh_enabled" => mysql["ssh_enabled"].to_i,
+          "ssh_host" => mysql["ssh_host"],
+          "ssh_port" => mysql["ssh_port"] || 22,
+          "ssh_user" => mysql["ssh_user"],
+          "ssh_key_path" => mysql["ssh_key_path"],
+          "ssh_password" => mysql["ssh_password"],
         }
+        attrs
       end
 
       def update_attrs_from_request(data)
@@ -698,6 +730,12 @@ module MysqlGenius
           "password" => mysql["password"] || "",
           "database_name" => mysql["database"],
           "tls_mode" => mysql["tls_mode"] || "preferred",
+          "ssh_enabled" => mysql["ssh_enabled"].to_i,
+          "ssh_host" => mysql["ssh_host"],
+          "ssh_port" => mysql["ssh_port"] || 22,
+          "ssh_user" => mysql["ssh_user"],
+          "ssh_key_path" => mysql["ssh_key_path"],
+          "ssh_password" => mysql["ssh_password"],
         }
       end
 
@@ -709,6 +747,12 @@ module MysqlGenius
           "password" => profile["password"],
           "database" => profile["database_name"],
           "tls_mode" => profile["tls_mode"],
+          "ssh_enabled" => profile["ssh_enabled"],
+          "ssh_host" => profile["ssh_host"],
+          "ssh_port" => profile["ssh_port"],
+          "ssh_user" => profile["ssh_user"],
+          "ssh_key_path" => profile["ssh_key_path"],
+          "ssh_password" => profile["ssh_password"],
         }
       end
 
