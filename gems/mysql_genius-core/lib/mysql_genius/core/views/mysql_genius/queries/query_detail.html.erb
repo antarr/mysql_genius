@@ -97,23 +97,33 @@
 
   <!-- Charts -->
   <div id="qd-charts-section">
-    <div id="qd-no-history" class="mg-text-center mg-text-muted mg-hidden" style="padding:24px 0;">
-      No history data available yet. The stats collector samples every 60 seconds.
+    <div id="qd-no-history" class="mg-hidden" style="text-align:center;padding:32px 0;">
+      <div style="font-size:32px;margin-bottom:8px;">&#128200;</div>
+      <div style="font-weight:500;color:#555;margin-bottom:4px;">Collecting data&hellip;</div>
+      <div class="mg-text-muted" style="font-size:13px;">Charts will appear after the stats collector has sampled this query a few times (every 60 seconds).</div>
     </div>
     <div id="qd-chart-total-time" class="mg-card mg-mb mg-hidden">
       <div class="mg-card-header"><strong>Total Time (ms)</strong></div>
-      <div class="mg-card-body" id="qd-chart-total-time-container" style="height:200px;"></div>
+      <div class="mg-card-body" id="qd-chart-total-time-container" style="height:200px;position:relative;"></div>
     </div>
     <div id="qd-chart-avg-time" class="mg-card mg-mb mg-hidden">
       <div class="mg-card-header"><strong>Average Time (ms)</strong></div>
-      <div class="mg-card-body" id="qd-chart-avg-time-container" style="height:200px;"></div>
+      <div class="mg-card-body" id="qd-chart-avg-time-container" style="height:200px;position:relative;"></div>
     </div>
     <div id="qd-chart-calls" class="mg-card mg-mb mg-hidden">
       <div class="mg-card-header"><strong>Calls</strong></div>
-      <div class="mg-card-body" id="qd-chart-calls-container" style="height:200px;"></div>
+      <div class="mg-card-body" id="qd-chart-calls-container" style="height:200px;position:relative;"></div>
     </div>
   </div>
 </div>
+
+<!-- Tooltip element shared by all charts -->
+<div id="qd-chart-tooltip" style="position:fixed;background:#1e1e2e;color:#cdd6f4;font-size:11px;padding:5px 9px;border-radius:4px;border:1px solid #313244;pointer-events:none;white-space:nowrap;display:none;z-index:1000;line-height:1.5;"></div>
+
+<style>
+  [data-theme="dark"] #qd-no-history > div:nth-child(2) { color: #8b949e; }
+  [data-theme="dark"] #qd-chart-tooltip { background: #1e1e2e; color: #cdd6f4; border-color: #313244; }
+</style>
 
 <script>
 (function() {
@@ -228,6 +238,35 @@
     }
   }
 
+  // --- Chart Tooltip ---
+
+  var tooltip = el('qd-chart-tooltip');
+
+  function showTooltip(evt, label, value) {
+    tooltip.innerHTML = '<span style="color:#8b949e;">' + escHtml(label) + '</span><br><strong>' + escHtml(value) + '</strong>';
+    tooltip.style.display = 'block';
+    positionTooltip(evt);
+  }
+
+  function positionTooltip(evt) {
+    var x = evt.clientX + 14;
+    var y = evt.clientY - 10;
+    var tw = tooltip.offsetWidth;
+    var th = tooltip.offsetHeight;
+    if (x + tw > window.innerWidth - 10) x = evt.clientX - tw - 10;
+    if (y + th > window.innerHeight - 10) y = evt.clientY - th - 10;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+
+  function hideTooltip() {
+    tooltip.style.display = 'none';
+  }
+
+  document.addEventListener('mousemove', function(evt) {
+    if (tooltip.style.display !== 'none') positionTooltip(evt);
+  });
+
   // --- SVG Chart Drawing ---
 
   function drawChart(containerId, data, label, color) {
@@ -248,7 +287,6 @@
 
     var values = data.map(function(d) { return typeof d.value === 'number' ? d.value : parseFloat(d.value) || 0; });
     var maxVal = Math.max.apply(null, values);
-    // If all values are effectively zero, show a clean 0-1 scale
     if (maxVal < 0.001) maxVal = 1;
 
     // Y axis ticks (4-5 ticks)
@@ -260,7 +298,7 @@
     var yMax = niceStep * (tickCount - 1);
     if (yMax < maxVal) yMax = niceStep * tickCount;
 
-    var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" style="width:100%;height:100%;">';
+    var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" style="width:100%;height:100%;" class="qd-svg-chart">';
 
     // Grid lines and Y labels
     for (var i = 0; i < tickCount; i++) {
@@ -278,10 +316,12 @@
 
     // Data points as polyline
     var points = [];
+    var pointCoords = [];
     for (var j = 0; j < data.length; j++) {
       var x = padding.left + (j / Math.max(data.length - 1, 1)) * chartW;
       var yVal = padding.top + chartH - (data[j].value / yMax) * chartH;
       points.push(x.toFixed(1) + ',' + yVal.toFixed(1));
+      pointCoords.push({ x: parseFloat(x.toFixed(1)), y: parseFloat(yVal.toFixed(1)), value: data[j].value, timestamp: data[j].timestamp });
     }
 
     // Fill area below line
@@ -293,10 +333,15 @@
     // Line
     svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="' + lineColor + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
 
-    // X axis time labels (every ~4 hours worth of samples)
+    // Visible data point dots
+    for (var di = 0; di < pointCoords.length; di++) {
+      var pc = pointCoords[di];
+      svg += '<circle cx="' + pc.x + '" cy="' + pc.y + '" r="3" fill="' + lineColor + '" stroke="none" opacity="0.8" pointer-events="none"/>';
+    }
+
+    // X axis time labels (show ~6 labels max)
     if (data.length > 1) {
       var totalSpan = data.length - 1;
-      // Show ~6 labels max
       var labelInterval = Math.max(1, Math.floor(totalSpan / 6));
       for (var k = 0; k <= totalSpan; k += labelInterval) {
         var xPos = padding.left + (k / totalSpan) * chartW;
@@ -304,7 +349,6 @@
         var timeLabel = formatTimeLabel(ts);
         svg += '<text x="' + xPos.toFixed(1) + '" y="' + (height - 6) + '" text-anchor="middle" fill="' + textColor + '" font-size="10" font-family="-apple-system,BlinkMacSystemFont,sans-serif">' + escHtml(timeLabel) + '</text>';
       }
-      // Always show last label
       if (totalSpan % labelInterval !== 0) {
         var lastX = padding.left + chartW;
         var lastTs = data[data.length - 1].timestamp;
@@ -312,8 +356,29 @@
       }
     }
 
+    // Invisible wider hit-area circles for tooltip triggering
+    for (var hi = 0; hi < pointCoords.length; hi++) {
+      var hp = pointCoords[hi];
+      var displayVal = label && label.indexOf('ms') !== -1 ? formatDuration(hp.value) : Number(hp.value).toLocaleString();
+      var ts2 = formatTimeLabel(hp.timestamp);
+      svg += '<circle cx="' + hp.x + '" cy="' + hp.y + '" r="10" fill="transparent" stroke="none"' +
+        ' data-label="' + escHtml(ts2) + '" data-value="' + escHtml(displayVal) + '"' +
+        ' class="qd-chart-point"/>';
+    }
+
     svg += '</svg>';
     container.innerHTML = svg;
+
+    // Attach tooltip events to hit-area circles
+    var hitCircles = container.querySelectorAll('.qd-chart-point');
+    hitCircles.forEach(function(circle) {
+      circle.addEventListener('mouseenter', function(evt) {
+        showTooltip(evt, circle.getAttribute('data-label'), circle.getAttribute('data-value'));
+      });
+      circle.addEventListener('mouseleave', function() {
+        hideTooltip();
+      });
+    });
   }
 
   function formatTimeLabel(ts) {
@@ -410,16 +475,12 @@
 
   // --- Explain ---
 
-  // performance_schema DIGEST_TEXT uses normalized spacing that isn't valid SQL:
-  //   "SELECT COUNT ( * ) FROM `riders`" -> needs to become "SELECT COUNT(*) FROM `riders`"
-  //   "... IN ( ... )" -> "... IN (...)"
-  // Also replaces placeholder ? with 1 so EXPLAIN can parse it.
   function normalizeDigestSql(sql) {
     return sql
-      .replace(/\(\s+/g, '(')           // "( " -> "("
-      .replace(/\s+\)/g, ')')           // " )" -> ")"
-      .replace(/\s*,\s*/g, ', ')        // normalize comma spacing
-      .replace(/\?/g, '1');             // replace ? placeholders with literal 1
+      .replace(/\(\s+/g, '(')
+      .replace(/\s+\)/g, ')')
+      .replace(/\s*,\s*/g, ', ')
+      .replace(/\?/g, '1');
   }
 
   el('qd-explain-btn').addEventListener('click', function() {
