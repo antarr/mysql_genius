@@ -33,12 +33,14 @@
   <div class="mg-card-body">
     <div class="mg-row">
       <div class="mg-col-3 mg-field">
-        <label for="mg-f-name">Profile Name</label>
-        <input type="text" id="mg-f-name" placeholder="e.g. production">
+        <label for="mg-f-name">Profile Name <span class="mg-required-star">*</span></label>
+        <input type="text" id="mg-f-name" placeholder="e.g. production" required>
+        <span class="mg-field-error mg-hidden">Required</span>
       </div>
       <div class="mg-col-3 mg-field">
-        <label for="mg-f-host">Host</label>
-        <input type="text" id="mg-f-host" placeholder="127.0.0.1">
+        <label for="mg-f-host">Host <span class="mg-required-star">*</span></label>
+        <input type="text" id="mg-f-host" placeholder="127.0.0.1" required>
+        <span class="mg-field-error mg-hidden">Required</span>
       </div>
       <div class="mg-col-1 mg-field">
         <label for="mg-f-port">Port</label>
@@ -47,16 +49,24 @@
     </div>
     <div class="mg-row">
       <div class="mg-col-3 mg-field">
-        <label for="mg-f-username">Username</label>
-        <input type="text" id="mg-f-username" placeholder="readonly">
+        <label for="mg-f-username">Username <span class="mg-required-star">*</span></label>
+        <input type="text" id="mg-f-username" placeholder="readonly" required>
+        <span class="mg-field-error mg-hidden">Required</span>
       </div>
       <div class="mg-col-3 mg-field">
         <label for="mg-f-password">Password</label>
-        <input type="text" id="mg-f-password" placeholder="(leave blank if none)">
+        <div class="mg-pw-wrap">
+          <input type="password" id="mg-f-password" placeholder="(leave blank if none)">
+          <button type="button" class="mg-pw-toggle" data-target="mg-f-password" title="Show/hide password" aria-label="Toggle password visibility">
+            <svg class="mg-pw-icon mg-pw-show" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="3"/></svg>
+            <svg class="mg-pw-icon mg-pw-hide" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" style="display:none;"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="3"/><line x1="2" y1="2" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="mg-col-3 mg-field">
-        <label for="mg-f-database">Database</label>
-        <input type="text" id="mg-f-database" placeholder="app_production">
+        <label for="mg-f-database">Database <span class="mg-required-star">*</span></label>
+        <input type="text" id="mg-f-database" placeholder="app_production" required>
+        <span class="mg-field-error mg-hidden">Required</span>
       </div>
     </div>
     <div class="mg-row">
@@ -80,7 +90,7 @@
 <div class="mg-card mg-mb">
   <div class="mg-card-header" style="display:flex;justify-content:space-between;align-items:center;">
     <strong>AI Configuration</strong>
-    <span id="mg-ai-status" style="font-size:12px;color:#888;">Loading...</span>
+    <span id="mg-ai-status" class="mg-status-label" style="font-size:12px;">Loading...</span>
   </div>
   <div class="mg-card-body">
     <div class="mg-text-muted mg-mb" style="font-size:12px;">Connect to an OpenAI-compatible API for query suggestions, optimization, schema review, and more.</div>
@@ -108,7 +118,13 @@
     <div class="mg-row">
       <div class="mg-col-3 mg-field">
         <label for="mg-ai-key">API Key</label>
-        <input type="password" id="mg-ai-key" placeholder="sk-...">
+        <div class="mg-pw-wrap">
+          <input type="password" id="mg-ai-key" placeholder="sk-...">
+          <button type="button" class="mg-pw-toggle" data-target="mg-ai-key" title="Show/hide key" aria-label="Toggle API key visibility">
+            <svg class="mg-pw-icon mg-pw-show" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="3"/></svg>
+            <svg class="mg-pw-icon mg-pw-hide" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" style="display:none;"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="3"/><line x1="2" y1="2" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="mg-col-3 mg-field">
         <label for="mg-ai-model">Model</label>
@@ -139,7 +155,7 @@
       <div class="mg-col-grow mg-field">
         <label for="mg-ai-max-tokens">Max Tokens <span id="mg-ai-max-tokens-val" style="font-weight:400;">4096</span></label>
         <input type="range" id="mg-ai-max-tokens" min="256" max="16384" step="256" value="4096" style="width:100%;cursor:pointer;">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;" class="mg-text-muted">
           <span>256</span><span>1k</span><span>2k</span><span>4k</span><span>8k</span><span>16k</span>
         </div>
       </div>
@@ -147,10 +163,35 @@
     <div style="display:flex;gap:8px;align-items:center;">
       <button id="mg-ai-test" class="mg-btn mg-btn-outline mg-btn-sm">Test Connection</button>
       <button id="mg-ai-save" class="mg-btn mg-btn-primary mg-btn-sm">Save</button>
-      <span id="mg-ai-save-status" style="font-size:12px;"></span>
+      <span id="mg-ai-save-status" class="mg-status-label" style="font-size:12px;"></span>
     </div>
   </div>
 </div>
+
+<style>
+  .mg-pw-wrap { position: relative; }
+  .mg-pw-wrap input { padding-right: 36px; }
+  .mg-pw-toggle { position: absolute; right: 0; top: 0; bottom: 0; width: 34px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6c757d; padding: 0; }
+  .mg-pw-toggle:hover { color: #333; }
+  .mg-required-star { color: #dc3545; font-weight: 700; }
+  .mg-field-error { display: block; font-size: 11px; color: #dc3545; margin-top: 3px; font-weight: 500; }
+  input.mg-invalid { border-color: #dc3545 !important; }
+  input.mg-invalid:focus { box-shadow: 0 0 0 2px rgba(220,53,69,.15) !important; }
+  .mg-status-ok { color: #1a7f37; }
+  .mg-status-err { color: #cf222e; }
+  .mg-status-muted { color: #888; }
+  [data-theme="dark"] .mg-pw-toggle { color: #8b949e; }
+  [data-theme="dark"] .mg-pw-toggle:hover { color: #c9d1d9; }
+  [data-theme="dark"] .mg-required-star { color: #f85149; }
+  [data-theme="dark"] .mg-field-error { color: #f85149; }
+  [data-theme="dark"] input.mg-invalid { border-color: #f85149 !important; }
+  [data-theme="dark"] input.mg-invalid:focus { box-shadow: 0 0 0 2px rgba(248,81,73,.15) !important; }
+  [data-theme="dark"] .mg-status-ok { color: #3fb950; }
+  [data-theme="dark"] .mg-status-err { color: #f85149; }
+  [data-theme="dark"] .mg-status-muted { color: #8b949e; }
+  [data-theme="dark"] input[type="password"] { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+  [data-theme="dark"] input[type="range"] { accent-color: #58a6ff; }
+</style>
 
 <script>
 (function() {
@@ -160,6 +201,62 @@
   function el(id) { return document.getElementById(id); }
   function show(e) { e.classList.remove('mg-hidden'); }
   function hide(e) { e.classList.add('mg-hidden'); }
+
+  // --- Password show/hide toggles ---
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.mg-pw-toggle');
+    if (!btn) return;
+    var input = el(btn.dataset.target);
+    if (!input) return;
+    var isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    var showIcon = btn.querySelector('.mg-pw-show');
+    var hideIcon = btn.querySelector('.mg-pw-hide');
+    if (showIcon) showIcon.style.display = isPassword ? 'none' : '';
+    if (hideIcon) hideIcon.style.display = isPassword ? '' : 'none';
+  });
+
+  // --- Inline validation ---
+  function validateField(input) {
+    if (!input.required) return true;
+    var errorEl = input.parentElement && input.parentElement.querySelector('.mg-field-error');
+    if (!errorEl) errorEl = input.closest('.mg-field') && input.closest('.mg-field').querySelector('.mg-field-error');
+    var valid = input.value.trim().length > 0;
+    if (valid) {
+      input.classList.remove('mg-invalid');
+      if (errorEl) hide(errorEl);
+    } else {
+      input.classList.add('mg-invalid');
+      if (errorEl) show(errorEl);
+    }
+    return valid;
+  }
+
+  document.addEventListener('blur', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.required) validateField(e.target);
+  }, true);
+
+  function validateForm() {
+    var fields = document.querySelectorAll('#mg-profile-form input[required]');
+    var allValid = true;
+    fields.forEach(function(f) { if (!validateField(f)) allValid = false; });
+    return allValid;
+  }
+
+  function clearValidation() {
+    document.querySelectorAll('#mg-profile-form input[required]').forEach(function(f) {
+      f.classList.remove('mg-invalid');
+    });
+    document.querySelectorAll('#mg-profile-form .mg-field-error').forEach(function(e) {
+      e.classList.add('mg-hidden');
+    });
+  }
+
+  function setStatus(el, text, type) {
+    el.textContent = text;
+    el.className = 'mg-status-label ' + (type === 'ok' ? 'mg-status-ok' : type === 'err' ? 'mg-status-err' : 'mg-status-muted');
+    el.style.fontSize = '12px';
+  }
 
   function loadProfiles() {
     fetch('/api/profiles').then(function(r) { return r.json(); }).then(function(data) {
@@ -204,6 +301,14 @@
     el('mg-f-password').value = m.password || '';
     el('mg-f-database').value = m.database || '';
     el('mg-f-tls').value = m.tls_mode || 'preferred';
+    // Reset password field to hidden type when filling
+    var pwInput = el('mg-f-password');
+    pwInput.type = 'password';
+    var toggle = pwInput.closest('.mg-pw-wrap') && pwInput.closest('.mg-pw-wrap').querySelector('.mg-pw-toggle');
+    if (toggle) {
+      toggle.querySelector('.mg-pw-show').style.display = '';
+      toggle.querySelector('.mg-pw-hide').style.display = 'none';
+    }
   }
 
   function clearForm() {
@@ -212,6 +317,15 @@
     el('mg-f-password').value = ''; el('mg-f-database').value = '';
     el('mg-f-tls').value = 'preferred'; el('mg-form-status').textContent = '';
     editingName = null;
+    clearValidation();
+    // Reset password type
+    var pwInput = el('mg-f-password');
+    pwInput.type = 'password';
+    var toggle = pwInput.closest('.mg-pw-wrap') && pwInput.closest('.mg-pw-wrap').querySelector('.mg-pw-toggle');
+    if (toggle) {
+      toggle.querySelector('.mg-pw-show').style.display = '';
+      toggle.querySelector('.mg-pw-hide').style.display = 'none';
+    }
   }
 
   el('mg-add-profile-btn').addEventListener('click', function() {
@@ -227,8 +341,8 @@
   });
 
   el('mg-form-test').addEventListener('click', function() {
-    el('mg-form-status').textContent = 'Testing...';
-    el('mg-form-status').style.color = '';
+    var statusEl = el('mg-form-status');
+    setStatus(statusEl, 'Testing...', 'muted');
     fetch('/api/test_connection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -237,18 +351,16 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          el('mg-form-status').textContent = 'Connected (MySQL ' + data.version + ')';
-          el('mg-form-status').style.color = '#1a7f37';
+          setStatus(statusEl, 'Connected (MySQL ' + data.version + ')', 'ok');
         } else {
-          el('mg-form-status').textContent = 'Failed: ' + data.error;
-          el('mg-form-status').style.color = '#cf222e';
+          setStatus(statusEl, 'Failed: ' + data.error, 'err');
         }
       });
   });
 
   el('mg-form-save').addEventListener('click', function() {
+    if (!validateForm()) return;
     var name = el('mg-f-name').value.trim();
-    if (!name) { alert('Profile name is required.'); return; }
     var mysql = getFormData();
     var url, method;
     if (editingName) {
@@ -384,14 +496,14 @@
       maxTokensVal.textContent = tokens.toLocaleString();
       el('mg-ai-provider').value = detectProvider(data.endpoint);
       var enabled = (data.endpoint && data.api_key);
-      el('mg-ai-status').textContent = enabled ? 'Configured' : 'Not configured';
-      el('mg-ai-status').style.color = enabled ? '#1a7f37' : '#888';
+      var statusEl = el('mg-ai-status');
+      setStatus(statusEl, enabled ? 'Configured' : 'Not configured', enabled ? 'ok' : 'muted');
     });
   }
 
   el('mg-ai-test').addEventListener('click', function() {
-    el('mg-ai-save-status').textContent = 'Testing...';
-    el('mg-ai-save-status').style.color = '';
+    var statusEl = el('mg-ai-save-status');
+    setStatus(statusEl, 'Testing...', 'muted');
     var payload = {
       endpoint: el('mg-ai-endpoint').value.trim(),
       api_key: el('mg-ai-key').value.trim(),
@@ -405,16 +517,15 @@
       body: JSON.stringify(payload)
     }).then(function(r) { return r.json(); }).then(function(data) {
       if (data.success) {
-        el('mg-ai-save-status').textContent = 'Connected (' + (data.model || 'ok') + ')';
-        el('mg-ai-save-status').style.color = '#1a7f37';
+        setStatus(statusEl, 'Connected (' + (data.model || 'ok') + ')', 'ok');
       } else {
-        el('mg-ai-save-status').textContent = 'Failed: ' + (data.error || 'unknown');
-        el('mg-ai-save-status').style.color = '#cf222e';
+        setStatus(statusEl, 'Failed: ' + (data.error || 'unknown'), 'err');
       }
     });
   });
 
   el('mg-ai-save').addEventListener('click', function() {
+    var statusEl = el('mg-ai-save-status');
     var payload = {
       endpoint: el('mg-ai-endpoint').value.trim(),
       api_key: el('mg-ai-key').value.trim(),
@@ -424,21 +535,18 @@
       domain_context: el('mg-ai-domain').value.trim(),
       max_tokens: parseInt(maxTokensSlider.value) || 4096
     };
-    el('mg-ai-save-status').textContent = 'Saving...';
-    el('mg-ai-save-status').style.color = '';
+    setStatus(statusEl, 'Saving...', 'muted');
     fetch('/api/ai_config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).then(function(r) { return r.json(); }).then(function(data) {
       if (data.error) {
-        el('mg-ai-save-status').textContent = 'Error: ' + data.error;
-        el('mg-ai-save-status').style.color = '#cf222e';
+        setStatus(statusEl, 'Error: ' + data.error, 'err');
       } else {
-        el('mg-ai-save-status').textContent = 'Saved';
-        el('mg-ai-save-status').style.color = '#1a7f37';
+        setStatus(statusEl, 'Saved', 'ok');
         loadAiConfig();
-        setTimeout(function() { el('mg-ai-save-status').textContent = ''; }, 3000);
+        setTimeout(function() { statusEl.textContent = ''; }, 3000);
       }
     });
   });
