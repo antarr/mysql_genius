@@ -34,5 +34,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency("mysql_genius-core", "~> 0.7.0")
   spec.add_dependency("puma", "~> 6.0")
   spec.add_dependency("sinatra", "~> 4.0")
+  spec.add_dependency("sqlite3", "~> 2.0")
   spec.add_dependency("trilogy", "~> 2.9")
 end
