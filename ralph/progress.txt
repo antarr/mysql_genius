@@ -11,6 +11,8 @@ Started: Sun Apr 12 23:47:10 CDT 2026
 - Launcher private methods can be stubbed via `allow(launcher).to(receive(:method_name))` in RSpec
 - First-boot import logic: only runs when DB is empty (list_profiles.empty? / get_setting returns nil)
 - rack_helper.rb must set `App.set(:database, ...)` for request specs that depend on DB settings
+- Database returns `database_name` key; `MysqlConfig.from_hash` expects `database` — remap via `mysql_hash_from_profile`
+- Profile API response must be `{name:, mysql: {host:, port:, database:, ...}}` — use `format_profile` to reshape DB rows
 
 ---
 
@@ -58,4 +60,79 @@ Started: Sun Apr 12 23:47:10 CDT 2026
   - Import logic checks DB emptiness, not config emptiness — deleting mysql_genius.db forces re-import
   - Profile import maps `mysql.database` → `database_name` for Database schema compatibility
   - rack_helper cleanup: must `FileUtils.remove_entry` tmpdir in after block to avoid leftover test DBs
+---
+
+## 2026-04-13 - US-004
+- What was implemented:
+  - Rewired all profile API routes (GET/POST/PUT/DELETE) in `app.rb` to use `Database` instead of `ProfileManager`
+  - Added `GET /api/ai_config` and `PUT /api/ai_config` routes backed by Database settings
+  - Removed `require 'mysql_genius/desktop/profile_manager'` from `app.rb`
+  - Added `switch_to_config(name, mysql_config)` to `SessionSwapper` for pre-built MysqlConfig objects
+  - Inlined `test_connection` logic in the route handler (was delegated to ProfileManager)
+  - Added private helpers: `format_profile`, `profile_attrs_from_request`, `update_attrs_from_request`, `mysql_hash_from_profile`, `build_minimal_config`, `reload_ai_config_from_database`
+  - Rewrote `profiles_api_spec.rb` to seed test data via `@test_database.add_profile` instead of YAML tmpdir
+  - Added specs for `GET /api/ai_config`, `PUT /api/ai_config`, and `POST /api/profiles/:name/connect` with unknown profile
+- Files changed:
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (rewired routes, removed ProfileManager require)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/session_swapper.rb` (added switch_to_config method)
+  - `gems/mysql_genius-desktop/spec/requests/profiles_api_spec.rb` (rewrote for Database)
+- **Learnings for future iterations:**
+  - Database returns `database_name` key but `MysqlConfig.from_hash` expects `database` — need `mysql_hash_from_profile` helper to remap
+  - Profile API response format must be `{name:, mysql: {host:, port:, database:, ...}}` to match frontend expectations (connections.html.erb)
+  - `SessionSwapper.switch_to_config` allows callers that already have a MysqlConfig to skip the config lookup
+  - Active profile delete check stays in route handler, not in Database (Database.delete_profile has no concept of "active")
+---
+
+## 2026-04-13 - US-005
+- What was implemented:
+  - Changed `SessionSwapper.initialize` to accept `(app_class, config, database)` instead of `(app_class, config)`
+  - Rewired `switch_to` to look up profiles via `@database.find_profile(name)` instead of `@config.profile_by_name(name)`
+  - Added `mysql_hash_from_profile` private helper to remap `database_name` → `database` for `MysqlConfig.from_hash`
+  - Changed `switch_to_config` to create `SqliteStatsHistory.new(@database)` instead of in-memory `StatsHistory.new`
+  - Updated the caller in `app.rb` connect route to pass `settings.database` as third arg
+  - Rewrote `session_swapper_spec.rb` to use a tmpdir-based Database instead of Config profile lookup
+- Files changed:
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/session_swapper.rb` (rewired to use Database)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb` (updated SessionSwapper.new call)
+  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/session_swapper_spec.rb` (rewrote for Database)
+- **Learnings for future iterations:**
+  - `RSpec/MultipleMemoizedHelpers` max is 5 (subject excluded via AllowSubject). Inline tmpdir into `let(:database)` via `Dir.mktmpdir` to avoid extra helper
+  - `mysql_hash_from_profile` is duplicated between `app.rb` and `session_swapper.rb` — could be extracted to a shared module in US-006 cleanup if desired
+  - `switch_to_config` is still used by the connect route in `app.rb` which pre-builds the MysqlConfig — `switch_to` is for callers that only have a profile name
+---
+
+## 2026-04-13 - US-006
+- What was implemented:
+  - Deleted `profile_manager.rb` source file
+  - Deleted `profile_manager_spec.rb` spec file
+  - Removed `require "mysql_genius/desktop/profile_manager"` from `desktop.rb`
+  - Verified no remaining `ProfileManager` or `profile_manager` references in the desktop gem
+  - Confirmed route handlers already rescue `Database::DuplicateProfileError` / `Database::ProfileNotFoundError` (not ProfileManager versions)
+- Files changed:
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop/profile_manager.rb` (deleted)
+  - `gems/mysql_genius-desktop/spec/mysql_genius/desktop/profile_manager_spec.rb` (deleted)
+  - `gems/mysql_genius-desktop/lib/mysql_genius/desktop.rb` (removed require line)
+- **Learnings for future iterations:**
+  - US-004 already removed `profile_manager` require from `app.rb`, so only `desktop.rb` needed updating
+  - All error classes were already migrated to `Database::` namespace in US-001/US-004 — cleanup was straightforward
+  - 190 desktop specs pass, all 3 rubocops clean after removal
+---
+
+## 2026-04-13 - US-007
+- What was implemented:
+  - Full green sweep: ran all 6 quality commands and verified all pass
+  - Rails adapter rspec: 82 examples, 0 failures
+  - Core gem rspec: 215 examples, 0 failures
+  - Desktop gem rspec: 190 examples, 0 failures
+  - Rails adapter rubocop: 152 files, no offenses
+  - Core gem rubocop: 64 files, no offenses
+  - Desktop gem rubocop: 48 files, no offenses
+  - Verified no changes to mysql_genius-core or mysql_genius Rails adapter source files
+  - Verified publish.yml untouched
+- Files changed:
+  - `ralph/prd.json` (marked US-007 passes: true)
+  - `ralph/progress.txt` (this entry)
+- **Learnings for future iterations:**
+  - All 487 examples across 3 suites (82 + 215 + 190) pass — the SQLite migration touched only the desktop gem
+  - The .DS_Store files appear as untracked — these should stay ignored (not committed)
 ---

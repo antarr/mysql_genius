@@ -87,7 +87,7 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Error mapping: Database::DuplicateProfileError -> 409, Database::ProfileNotFoundError -> 404. The active-profile-delete check stays in the route handler (check settings.current_profile_name before calling delete). The connect route builds a MysqlConfig from the DB hash: Config::MysqlConfig.from_hash(profile_hash)."
     },
     {
@@ -105,7 +105,7 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "The profile hash from Database has string keys (host, port, etc). MysqlConfig.from_hash handles both string and symbol keys via transform_keys. The build_switch_config method still creates a Config.allocate with profiles array for ActiveSession compatibility."
     },
     {
@@ -123,7 +123,7 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Make sure no spec files reference ProfileManager. The Database class error classes (DuplicateProfileError, ProfileNotFoundError) replace ProfileManager's error classes — verify the route handlers rescue the correct class names."
     },
     {
@@ -142,7 +142,7 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Run all six commands. If any fail, fix before marking complete."
     }
   ]
