@@ -11,6 +11,15 @@ Started: Mon Apr 13 06:43:11 CDT 2026
 - SshTunnel event loop runs in a background Thread - test thread existence, not `session.loop` (race condition)
 - SQLite migration: use `PRAGMA table_info(table)` to check column existence before `ALTER TABLE ADD COLUMN`
 - Database profiles use string keys throughout (from `results_as_hash = true`); `ssh_enabled` is INTEGER 0/1
+- ActiveSession.open_adapter_for accepts `tunnel_port:` kwarg — pass it from `session.tunnel_port` in conn_proc lambdas
+- MysqlConfig#ssh_enabled? coerces INTEGER/boolean/string to boolean (handles DB and YAML sources)
+- When SSH enabled, profile.host/port become SshTunnel remote_host/remote_port; Trilogy connects to 127.0.0.1:tunnel_port
+- Instance doubles of ActiveSession must include `tunnel_port: nil` in specs that trigger conn_proc creation
+- Launcher `import_profiles` must include all profile fields — keep in sync when adding new columns to Database schema
+- Use `stub_boot(session:, db_name:)` helper in launcher_spec.rb for full boot mock setup
+- Eye toggle: `.mg-eye-toggle` button with `data-target="input-id"` toggles password/text input type
+- input[type="password"] must be included in both light-mode and dark-mode CSS selectors alongside text/number
+- Layout/MultilineHashKeyLineBreaks cop: each key on its own line in multiline hashes (use rubocop -A to auto-fix)
 ---
 
 ## 2026-04-13 - US-001
@@ -40,4 +49,71 @@ Started: Mon Apr 13 06:43:11 CDT 2026
   - `find_profile` and `list_profiles` use `SELECT *` so they automatically return new columns without code changes
   - RSpec/ExampleLength max is 25 lines — extract DB setup into helper methods for longer integration tests
   - SSH fields use string keys throughout (matching SQLite3 `results_as_hash = true` output)
+---
+
+## 2026-04-13 - US-003
+- What was implemented: Wired SSH tunnel into ActiveSession connection flow with tunnel lifecycle management
+- Files changed:
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/config/mysql_config.rb (added SSH fields + ssh_enabled? method)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/active_session.rb (tunnel start/stop/restart, open_adapter_for tunnel_port kwarg)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/session_swapper.rb (SSH fields in mysql_hash_from_profile, tunnel_port in conn_proc)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb (tunnel_port in conn_proc)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/active_session_spec.rb (7 new SSH tunnel specs)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/launcher_spec.rb (added tunnel_port to instance_double)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/session_swapper_spec.rb (added tunnel_port to instance_double)
+  - gems/mysql_genius-desktop/spec/requests/profiles_api_spec.rb (added tunnel_port to instance_double)
+- **Learnings for future iterations:**
+  - ActiveSession manages SSH tunnel lifecycle: start in initialize, stop in close, restart on retry
+  - open_adapter_for(config, tunnel_port: nil) — when tunnel_port is set, connect to 127.0.0.1:tunnel_port instead of config host/port
+  - Profile host/port become SshTunnel remote_host/remote_port — this is the key architectural pattern
+  - SshTunnel::ConnectionError is caught and re-raised as ConnectError with SSH host context
+  - Tunnel restart on Trilogy::ConnectionResetError creates a fresh SshTunnel object (stop old, start new)
+  - StatsCollector conn_proc captures tunnel_port via closure so it routes through the existing tunnel
+  - Any instance_double(ActiveSession) in specs that trigger conn_proc must stub tunnel_port
+---
+
+## 2026-04-13 - US-004
+- What was implemented: Added SSH tunnel UI fields to the connections page profile form
+- Files changed:
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/connections.html.erb (SSH checkbox, conditional fields, eye toggle, JS updates)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/app.rb (format_profile, profile_attrs_from_request, update_attrs_from_request, mysql_hash_from_profile, test_connection route with SSH tunnel support)
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/layout.html.erb (input[type="password"] in base + dark mode CSS)
+  - gems/mysql_genius-desktop/spec/requests/profiles_api_spec.rb (3 new specs: SSH create, SSH update, SSH test_connection)
+- **Learnings for future iterations:**
+  - Password field was type="text" — changed to type="password" with eye toggle using data-target attribute
+  - Eye toggle pattern: button with class `mg-eye-toggle` and `data-target="input-id"`, toggles input.type between password/text
+  - SSH fields are conditionally shown via `toggleSshFields()` — checkbox change listener toggles `.mg-hidden` on `#mg-ssh-fields` div
+  - `getFormData()` only includes SSH fields when checkbox is checked (sends ssh_enabled: 0 when unchecked)
+  - `fillForm()` must call `toggleSshFields()` after setting checkbox state to show/hide fields on edit
+  - test_connection route opens/closes SshTunnel inline when ssh_enabled — tunnel.stop in both success and rescue paths
+  - input[type="password"] was not in the original CSS selectors — must be added to both light and dark mode rules
+  - Layout/MultilineHashKeyLineBreaks cop requires each hash key on its own line in multiline hashes
+---
+
+## 2026-04-13 - US-005
+- What was implemented: SSH tunnel lifecycle management during profile switching, boot, and shutdown
+- Bug fix: `import_profiles` in Launcher was not importing SSH fields from YAML config to SQLite database
+- Added SessionSwapper specs: SSH fields pass-through, old session/tunnel closure, tunnel_port capture for conn_proc
+- Added Launcher specs: SSH field import, tunnel_port capture for stats collector, shutdown registration
+- Extracted `stub_boot` helper in launcher_spec.rb to keep tests under RSpec/ExampleLength limit
+- Files changed:
+  - gems/mysql_genius-desktop/lib/mysql_genius/desktop/launcher.rb (import_profiles now includes SSH fields)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/session_swapper_spec.rb (3 new SSH switching specs)
+  - gems/mysql_genius-desktop/spec/mysql_genius/desktop/launcher_spec.rb (4 new specs + stub_boot helper)
+- **Learnings for future iterations:**
+  - Most SSH tunnel lifecycle was already implemented in US-003 via ActiveSession — US-005 was about verifying integration points
+  - import_profiles must be kept in sync with any new profile fields — it's easy to miss when adding columns
+  - Launcher `register_shutdown` uses at_exit — test by capturing the arguments passed to it, not by invoking at_exit
+  - Use `stub_boot` helper in launcher_spec.rb for tests that need the full boot mock setup
+  - StatsCollector conn_proc captures tunnel_port via closure — test by capturing the proc from StatsCollector.new kwargs
+---
+
+## 2026-04-13 - US-006
+- What was verified: Full green sweep across all three gems
+- Results:
+  - Rails adapter: 94 examples, 0 failures
+  - Core gem: 248 examples, 0 failures
+  - Desktop gem: 246 examples, 0 failures
+  - All rubocops clean (166 + 76 + 50 files inspected, no offenses)
+- No code changes required — all suites passed after US-005 commit
 ---

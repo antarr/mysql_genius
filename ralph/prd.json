@@ -58,7 +58,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "The flow is: Launcher reads profile from DB -> if ssh_enabled, ActiveSession opens SshTunnel(ssh_host, ..., remote_host=profile.host, remote_port=profile.port) -> tunnel returns local_port -> Trilogy connects to 127.0.0.1:local_port. The profile's host/port become the REMOTE host/port (what the tunnel forwards to), not the direct Trilogy target. This is the key architectural insight."
     },
     {
@@ -79,7 +79,7 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "The checkbox should use a simple <input type='checkbox' id='mg-f-ssh-enabled'>. When it changes, toggle visibility of a div containing the SSH fields. The Test Connection flow: if SSH enabled, first open tunnel (POST /api/test_ssh_tunnel), get local port, then test MySQL connection against 127.0.0.1:local_port. Or simpler: the existing /api/test_connection route handles it server-side (check ssh_enabled in the payload, open tunnel internally, test MySQL, close tunnel)."
     },
     {
@@ -95,7 +95,7 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "ActiveSession already has a close method that the SessionSwapper calls. If ActiveSession holds a reference to the tunnel, session.close should also close the tunnel. The new profile's tunnel opens as part of ActiveSession.new in the swapper."
     },
     {
@@ -110,7 +110,7 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
