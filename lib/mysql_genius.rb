@@ -5,6 +5,7 @@ require "mysql_genius/core"
 require "mysql_genius/core/connection/active_record_adapter"
 require "mysql_genius/configuration"
 require "mysql_genius/database_registry"
+require "mysql_genius/stats_histories"
 
 module MysqlGenius
   class Error < StandardError; end

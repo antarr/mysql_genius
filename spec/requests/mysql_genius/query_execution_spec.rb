@@ -46,6 +46,20 @@ RSpec.describe("Query execution routes", type: :request) do
       expect { post("/mysql_genius/primary/execute", sql: "SELECT 1") }.not_to(raise_error)
       expect(last_response.status).to(eq(200))
     end
+
+    context "audit logging" do
+      it "includes db=<current database> on every audit line (rc2)" do
+        captured = StringIO.new
+        logger = Logger.new(captured)
+        MysqlGenius.configure { |c| c.audit_logger = logger }
+
+        post "/mysql_genius/primary/execute", sql: "SELECT 1"
+        expect(last_response.status).to(eq(200))
+        expect(captured.string).to(include("db=primary"))
+
+        MysqlGenius.configure { |c| c.audit_logger = nil }
+      end
+    end
   end
 
   describe "POST /mysql_genius/primary/explain" do

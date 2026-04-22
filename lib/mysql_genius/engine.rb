@@ -17,17 +17,26 @@ module MysqlGenius
       if MysqlGenius.configuration.stats_collection
         registry = MysqlGenius.database_registry
         unless registry.empty?
-          default_db = registry.fetch(registry.default_key)
-          history = MysqlGenius::Core::Analysis::StatsHistory.new
-          connection_provider = -> { default_db.connection }
-          collector = MysqlGenius::Core::Analysis::StatsCollector.new(
-            connection_provider: connection_provider,
-            history: history,
-          )
-          MysqlGenius.stats_history = history
-          MysqlGenius.stats_collector = collector
-          collector.start
-          at_exit { collector.stop }
+          histories = MysqlGenius::StatsHistories.new
+          collectors = {}
+
+          registry.each do |db|
+            history = MysqlGenius::Core::Analysis::StatsHistory.new
+            histories[db.key] = history
+            # Closure captures `db` per iteration so each collector polls
+            # its own database — Ruby block-local binding keeps these
+            # isolated even though we're in a shared loop.
+            connection_provider = -> { db.connection }
+            collectors[db.key] = MysqlGenius::Core::Analysis::StatsCollector.new(
+              connection_provider: connection_provider,
+              history: history,
+            )
+          end
+
+          MysqlGenius.stats_history = histories
+          MysqlGenius.stats_collector = collectors
+          collectors.each_value(&:start)
+          at_exit { collectors.each_value(&:stop) }
         end
       end
     end

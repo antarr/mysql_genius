@@ -149,6 +149,52 @@ RSpec.describe("GET /mysql_genius/primary/slow_queries", type: :request) do
       expect(body.map { |q| q["duration_ms"] }).to(eq([1500.0, 300.0]))
     end
 
+    it "reads from the per-DB Redis key first, falling back to the legacy global key" do
+      stub_connection(
+        tables: [],
+        exec_query: {
+          /FROM performance_schema\.setup_consumers/ => consumer_result,
+          /FROM performance_schema\.events_statements_history_long/ => slow_rows([]),
+        },
+      )
+
+      fake_redis = double("Redis")
+      # Per-DB key empty → fall through to legacy
+      allow(fake_redis).to(receive(:lrange).with("mysql_genius:primary:slow_queries", 0, 199).and_return([]))
+      allow(fake_redis).to(receive(:lrange).with("mysql_genius:slow_queries", 0, 199).and_return([
+        { sql: "SELECT legacy", duration_ms: 900.0, timestamp: "2026-04-22T15:30:00Z" }.to_json,
+      ]))
+      allow(Redis).to(receive(:new).and_return(fake_redis))
+
+      get "/mysql_genius/primary/slow_queries"
+      body = JSON.parse(last_response.body)
+      expect(body.length).to(eq(1))
+      expect(body.first["sql"]).to(eq("SELECT legacy"))
+      expect(body.first["source"]).to(eq("rails"))
+    end
+
+    it "prefers the per-DB Redis key when it has entries, skipping the legacy fallback" do
+      stub_connection(
+        tables: [],
+        exec_query: {
+          /FROM performance_schema\.setup_consumers/ => consumer_result,
+          /FROM performance_schema\.events_statements_history_long/ => slow_rows([]),
+        },
+      )
+
+      fake_redis = double("Redis")
+      allow(fake_redis).to(receive(:lrange).with("mysql_genius:primary:slow_queries", 0, 199).and_return([
+        { sql: "SELECT per_db", duration_ms: 700.0, timestamp: "2026-04-22T15:31:00Z" }.to_json,
+      ]))
+      # Legacy lrange must NOT be hit since per-DB had data.
+      expect(fake_redis).not_to(receive(:lrange).with("mysql_genius:slow_queries", anything, anything))
+      allow(Redis).to(receive(:new).and_return(fake_redis))
+
+      get "/mysql_genius/primary/slow_queries"
+      body = JSON.parse(last_response.body)
+      expect(body.first["sql"]).to(eq("SELECT per_db"))
+    end
+
     it "does not fail the endpoint when Redis is unreachable — still returns perf_schema results" do
       stub_connection(
         tables: [],

@@ -73,7 +73,12 @@ module MysqlGenius
       logger = mysql_genius_config.audit_logger
       return unless logger
 
-      prefix = "[#{Time.current.iso8601}] [mysql_genius]"
+      # Include the current database id so multi-DB deployments can filter
+      # audit entries by target database. Falls back to "unknown" when the
+      # before_action hasn't run (e.g. setup page) — shouldn't happen on
+      # query execution paths in practice.
+      db_id = @database&.key || "unknown"
+      prefix = "[#{Time.current.iso8601}] [mysql_genius] db=#{db_id}"
       case type
       when :query
         logger.info("#{prefix} rows=#{attrs[:row_count]} time=#{attrs[:execution_time_ms]}ms sql=#{attrs[:sql].squish}")

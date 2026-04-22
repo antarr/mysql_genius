@@ -158,6 +158,63 @@ RSpec.describe(MysqlGenius::DatabaseRegistry) do
     end
   end
 
+  describe "#find_by_config_name" do
+    it "finds a database by its writer config name" do
+      registry = discover([
+        fake_config(name: "primary"),
+        fake_config(name: "analytics"),
+      ])
+      expect(registry.find_by_config_name("analytics").key).to(eq("analytics"))
+    end
+
+    it "finds a database by its reader (replica) config name" do
+      registry = discover([
+        fake_config(name: "primary"),
+        fake_config(name: "primary_replica", replica: true),
+      ])
+      db = registry.find_by_config_name("primary_replica")
+      expect(db).not_to(be_nil)
+      expect(db.key).to(eq("primary"))
+    end
+
+    it "returns nil for an unknown config name" do
+      registry = discover([fake_config(name: "primary")])
+      expect(registry.find_by_config_name("nope")).to(be_nil)
+    end
+
+    it "returns nil for nil or empty input" do
+      registry = discover([fake_config(name: "primary")])
+      expect(registry.find_by_config_name(nil)).to(be_nil)
+      expect(registry.find_by_config_name("")).to(be_nil)
+    end
+  end
+
+  describe "#find_by_connection" do
+    it "resolves via connection.pool.db_config.name (Rails 6.1+)" do
+      registry = discover([
+        fake_config(name: "primary"),
+        fake_config(name: "analytics"),
+      ])
+      db_config = double("DbConfig", name: "analytics")
+      pool = double("Pool", db_config: db_config)
+      connection = double("ARConnection", pool: pool)
+
+      expect(registry.find_by_connection(connection).key).to(eq("analytics"))
+    end
+
+    it "returns nil when the connection has no pool" do
+      registry = discover([fake_config(name: "primary")])
+      expect(registry.find_by_connection(double("BareConnection"))).to(be_nil)
+    end
+
+    it "returns nil when the pool raises unexpectedly" do
+      registry = discover([fake_config(name: "primary")])
+      connection = double("ARConnection")
+      allow(connection).to(receive(:pool).and_raise(RuntimeError, "boom"))
+      expect(registry.find_by_connection(connection)).to(be_nil)
+    end
+  end
+
   describe "#fetch" do
     it "returns the matching database" do
       registry = discover([fake_config(name: "primary")])

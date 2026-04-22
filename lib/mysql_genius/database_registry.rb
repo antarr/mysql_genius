@@ -106,6 +106,42 @@ module MysqlGenius
       @databases.each_value(&block)
     end
 
+    # Looks up a Database by AR config name (the key from config/database.yml).
+    # Handles both writer and reader config names so callers that see a replica
+    # connection on an ActiveSupport::Notifications payload still resolve to
+    # the logical Database entry.
+    #
+    # Returns nil if no database matches. Callers (notably SlowQueryMonitor)
+    # fall back to a global key when this happens so data isn't dropped on
+    # connections mysql_genius doesn't know about.
+    def find_by_config_name(config_name)
+      name = config_name.to_s
+      return nil if name.empty?
+
+      @databases.each_value do |db|
+        return db if db.config_names.include?(name)
+      end
+      nil
+    end
+
+    # Given an AR connection, returns the Database it belongs to by inspecting
+    # `connection.pool.db_config.name`. Falls back to `pool.spec.name` for
+    # Rails 6.0, and returns nil on any adapter that doesn't expose either
+    # (e.g. non-AR connections handed in by tests).
+    def find_by_connection(ar_connection)
+      return nil unless ar_connection.respond_to?(:pool)
+
+      pool = ar_connection.pool
+      name = if pool.respond_to?(:db_config) && pool.db_config.respond_to?(:name)
+        pool.db_config.name
+      elsif pool.respond_to?(:spec) && pool.spec.respond_to?(:name)
+        pool.spec.name
+      end
+      name ? find_by_config_name(name) : nil
+    rescue StandardError
+      nil
+    end
+
     private
 
     def mysql_configs_for_env

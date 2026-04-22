@@ -47,6 +47,16 @@ module MysqlGenius
       @writer_config.adapter
     end
 
+    # AR config names bound to this database — writer first, then reader if
+    # paired. Used by DatabaseRegistry#find_by_config_name to map an incoming
+    # ActiveSupport::Notifications payload's connection back to the database
+    # it came from (so per-DB Redis keys and audit logs route correctly).
+    def config_names
+      names = [@writer_config.name]
+      names << @reader_config.name if @reader_config
+      names
+    end
+
     def to_s
       reader? ? "#<MysqlGenius::Database #{@key} (+replica)>" : "#<MysqlGenius::Database #{@key}>"
     end

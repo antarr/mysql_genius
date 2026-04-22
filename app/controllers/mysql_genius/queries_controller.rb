@@ -109,7 +109,14 @@ module MysqlGenius
       require "redis"
       require "mysql_genius/slow_query_monitor"
       redis = Redis.new(url: mysql_genius_config.redis_url)
-      raw = redis.lrange(MysqlGenius::SlowQueryMonitor.redis_key, 0, 199)
+
+      # Prefer the per-DB key; fall back to the legacy global key only if
+      # per-DB has no entries yet (e.g. app just upgraded, SlowQueryMonitor
+      # hasn't captured anything scoped to this database yet).
+      per_db_key = MysqlGenius::SlowQueryMonitor.redis_key_for(@database.key)
+      raw = redis.lrange(per_db_key, 0, 199)
+      raw = redis.lrange(MysqlGenius::SlowQueryMonitor.redis_key, 0, 199) if raw.empty?
+
       raw.filter_map do |entry|
         parsed = JSON.parse(entry)
         {
@@ -161,12 +168,23 @@ module MysqlGenius
     end
 
     def fetch_query_history_series(digest)
-      return [] unless MysqlGenius.stats_history
+      histories = MysqlGenius.stats_history
+      return [] unless histories
+
+      # histories is a MysqlGenius::StatsHistories keyed by database id.
+      # During migration from the old singleton API, fall back to using it
+      # directly if it responds to series_for (pre-rc2 StatsHistory instance).
+      history = if histories.respond_to?(:[])
+        histories[@database.key]
+      else
+        histories
+      end
+      return [] unless history
 
       digest_text = lookup_digest_text(digest)
       return [] unless digest_text
 
-      MysqlGenius.stats_history.series_for(digest_text)
+      history.series_for(digest_text)
     end
 
     def lookup_digest_text(digest)

@@ -21,6 +21,13 @@ RSpec.describe(MysqlGenius::SlowQueryMonitor) do
     end
   end
 
+  describe ".redis_key_for" do
+    it "returns a per-database key" do
+      expect(described_class.redis_key_for("primary")).to(eq("mysql_genius:primary:slow_queries"))
+      expect(described_class.redis_key_for("analytics")).to(eq("mysql_genius:analytics:slow_queries"))
+    end
+  end
+
   describe ".subscribe!" do
     let(:redis) { double("redis") }
 
@@ -101,6 +108,84 @@ RSpec.describe(MysqlGenius::SlowQueryMonitor) do
         expect do
           fire_callback(callback, duration_sec: 1.0, sql: "SELECT * FROM users")
         end.not_to(raise_error)
+      end
+    end
+
+    context "per-database keying (rc2)" do
+      let(:callback) do
+        described_class.subscribe!.instance_variable_get(:@delegate)
+      end
+
+      after { ActiveSupport::Notifications.unsubscribe("sql.active_record") }
+
+      def fire_with_connection(callback, sql:, connection:, duration_sec: 0.5, name: "SQL")
+        start = Time.now
+        finish = start + duration_sec
+        callback.call("sql.active_record", start, finish, "id",
+          { sql: sql, name: name, connection: connection })
+      end
+
+      def stub_registry_resolving(connection, to_database:)
+        registry = double("DatabaseRegistry")
+        allow(registry).to(receive(:find_by_connection).with(connection).and_return(to_database))
+        allow(MysqlGenius).to(receive(:database_registry).and_return(registry))
+        registry
+      end
+
+      def stub_registry_unresolving(connection)
+        registry = double("DatabaseRegistry")
+        allow(registry).to(receive(:find_by_connection).with(connection).and_return(nil))
+        allow(MysqlGenius).to(receive(:database_registry).and_return(registry))
+        registry
+      end
+
+      it "dual-writes to legacy + per-DB keys when the database resolves from the payload" do
+        database = double("Database", key: "analytics")
+        connection = double("ARConnection")
+        stub_registry_resolving(connection, to_database: database)
+
+        expect(redis).to(receive(:lpush).with("mysql_genius:slow_queries", /analytics/))
+        expect(redis).to(receive(:ltrim).with("mysql_genius:slow_queries", 0, 199))
+        expect(redis).to(receive(:lpush).with("mysql_genius:analytics:slow_queries", /analytics/))
+        expect(redis).to(receive(:ltrim).with("mysql_genius:analytics:slow_queries", 0, 199))
+
+        fire_with_connection(callback, sql: "SELECT * FROM orders", connection: connection)
+      end
+
+      it "writes only the legacy key when the connection doesn't resolve to any database" do
+        connection = double("ARConnection")
+        stub_registry_unresolving(connection)
+
+        expect(redis).to(receive(:lpush).with("mysql_genius:slow_queries", anything))
+        expect(redis).to(receive(:ltrim).with("mysql_genius:slow_queries", 0, 199))
+        # No per-DB push — data is preserved in the legacy key.
+
+        fire_with_connection(callback, sql: "SELECT * FROM logs", connection: connection)
+      end
+
+      it "writes only the legacy key when no connection is on the payload at all" do
+        # Pre-rc2 payload shape: no :connection key. Should still capture via legacy.
+        expect(redis).to(receive(:lpush).with("mysql_genius:slow_queries", anything))
+        expect(redis).to(receive(:ltrim).with("mysql_genius:slow_queries", 0, 199))
+
+        start = Time.now
+        finish = start + 0.5
+        callback.call("sql.active_record", start, finish, "id", { sql: "SELECT * FROM users", name: "User Load" })
+      end
+
+      it "embeds the database key into the serialized entry when resolved" do
+        database = double("Database", key: "analytics")
+        connection = double("ARConnection")
+        stub_registry_resolving(connection, to_database: database)
+
+        captured = nil
+        allow(redis).to(receive(:lpush)) do |_key, entry|
+          captured = JSON.parse(entry)
+        end
+        allow(redis).to(receive(:ltrim))
+
+        fire_with_connection(callback, sql: "SELECT * FROM orders", connection: connection)
+        expect(captured["database"]).to(eq("analytics"))
       end
     end
   end
