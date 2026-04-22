@@ -148,6 +148,17 @@ This helps if the problem is a stale trust store, but does **not** help if the u
 
 Full documentation is available on the [Wiki](https://github.com/antarr/mysql_genius/wiki).
 
+## Licensing
+
+MysqlGenius is source-available.
+
+- Free for personal, educational, hobby, nonprofit, and other non-commercial use
+- Commercial use requires prior written permission from the copyright holder
+- Commercial use includes internal business use, paid client work, SaaS/hosting, resale, and bundling with a paid product or service
+- Voluntary donations are welcome for non-commercial users, but a donation alone does not grant commercial rights
+
+For commercial licensing requests, contact Antarr Byrd at antarr.t.byrd@uth.tmc.edu.
+
 ## Development
 
 ```bash
@@ -163,4 +174,4 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/antarr
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+This project is licensed under the terms of the [MySQLGenius Source-Available Non-Commercial License](LICENSE.txt). It is not distributed under the MIT License or another OSI-approved open source license.

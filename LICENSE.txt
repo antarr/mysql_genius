@@ -1,21 +1,65 @@
-The MIT License (MIT)
+MySQLGenius Source-Available Non-Commercial License 1.0
 
 Copyright (c) 2026 Antarr Byrd
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Grant of rights
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+You may use, copy, modify, and distribute this software and any modified
+version of it for non-commercial purposes only, subject to the terms of this
+license.
+
+2. Non-commercial use only
+
+"Non-commercial" means a use that is not primarily intended for or directed
+toward commercial advantage or monetary compensation.
+
+Without prior written permission from the copyright holder, you may not use
+this software:
+
+- in connection with a business or other for-profit activity;
+- for paid client work, consulting, or contract services;
+- as part of a hosted or managed service, including SaaS;
+- inside an internal business system or other revenue-supporting operation;
+- as part of a commercial product, bundle, or offering that is sold,
+  licensed, or monetized; or
+- in any other way primarily intended for commercial advantage or monetary
+  compensation.
+
+3. Commercial licensing
+
+Any commercial use requires prior written permission from the copyright
+holder. Commercial licenses may require payment or another separately agreed
+consideration. A donation by itself does not grant commercial rights unless
+the copyright holder expressly says so in writing.
+
+4. Redistribution
+
+If you distribute this software or a modified version of it, you must:
+
+- include this license text and the copyright notice with the distribution;
+- clearly state that the software is licensed for non-commercial use only;
+  and
+- clearly mark any material modifications you made.
+
+You may not distribute this software under terms that grant recipients
+commercial rights not granted by this license.
+
+5. No trademark rights
+
+This license does not grant any right to use the names, logos, or trademarks
+of the copyright holder, except as necessary for reasonable attribution.
+
+6. Termination
+
+Any use of the software outside the scope of this license automatically
+terminates your rights under it.
+
+7. Disclaimer of warranty and limitation of liability
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
