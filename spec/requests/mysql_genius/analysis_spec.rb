@@ -44,11 +44,14 @@ RSpec.describe("Analysis routes", type: :request) do
     expect(json).to(have_key("server"))
   end
 
-  it "GET /mysql_genius/primary/slow_queries returns 200 + empty array when Redis not configured" do
-    # Redis is not configured in the test env; should return [] not raise.
+  it "GET /mysql_genius/primary/slow_queries returns 200 + JSON array (perf_schema-sourced)" do
+    # Zero-config endpoint: no Redis required. Returns [] here because the
+    # generic fake_result stub has no history_long rows. Richer behavior
+    # (sort order, source merging, consumer-disabled handling) is covered
+    # in spec/requests/mysql_genius/slow_queries_spec.rb.
     get "/mysql_genius/primary/slow_queries"
     expect(last_response).to(be_ok)
-    expect(JSON.parse(last_response.body)).to(eq([]))
+    expect(JSON.parse(last_response.body)).to(be_an(Array))
   end
 
   it "does not raise NoMethodError on any analysis route (boot-order regression guard)" do

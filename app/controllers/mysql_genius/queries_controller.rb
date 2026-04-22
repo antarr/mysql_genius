@@ -64,21 +64,23 @@ module MysqlGenius
       render(json: { error: e.message }, status: :unprocessable_entity)
     end
 
+    # Returns slow queries for the current database, merging two sources:
+    #
+    #   - performance_schema.events_statements_history_long (always attempted;
+    #     zero-config, no dependency). Gives broad visibility including queries
+    #     from other clients of this MySQL server, but no Rails-side context.
+    #
+    #   - Redis-captured slow queries (only when `c.redis_url` is configured).
+    #     Adds Rails-side metadata (payload :name) that performance_schema
+    #     can't provide.
+    #
+    # The frontend consumes a bare JSON array sorted by duration desc, capped
+    # at 200 entries. Each item has a `source` field ("performance_schema" or
+    # "rails") indicating its origin.
     def slow_queries
-      unless mysql_genius_config.redis_url.present?
-        return render(json: [], status: :ok)
-      end
-
-      require "redis"
-      redis = Redis.new(url: mysql_genius_config.redis_url)
-      key = SlowQueryMonitor.redis_key
-      raw = redis.lrange(key, 0, 199)
-      queries = raw.map do |entry|
-        JSON.parse(entry)
-      rescue JSON::ParserError
-        nil
-      end.compact
-      render(json: queries)
+      combined = fetch_perf_schema_slow_queries + fetch_rails_side_slow_queries
+      sorted = combined.sort_by { |q| -(q[:duration_ms] || q["duration_ms"]).to_f }.first(200)
+      render(json: sorted)
     rescue StandardError => e
       render(json: { error: "Slow query error: #{e.message}" }, status: :unprocessable_entity)
     end
@@ -87,6 +89,44 @@ module MysqlGenius
 
     def queryable_tables
       active_record_connection.tables - mysql_genius_config.blocked_tables
+    end
+
+    def fetch_perf_schema_slow_queries
+      result = MysqlGenius::Core::Analysis::SlowQueries.new(
+        rails_connection,
+        threshold_ms: mysql_genius_config.slow_query_threshold_ms,
+      ).call
+      result.queries
+    rescue StandardError
+      # Defensive: SlowQueries#call already funnels errors into an unavailable
+      # Result, but guard in case something unexpected escapes.
+      []
+    end
+
+    def fetch_rails_side_slow_queries
+      return [] unless mysql_genius_config.redis_url.present?
+
+      require "redis"
+      require "mysql_genius/slow_query_monitor"
+      redis = Redis.new(url: mysql_genius_config.redis_url)
+      raw = redis.lrange(MysqlGenius::SlowQueryMonitor.redis_key, 0, 199)
+      raw.filter_map do |entry|
+        parsed = JSON.parse(entry)
+        {
+          sql: parsed["sql"],
+          digest_text: nil,
+          digest: nil,
+          duration_ms: parsed["duration_ms"].to_f,
+          timestamp: parsed["timestamp"],
+          name: parsed["name"],
+          source: "rails",
+        }
+      rescue JSON::ParserError
+        nil
+      end
+    rescue StandardError
+      # Redis unreachable — degrade silently so the perf_schema source still renders.
+      []
     end
 
     def fetch_query_history_current(digest, db)
