@@ -66,6 +66,61 @@ jobs:
       - name: Run specs
         run: bundle exec rspec
 
+  integration:
+    name: Integration (${{ matrix.mysql }}, ${{ matrix.adapter }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mysql: "mysql:8.4",     adapter: "mysql2" }
+          - { mysql: "mysql:8.0",     adapter: "mysql2" }
+          - { mysql: "mysql:5.7",     adapter: "mysql2" }
+          - { mysql: "mariadb:11",    adapter: "mysql2" }
+          - { mysql: "mysql:8.4",     adapter: "trilogy" }
+    services:
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: mysql_genius_test
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      REAL_MYSQL: "1"
+      RAILS_VERSION: "7.1"
+      DATABASE_URL: "${{ matrix.adapter }}://root:root@127.0.0.1:3306/mysql_genius_test"
+      BUNDLE_WITH: "integration"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install mysql client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent; then
+              echo "MySQL up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL never came up" && exit 1
+
+      - name: Run integration specs
+        run: bundle exec rspec spec/integration
+
   desktop:
     runs-on: ubuntu-latest
     steps:

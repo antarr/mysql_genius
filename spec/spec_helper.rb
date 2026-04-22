@@ -19,9 +19,11 @@ end
 
 $LOAD_PATH.unshift(File.expand_path("../app/services", __dir__))
 
-# Stub ActiveRecord::Base.connection for service specs (avoids loading full ActiveRecord
-# which has compatibility issues with system Ruby 2.6)
-unless defined?(ActiveRecord::Base)
+# Stub ActiveRecord::Base.connection for unit specs (avoids loading full
+# ActiveRecord which has compatibility issues with system Ruby 2.6). For
+# integration specs (REAL_MYSQL=1), we load the real ActiveRecord instead —
+# so skip the stub and let integration_helper require it freshly.
+unless defined?(ActiveRecord::Base) || ENV["REAL_MYSQL"] == "1"
   module ActiveRecord
     class Base
       class << self
@@ -42,4 +44,10 @@ RSpec.configure do |config|
   config.before do
     MysqlGenius.reset_configuration!
   end
+
+  # Integration specs (under spec/integration/) require a real MySQL server
+  # and the Sakila fixture loaded. They're opt-in via REAL_MYSQL=1 so local
+  # `bundle exec rspec` stays fast and offline-friendly. CI's integration
+  # job sets REAL_MYSQL=1 along with DATABASE_URL to include them.
+  config.filter_run_excluding(integration: true) unless ENV["REAL_MYSQL"] == "1"
 end

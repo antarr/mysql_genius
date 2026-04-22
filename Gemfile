@@ -22,3 +22,13 @@ group :development, :test do
   gem "rubocop-shopify"
   gem "rubocop-rspec"
 end
+
+# Integration specs (spec/integration/, gated by REAL_MYSQL=1) talk to a real
+# MySQL server via ActiveRecord. Both mysql2 and trilogy are installed so the
+# integration matrix can cover both adapters without a separate bundle.
+# Not loaded in default unit runs — REAL_MYSQL=1 is the trigger.
+group :integration do
+  gem "mysql2", "~> 0.5"
+  gem "trilogy", "~> 2.9"
+  gem "redis", "~> 5.0"
+end
