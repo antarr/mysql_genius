@@ -40,10 +40,18 @@ module MysqlGenius
       render("mysql_genius/queries/query_detail")
     end
 
+    # Rendered when no MySQL connection is discovered from config/database.yml.
+    # Shows an example database.yml entry so first-time users have an actionable
+    # next step.
+    def setup
+      @rails_env = defined?(Rails) && Rails.respond_to?(:env) ? Rails.env : "development"
+      render("mysql_genius/queries/setup")
+    end
+
     def query_history
       digest = params[:digest].to_s
       db = begin
-        ActiveRecord::Base.connection.current_database
+        active_record_connection.current_database
       rescue
         nil
       end
@@ -78,7 +86,7 @@ module MysqlGenius
     private
 
     def queryable_tables
-      ActiveRecord::Base.connection.tables - mysql_genius_config.blocked_tables
+      active_record_connection.tables - mysql_genius_config.blocked_tables
     end
 
     def fetch_query_history_current(digest, db)
@@ -95,7 +103,7 @@ module MysqlGenius
         #{"AND SCHEMA_NAME = '#{db.to_s.gsub("'", "''")}'" if db}
         LIMIT 1
       SQL
-      result = ActiveRecord::Base.connection.exec_query(sql)
+      result = active_record_connection.exec_query(sql)
       return if result.rows.empty?
 
       row = result.to_a.first
@@ -126,7 +134,7 @@ module MysqlGenius
         SELECT DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest
         WHERE DIGEST = '#{digest.gsub("'", "''")}' LIMIT 1
       SQL
-      result = ActiveRecord::Base.connection.exec_query(sql)
+      result = active_record_connection.exec_query(sql)
       result.rows.empty? ? nil : result.to_a.first["DIGEST_TEXT"]
     end
   end

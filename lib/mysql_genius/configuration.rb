@@ -72,6 +72,19 @@ module MysqlGenius
     # Defaults to true.
     attr_accessor :stats_collection
 
+    # Multi-database config — all optional. Connections are auto-discovered
+    # from config/database.yml; the settings below only trim or relabel
+    # the discovered set.
+    #
+    #   c.databases          # allowlist, e.g. %w[primary analytics]; [] = discover all
+    #   c.exclude_databases  # blocklist applied after allowlist
+    #   c.database_labels    # display names, e.g. { "shard_0" => "US-East Shard" }
+    #   c.default_database   # which tab loads first; defaults to first discovered
+    attr_accessor :databases
+    attr_accessor :exclude_databases
+    attr_accessor :database_labels
+    attr_accessor :default_database
+
     def initialize
       @featured_tables = []
       @blocked_tables = [
@@ -96,6 +109,10 @@ module MysqlGenius
       @audit_logger = nil
       @base_controller = "ActionController::Base"
       @stats_collection = true
+      @databases = []
+      @exclude_databases = []
+      @database_labels = {}
+      @default_database = nil
     end
 
     def ai_enabled?

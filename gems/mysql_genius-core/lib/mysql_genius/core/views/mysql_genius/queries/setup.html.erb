@@ -1,0 +1,62 @@
+<div class="mg-card">
+  <div class="mg-card-header">
+    <strong>No MySQL connection found</strong>
+  </div>
+  <div class="mg-card-body">
+    <p>
+      MysqlGenius could not find a MySQL connection in your Rails application's
+      <code>config/database.yml</code> for the
+      <strong><%= @rails_env %></strong> environment.
+    </p>
+
+    <p>
+      Add an entry with one of the MySQL adapters
+      (<code>mysql2</code>, <code>trilogy</code>, or <code>jdbcmysql</code>)
+      and restart your server. Example:
+    </p>
+
+    <pre style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;padding:12px;font-size:12px;overflow:auto;"><code><%= @rails_env %>:
+  adapter: mysql2
+  encoding: utf8mb4
+  database: my_app_<%= @rails_env %>
+  username: root
+  password: <%%= ENV["MYSQL_PASSWORD"] %>
+  host: 127.0.0.1
+  port: 3306
+  pool: &lt;%%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %&gt;</code></pre>
+
+    <p>
+      Have multiple databases? Define each one in <code>database.yml</code>
+      — MysqlGenius automatically discovers every MySQL connection Rails
+      knows about and shows them as tabs in the dashboard. Writers paired
+      with <code>&lt;name&gt;_replica</code> readers will automatically read
+      from the replica.
+    </p>
+
+    <p style="font-size:12px;color:#666;margin-top:16px;">
+      Example of a multi-database configuration:
+    </p>
+    <pre style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;padding:12px;font-size:12px;overflow:auto;"><code><%= @rails_env %>:
+  primary:
+    adapter: mysql2
+    database: my_app_<%= @rails_env %>
+    &lt;&lt;: *default
+  primary_replica:
+    adapter: mysql2
+    database: my_app_<%= @rails_env %>
+    replica: true
+    &lt;&lt;: *default
+  analytics:
+    adapter: mysql2
+    database: my_app_analytics_<%= @rails_env %>
+    &lt;&lt;: *default</code></pre>
+
+    <p style="margin-top:16px;">
+      See the
+      <a href="https://github.com/antarr/mysql_genius#readme" target="_blank">
+        README
+      </a>
+      for full configuration options.
+    </p>
+  </div>
+</div>

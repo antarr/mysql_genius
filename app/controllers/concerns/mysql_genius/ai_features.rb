@@ -88,7 +88,7 @@ module MysqlGenius
     def anomaly_detection
       return ai_not_configured unless mysql_genius_config.ai_enabled?
 
-      connection = ActiveRecord::Base.connection
+      connection = active_record_connection
 
       # Gather recent slow queries
       slow_data = []
@@ -149,7 +149,7 @@ module MysqlGenius
     def root_cause
       return ai_not_configured unless mysql_genius_config.ai_enabled?
 
-      connection = ActiveRecord::Base.connection
+      connection = active_record_connection
 
       # PROCESSLIST
       processlist = connection.exec_query("SHOW FULL PROCESSLIST")
