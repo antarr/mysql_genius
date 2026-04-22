@@ -1,0 +1,23 @@
+<%# Database selector: rendered by the layout on every page.
+    Hidden entirely when fewer than 2 databases are registered so the
+    single-DB UX is unchanged. %>
+<% if defined?(MysqlGenius) && MysqlGenius.database_registry.size > 1 %>
+  <div class="mg-db-selector" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 13px;">
+    <label for="mg-db-selector-input" style="margin: 0; color: #666; font-weight: normal;">Database:</label>
+    <select
+      id="mg-db-selector-input"
+      style="width: auto; font-size: 13px; padding: 4px 8px;"
+      onchange="if (this.value) window.location.href = this.value;"
+    >
+      <% MysqlGenius.database_registry.each do |db| %>
+        <option
+          value="<%= request.script_name %>/<%= db.key %>"
+          <%= "selected" if defined?(@database) && @database && @database.key == db.key %>
+        ><%= db.label %></option>
+      <% end %>
+    </select>
+    <% if defined?(@database) && @database && @database.reader? %>
+      <span class="mg-badge mg-badge-info" title="Reads are routed through this database's replica">replica</span>
+    <% end %>
+  </div>
+<% end %>

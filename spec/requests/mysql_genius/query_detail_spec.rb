@@ -31,26 +31,26 @@ RSpec.describe("Query detail routes", type: :request) do
     )
   end
 
-  describe "GET /mysql_genius/queries/:digest" do
+  describe "GET /mysql_genius/primary/queries/:digest" do
     it "returns 200" do
-      get "/mysql_genius/queries/#{digest}"
+      get "/mysql_genius/primary/queries/#{digest}"
       expect(last_response.status).to(eq(200))
     end
 
     it "renders the query detail template" do
-      get "/mysql_genius/queries/#{digest}"
+      get "/mysql_genius/primary/queries/#{digest}"
       expect(last_response.body).to(include("qd-content"))
       expect(last_response.body).to(include("Query Detail"))
     end
   end
 
-  describe "GET /mysql_genius/api/query_history/:digest" do
+  describe "GET /mysql_genius/primary/api/query_history/:digest" do
     context "when stats_history is nil (collection disabled)" do
       before { MysqlGenius.stats_history = nil }
       after  { MysqlGenius.stats_history = nil }
 
       it "returns 200 with empty history array" do
-        get "/mysql_genius/api/query_history/#{digest}"
+        get "/mysql_genius/primary/api/query_history/#{digest}"
         expect(last_response.status).to(eq(200))
         json = JSON.parse(last_response.body)
         expect(json).to(have_key("query"))
@@ -74,7 +74,7 @@ RSpec.describe("Query detail routes", type: :request) do
       after { MysqlGenius.stats_history = nil }
 
       it "returns 200 with query and history keys" do
-        get "/mysql_genius/api/query_history/#{digest}"
+        get "/mysql_genius/primary/api/query_history/#{digest}"
         expect(last_response.status).to(eq(200))
         json = JSON.parse(last_response.body)
         expect(json).to(have_key("query"))

@@ -51,12 +51,12 @@ RSpec.describe("Phase 1b latent regressions (CHANGELOG 0.4.0 / 0.4.1)", type: :r
     end
 
     it "does not raise NoMethodError for GET /columns on a valid table" do
-      expect { get("/mysql_genius/columns?table=users") }.not_to(raise_error)
+      expect { get("/mysql_genius/primary/columns?table=users") }.not_to(raise_error)
       expect(last_response.status).to(eq(200))
     end
 
     it "successfully filters masked columns from the response" do
-      get "/mysql_genius/columns?table=users"
+      get "/mysql_genius/primary/columns?table=users"
       expect(last_response).to(be_ok)
       json = JSON.parse(last_response.body)
       expect(json.map { |c| c["name"] }).not_to(include("password_hash"))

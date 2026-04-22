@@ -26,165 +26,165 @@ RSpec.describe("AI feature routes", type: :request) do
     allow(ai_client).to(receive(:chat).and_return({ "explanation" => "canned response" }))
   end
 
-  describe "POST /mysql_genius/suggest" do
+  describe "POST /mysql_genius/primary/suggest" do
     it "returns 200 when AI is configured" do
       allow(ai_client).to(receive(:chat).and_return({ "sql" => "SELECT 1", "explanation" => "ok" }))
-      post "/mysql_genius/suggest", prompt: "all users"
+      post "/mysql_genius/primary/suggest", prompt: "all users"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/suggest", prompt: "all users"
+      post "/mysql_genius/primary/suggest", prompt: "all users"
       expect(last_response.status).to(eq(404))
     end
   end
 
-  describe "POST /mysql_genius/optimize" do
+  describe "POST /mysql_genius/primary/optimize" do
     it "returns 200 with SQL + explain rows" do
-      post "/mysql_genius/optimize", sql: "SELECT 1", explain_rows: [[{ "id" => 1 }]]
+      post "/mysql_genius/primary/optimize", sql: "SELECT 1", explain_rows: [[{ "id" => 1 }]]
       expect(last_response).to(be_ok)
     end
   end
 
-  describe "POST /mysql_genius/describe_query" do
+  describe "POST /mysql_genius/primary/describe_query" do
     it "returns 200 for a non-blank SQL" do
-      post "/mysql_genius/describe_query", sql: "SELECT 1"
+      post "/mysql_genius/primary/describe_query", sql: "SELECT 1"
       expect(last_response).to(be_ok)
     end
 
     it "returns 422 for blank SQL" do
-      post "/mysql_genius/describe_query", sql: ""
+      post "/mysql_genius/primary/describe_query", sql: ""
       expect(last_response.status).to(eq(422))
     end
   end
 
-  describe "POST /mysql_genius/schema_review" do
+  describe "POST /mysql_genius/primary/schema_review" do
     it "returns 200 with or without a table param" do
-      post "/mysql_genius/schema_review"
+      post "/mysql_genius/primary/schema_review"
       expect(last_response).to(be_ok)
     end
   end
 
-  describe "POST /mysql_genius/rewrite_query" do
+  describe "POST /mysql_genius/primary/rewrite_query" do
     it "returns 200 for a valid SQL" do
-      post "/mysql_genius/rewrite_query", sql: "SELECT 1"
+      post "/mysql_genius/primary/rewrite_query", sql: "SELECT 1"
       expect(last_response).to(be_ok)
     end
   end
 
-  describe "POST /mysql_genius/index_advisor" do
+  describe "POST /mysql_genius/primary/index_advisor" do
     it "returns 200 with SQL + explain rows" do
-      post "/mysql_genius/index_advisor", sql: "SELECT 1 FROM users", explain_rows: [[{ "id" => 1 }]]
+      post "/mysql_genius/primary/index_advisor", sql: "SELECT 1 FROM users", explain_rows: [[{ "id" => 1 }]]
       expect(last_response).to(be_ok)
     end
 
     it "returns 422 when explain_rows are missing" do
-      post "/mysql_genius/index_advisor", sql: "SELECT 1"
+      post "/mysql_genius/primary/index_advisor", sql: "SELECT 1"
       expect(last_response.status).to(eq(422))
     end
   end
 
-  describe "POST /mysql_genius/anomaly_detection" do
+  describe "POST /mysql_genius/primary/anomaly_detection" do
     it "returns 200 (stays Rails-side in Phase 2a)" do
-      post "/mysql_genius/anomaly_detection"
+      post "/mysql_genius/primary/anomaly_detection"
       expect(last_response).to(be_ok)
     end
   end
 
-  describe "POST /mysql_genius/root_cause" do
+  describe "POST /mysql_genius/primary/root_cause" do
     it "returns 200 (stays Rails-side in Phase 2a)" do
-      post "/mysql_genius/root_cause"
+      post "/mysql_genius/primary/root_cause"
       expect(last_response).to(be_ok)
     end
   end
 
-  describe "POST /mysql_genius/migration_risk" do
+  describe "POST /mysql_genius/primary/migration_risk" do
     it "returns 200 with a migration body" do
-      post "/mysql_genius/migration_risk", migration: "ALTER TABLE users ADD INDEX"
+      post "/mysql_genius/primary/migration_risk", migration: "ALTER TABLE users ADD INDEX"
       expect(last_response).to(be_ok)
     end
 
     it "returns 422 when migration body is blank" do
-      post "/mysql_genius/migration_risk", migration: ""
+      post "/mysql_genius/primary/migration_risk", migration: ""
       expect(last_response.status).to(eq(422))
     end
   end
 
-  describe "POST /mysql_genius/variable_review" do
+  describe "POST /mysql_genius/primary/variable_review" do
     it "returns 200 when AI is configured" do
-      post "/mysql_genius/variable_review"
+      post "/mysql_genius/primary/variable_review"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/variable_review"
+      post "/mysql_genius/primary/variable_review"
       expect(last_response.status).to(eq(404))
     end
   end
 
-  describe "POST /mysql_genius/connection_advisor" do
+  describe "POST /mysql_genius/primary/connection_advisor" do
     it "returns 200 when AI is configured" do
-      post "/mysql_genius/connection_advisor"
+      post "/mysql_genius/primary/connection_advisor"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/connection_advisor"
+      post "/mysql_genius/primary/connection_advisor"
       expect(last_response.status).to(eq(404))
     end
   end
 
-  describe "POST /mysql_genius/workload_digest" do
+  describe "POST /mysql_genius/primary/workload_digest" do
     it "returns 200 when AI is configured" do
-      post "/mysql_genius/workload_digest"
+      post "/mysql_genius/primary/workload_digest"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/workload_digest"
+      post "/mysql_genius/primary/workload_digest"
       expect(last_response.status).to(eq(404))
     end
   end
 
-  describe "POST /mysql_genius/innodb_health" do
+  describe "POST /mysql_genius/primary/innodb_health" do
     it "returns 200 when AI is configured" do
-      post "/mysql_genius/innodb_health"
+      post "/mysql_genius/primary/innodb_health"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/innodb_health"
+      post "/mysql_genius/primary/innodb_health"
       expect(last_response.status).to(eq(404))
     end
   end
 
-  describe "POST /mysql_genius/index_planner" do
+  describe "POST /mysql_genius/primary/index_planner" do
     it "returns 200 when AI is configured" do
-      post "/mysql_genius/index_planner"
+      post "/mysql_genius/primary/index_planner"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/index_planner"
+      post "/mysql_genius/primary/index_planner"
       expect(last_response.status).to(eq(404))
     end
   end
 
-  describe "POST /mysql_genius/pattern_grouper" do
+  describe "POST /mysql_genius/primary/pattern_grouper" do
     it "returns 200 when AI is configured" do
-      post "/mysql_genius/pattern_grouper"
+      post "/mysql_genius/primary/pattern_grouper"
       expect(last_response).to(be_ok)
     end
 
     it "returns 404 when AI is not configured" do
       MysqlGenius.configure { |c| c.ai_endpoint = nil }
-      post "/mysql_genius/pattern_grouper"
+      post "/mysql_genius/primary/pattern_grouper"
       expect(last_response.status).to(eq(404))
     end
   end

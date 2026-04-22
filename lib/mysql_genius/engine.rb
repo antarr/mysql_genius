@@ -15,16 +15,20 @@ module MysqlGenius
       end
 
       if MysqlGenius.configuration.stats_collection
-        history = MysqlGenius::Core::Analysis::StatsHistory.new
-        connection_provider = -> { MysqlGenius::Core::Connection::ActiveRecordAdapter.new(ActiveRecord::Base.connection) }
-        collector = MysqlGenius::Core::Analysis::StatsCollector.new(
-          connection_provider: connection_provider,
-          history: history,
-        )
-        MysqlGenius.stats_history = history
-        MysqlGenius.stats_collector = collector
-        collector.start
-        at_exit { collector.stop }
+        registry = MysqlGenius.database_registry
+        unless registry.empty?
+          default_db = registry.fetch(registry.default_key)
+          history = MysqlGenius::Core::Analysis::StatsHistory.new
+          connection_provider = -> { default_db.connection }
+          collector = MysqlGenius::Core::Analysis::StatsCollector.new(
+            connection_provider: connection_provider,
+            history: history,
+          )
+          MysqlGenius.stats_history = history
+          MysqlGenius.stats_collector = collector
+          collector.start
+          at_exit { collector.stop }
+        end
       end
     end
   end

@@ -13,9 +13,15 @@ MysqlGenius::Engine.routes.draw do
   # because it's rendered exactly when no database can be selected.
   get "setup", to: "queries#setup", as: :setup
 
-  # All dashboard and API routes are scoped by the database key. Route names
-  # use the `database_` prefix to avoid colliding with top-level helpers.
-  scope ":database_id", as: :database do
+  # All dashboard and API routes are scoped by the database key. The
+  # constraint ensures only real registry keys match this scope, so legacy
+  # unscoped paths (e.g. /mysql_genius/slow_queries from 0.8.x bookmarks)
+  # fall through to the compat redirect at the bottom rather than 404-ing.
+  # Route names use the `database_` prefix to avoid colliding with top-level
+  # helpers.
+  scope ":database_id",
+    as: :database,
+    constraints: lambda { |req| !MysqlGenius.database_registry[req.path_parameters[:database_id]].nil? } do
     root to: "queries#index"
 
     get  "columns",      to: "queries#columns"

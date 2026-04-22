@@ -13,9 +13,9 @@ RSpec.describe("Query execution routes", type: :request) do
     ))
   end
 
-  describe "POST /mysql_genius/execute" do
+  describe "POST /mysql_genius/primary/execute" do
     it "returns JSON results for a valid SELECT" do
-      post "/mysql_genius/execute", sql: "SELECT id, email FROM users LIMIT 10"
+      post "/mysql_genius/primary/execute", sql: "SELECT id, email FROM users LIMIT 10"
       expect(last_response).to(be_ok)
       json = JSON.parse(last_response.body)
       expect(json).to(have_key("columns"))
@@ -25,7 +25,7 @@ RSpec.describe("Query execution routes", type: :request) do
     end
 
     it "rejects non-SELECT statements with 422" do
-      post "/mysql_genius/execute", sql: "DELETE FROM users"
+      post "/mysql_genius/primary/execute", sql: "DELETE FROM users"
       expect(last_response.status).to(eq(422))
       json = JSON.parse(last_response.body)
       expect(json["error"]).to(be_present)
@@ -33,7 +33,7 @@ RSpec.describe("Query execution routes", type: :request) do
 
     it "rejects queries against blocked tables with 422" do
       MysqlGenius.configure { |c| c.blocked_tables = ["users"] }
-      post "/mysql_genius/execute", sql: "SELECT * FROM users"
+      post "/mysql_genius/primary/execute", sql: "SELECT * FROM users"
       expect(last_response.status).to(eq(422))
     end
 
@@ -43,12 +43,12 @@ RSpec.describe("Query execution routes", type: :request) do
       # call raised "uninitialized constant" at runtime. Every tab was broken.
       # The `not_to raise_error` is redundant (Rails catches and returns 500)
       # but the `eq(200)` is the real regression guard.
-      expect { post("/mysql_genius/execute", sql: "SELECT 1") }.not_to(raise_error)
+      expect { post("/mysql_genius/primary/execute", sql: "SELECT 1") }.not_to(raise_error)
       expect(last_response.status).to(eq(200))
     end
   end
 
-  describe "POST /mysql_genius/explain" do
+  describe "POST /mysql_genius/primary/explain" do
     before do
       allow(ActiveRecord::Base.connection).to(receive(:exec_query).with(/^EXPLAIN /)) do
         fake_result(
@@ -59,7 +59,7 @@ RSpec.describe("Query execution routes", type: :request) do
     end
 
     it "returns EXPLAIN rows for a valid SELECT" do
-      post "/mysql_genius/explain", sql: "SELECT id FROM users"
+      post "/mysql_genius/primary/explain", sql: "SELECT id FROM users"
       expect(last_response).to(be_ok)
       json = JSON.parse(last_response.body)
       expect(json).to(have_key("columns"))
@@ -67,7 +67,7 @@ RSpec.describe("Query execution routes", type: :request) do
     end
 
     it "rejects non-SELECT statements" do
-      post "/mysql_genius/explain", sql: "UPDATE users SET email = 'x'"
+      post "/mysql_genius/primary/explain", sql: "UPDATE users SET email = 'x'"
       expect(last_response.status).to(eq(422))
     end
   end

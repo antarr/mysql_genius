@@ -61,7 +61,43 @@ module FakeConnectionHelper
     allow(connection).to(receive_messages(tables: tables, current_database: current_database, indexes: indexes, primary_key: primary_key))
 
     allow(ActiveRecord::Base).to(receive(:connection).and_return(connection))
+
+    # Stub MysqlGenius.database_registry so the BaseController before_action
+    # resolves to a single "primary" database whose ar_connection returns the
+    # same stubbed connection. This lets request specs hit /mysql_genius/primary/...
+    # without needing a real AR configuration.
+    stub_database_registry(connection)
+
     connection
+  end
+
+  # Builds a Database double whose ar_connection + connection both point at
+  # the stubbed AR connection, and registers it in a DatabaseRegistry double
+  # keyed by "primary". The registry returns the database ONLY for its own
+  # key — other keys return nil, simulating real production behavior where
+  # unknown database_ids trigger either a legacy redirect or a 404.
+  def stub_database_registry(connection, key: "primary")
+    database = double(
+      "MysqlGenius::Database",
+      key: key,
+      label: key,
+      reader?: false,
+      adapter_name: "mysql2",
+      ar_connection: connection,
+      connection: MysqlGenius::Core::Connection::ActiveRecordAdapter.new(connection),
+    )
+    registry = double("MysqlGenius::DatabaseRegistry",
+      keys: [key],
+      default_key: key,
+      empty?: false,
+      size: 1)
+    allow(registry).to(receive(:[])) { |k| k.to_s == key ? database : nil }
+    allow(registry).to(receive(:fetch)) do |k|
+      k.to_s == key ? database : raise(KeyError, "Unknown mysql_genius database: #{k.inspect}")
+    end
+    allow(registry).to(receive(:each).and_yield(database))
+    allow(MysqlGenius).to(receive(:database_registry).and_return(registry))
+    registry
   end
 
   # Builds an ActiveRecord column double with the fields the controllers read.

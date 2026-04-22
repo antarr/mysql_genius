@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe("GET /mysql_genius/ (capability rendering)", type: :request) do
+RSpec.describe("GET /mysql_genius/primary/ (capability rendering)", type: :request) do
   before do
     stub_connection(
       tables: ["users"],
@@ -11,7 +11,7 @@ RSpec.describe("GET /mysql_genius/ (capability rendering)", type: :request) do
   end
 
   it "renders the Slow Queries tab button (Rails adapter always reports :slow_queries as a capability)" do
-    get "/mysql_genius/"
+    get "/mysql_genius/primary/"
     expect(last_response).to(be_ok)
     expect(last_response.body).to(include('data-tab="slow">Slow Queries'))
   end
@@ -21,7 +21,7 @@ RSpec.describe("GET /mysql_genius/ (capability rendering)", type: :request) do
       c.ai_endpoint = "https://example.com/v1/chat/completions"
       c.ai_api_key  = "test-key"
     end
-    get "/mysql_genius/"
+    get "/mysql_genius/primary/"
     expect(last_response.body).to(include("server-root-cause"))
   end
 end
